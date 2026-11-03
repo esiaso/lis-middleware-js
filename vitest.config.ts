@@ -16,6 +16,7 @@ export default defineConfig({
       '@lis/transport': pkg('transport'),
       '@lis/analyzer-runtime': pkg('analyzer-runtime'),
       '@lis/db': pkg('db'),
+      '@lis/analyzer-worker': pkg('analyzer-worker'),
     },
   },
   test: {

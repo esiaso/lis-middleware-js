@@ -57,5 +57,5 @@ jobs:
       - run: npm run generate
       - run: npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
       - name: Database tests (must not be skipped here)
-        run: npx vitest run packages/db --reporter=verbose 2>&1 | tee db-test.log; test "${PIPESTATUS[0]}" -eq 0 && ! grep -q "skipped" db-test.log
+        run: npx vitest run packages/db packages/analyzer-worker --reporter=verbose 2>&1 | tee db-test.log; test "${PIPESTATUS[0]}" -eq 0 && ! grep -q "skipped" db-test.log
         shell: bash
