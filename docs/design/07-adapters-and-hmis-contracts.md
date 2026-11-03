@@ -1,0 +1,292 @@
+# 07. Analyzer Adapter Interfaces and HMIS API Contracts
+
+## 1. Adapter architecture
+
+```mermaid
+flowchart LR
+  T["Transport<br/>(serial | tcp-client | tcp-server)"] -->|Buffer chunks| C["Codec<br/>ASTM E1381 or MLLP"]
+  C -->|frames / blocks| L["Link state machine<br/>ACK/NAK/ENQ/EOT or MLLP ACK"]
+  L -->|complete message bytes| P["Persist raw (tx)"]
+  P -->|ok| L
+  L -->|parse| AP["Model adapter<br/>e.g. cobas-e411-astm v1"]
+  AP -->|query| QR["Query responder<br/>(local DB read)"]
+  AP -->|result| N["Inbox row for jobs worker"]
+```
+
+### 1.1 Interfaces (`packages/adapters`)
+
+```ts
+/** Byte-level transport. Knows nothing about protocols. */
+export interface Transport {
+  readonly kind: 'serial' | 'tcp-client' | 'tcp-server';
+  open(signal: AbortSignal): Promise<void>;
+  close(reason: string): Promise<void>;
+  /** Resolves when the bytes are handed to the OS; rejects on error. Honors drain/backpressure. */
+  write(bytes: Buffer): Promise<void>;
+  /** Pause/resume reading (backpressure from the codec). */
+  pause(): void;
+  resume(): void;
+  on(event: 'data', fn: (chunk: Buffer) => void): this;
+  on(event: 'state', fn: (s: TransportState) => void): this;
+}
+
+/** Turns arbitrary chunks into protocol units. Pure; no I/O. */
+export interface Codec<Unit> {
+  /** May return 0..n units; keeps partial data internally. Throws BufferLimitError if limit exceeded. */
+  push(chunk: Buffer): Unit[];
+  reset(): void;
+  readonly bufferedBytes: number;
+}
+
+/** Versioned, model-specific behaviour. */
+export interface AnalyzerAdapter<Raw = unknown> {
+  readonly name: string;                    // 'cobas-e411-astm'
+  readonly version: string;                 // semver; recorded on every normalized message
+  readonly optionsSchema: z.ZodTypeAny;     // validates adapterOptions
+  readonly capabilities: AdapterCapabilities;
+  createLink(ctx: LinkContext): LinkProtocol;           // ASTM or MLLP state machine
+  parse(raw: Buffer, ctx: ParseContext): ParseResult<Raw>;
+  normalize(parsed: Raw, ctx: NormalizeContext): NormalizedAnalyzerMessage;
+  /** Build the instrument reply to a query from the middleware's view of the sample. */
+  buildQueryResponse(q: QueryRequest, answer: QueryAnswer): Buffer;
+}
+
+export interface AdapterCapabilities {
+  hostQuery: boolean;           // instrument asks for orders
+  orderDownload: boolean;       // host may push orders unsolicited
+  resultUpload: boolean;
+  qcUpload: boolean;
+  calibrationUpload: boolean;
+  hostResultRequest: boolean;
+  queryReplyDeadlineMs: number; // configured, from vendor doc, e.g. 15000 for e411 disk
+}
+
+export interface QueryAnswer {
+  found: boolean;
+  priority?: 'routine' | 'stat';
+  tests: { instrumentTestCode: string; dilution?: string }[];
+  patient?: { id?: string; name?: string; birthDate?: string; sex?: string }; // only fields the protocol carries
+}
+
+export interface LinkContext {
+  instrumentId: InstrumentId;
+  leaseEpoch: bigint;
+  transport: Transport;
+  /** Must durably store and resolve before the link sends a committing ACK. */
+  persistInbound(bytes: Buffer, meta: InboundMeta): Promise<{ rawMessageId: string }>;
+  persistFrame(frame: Buffer, meta: FrameMeta): Promise<void>;
+  answerQuery(q: QueryRequest): Promise<QueryAnswer>;   // DB read only, with deadline
+  nextOutbound(): Promise<OutboundMessage | null>;       // e411 batch download, if enabled
+  log: Logger;
+  clock: Clock;                                          // injectable for tests
+}
+```
+
+Adapters are registered by `name@majorVersion`. A connection config pins the
+adapter major version; upgrading an adapter major version is a configuration
+change that is audited and re-verified.
+
+### 1.2 Buffering, framing and backpressure
+
+* Codecs keep a bounded `Buffer` list, never string concatenation. Data is
+  only decoded to text once a complete frame/block is found.
+* **Partial and multiple units per read** are the normal case: a TCP `data`
+  event can contain half a frame, or a frame plus the next ENQ. The codec
+  loop extracts every complete unit and keeps the rest.
+* Limits (configurable): ASTM frame ≤ 247 bytes [DOC e411 HIM D-3] with an
+  allowance (default 512) for line noise; ASTM message ≤ 1 MB; MLLP block
+  ≤ `maxMessageBytes` (default 4 MB, Mindray `ED` fields can be large
+  [DOC Mindray 6.2]).
+* On limit breach: ASTM sends NAK and resets the frame; MLLP closes the
+  connection (the only safe resynchronisation) and records an incident.
+* Garbage before `STX`/`0x0B` is skipped and counted in a metric.
+* Backpressure: the worker awaits the DB persist before ACKing; while a
+  persist is in flight the codec calls `transport.pause()` once more than one
+  unit is waiting. Over serial the instrument cannot send the next frame
+  before our ACK anyway.
+
+### 1.3 Character encoding
+
+| Protocol | Decode | Notes |
+|---|---|---|
+| ASTM (e 411) | `latin1` for parsing; raw bytes stored | Alarm text not UTF-8 [DOC e411 HIM E-18]. 7-bit modes mask the top bit. |
+| HL7 (Mindray) | UTF-8 with `fatal: true` | Invalid UTF-8 is quarantined, raw bytes stored [DOC Mindray §1] |
+
+Escape sequences are decoded per protocol: ASTM `&F& &S& &R& &E&`
+[DOC e411 HIM E-4]; HL7 `\F\ \S\ \T\ \R\ \E\ \.br\` [DOC Mindray §3].
+Delimiters are read from the H record / MSH segment, never hard-coded.
+
+## 2. cobas e 411 adapter (`cobas-e411-astm@1`), behaviour summary
+
+Based on [DOC e411 HIM]; every item below is re-tested on site.
+
+| Topic | Behaviour |
+|---|---|
+| Dialect | Option `protocolType: 'cobas' | 'elecsys'`; both parsers implemented; default per A-3 |
+| Receive | ACK a frame only after `persistFrame` resolves. On EOT, assemble records, `persistInbound`, enqueue. |
+| Checksum / FN | Verify; on mismatch send NAK. Duplicate FN (the analyzer re-sent after a lost ACK) is ACKed again but not appended twice. |
+| Query | On `Q` with status `O`: look up barcode, reply `TSDWN^REPLY` echoing SequenceNo/Carrier/Position. Deadline budget: reply must start within 5 s (well under 15 s). If the lookup misses the budget, reply "no order" rather than say nothing, and flag the specimen. |
+| Query cancel | `Q` status `A`: record cancel; if our reply is still pending, drop it. |
+| Results | Parse O/R/C records; split `R-4` into value + message value / qualitative + COI; parse `<`/`>`; seven spaces = absent; R-9 `C` = rerun; C record alarm codes into `instrumentFlags`. |
+| QC | Sample type `QC` (cobas®) / `CONTROL` (Elecsys®) or action code `Q`: `sampleClass = 'qc'`. |
+| Read error | Sample ID starting `@` = `sampleIdReadError = true` → quarantine. |
+| Generation | Map by host test code; store the raw application code for audit. |
+| Batch download | Off by default. If enabled, warn in UI about the 2000-test overwrite [DOC e411 HIM F-9]. |
+| Duplicate tests | Never send the same test twice in one O record [DOC e411 HIM E-13]. |
+| Contention | If we sent ENQ and receive ENQ, yield: reply ACK and become receiver [DOC e411 HIM D-6]. |
+
+## 3. Mindray adapter (`mindray-hl7-mllp@1`), behaviour summary
+
+Based on [DOC Mindray]; model applicability unconfirmed (B-3).
+
+| Topic | Behaviour |
+|---|---|
+| Transport | `tcp-server` or `tcp-client` (B-4). One connection. Peer IP allow-list. |
+| ORU^R01 | Persist, then reply `ACK^R01` with `MSA-1 = AA`, `MSA-2` = received `MSH-10`, `MSH-11` echoed (`P` or `Q`) [DOC Mindray 5.2, 5.4]. |
+| Unparseable but framed | Persist; reply `AE` with MSA-6 code 100/101/102 per failure, **only if** testing shows the analyzer handles `AE` sensibly; otherwise `AA` + quarantine (option `ackOnStoreEvenIfInvalid`, default true). The ACK means "stored", not "clinically accepted". |
+| ORM^O01 query | Sample ID from `ORC-3`; reply `ORR^O02` with `MSA|AA|<MSH-10>`, and on a hit PID/PV1/ORC (`AF`, ORC-2 = sample ID)/OBR (OBR-2 = sample ID)/OBX [DOC Mindray 5.5]. The "not found" reply format is unknown (B-5): until confirmed, reply MSH+MSA only and test it. |
+| QC | `MSH-11 = Q` or `OBR-4 = 00003` → `sampleClass = 'qc'`; PID-3 = lot [DOC Mindray 4.3.3, 5.3]. |
+| Observations | Key by `OBX-3.1` + `OBX-3.3`; ignore `OBX-3.2` for identity [DOC Mindray 4.3.6]. Flags split on `~`. `OBX-13` `E`/`e` → `editedOnInstrument`. `ED` values stored as blobs, not observations. RUO parameters `reportable = false` by default. |
+| Placeholder values | Values like `***.**` appear in the doc's examples [DOC Mindray 5.1]; treat any non-numeric `NM` value as `absent`, keep original text. |
+| Recheck | `01006` = `T` → result version kind `REPEAT`. |
+
+## 4. Value parsing rules (shared)
+
+| Input | Parsed as | Example |
+|---|---|---|
+| `0.310` | numeric `0.310`, scale 3 | e 411 R-4 |
+| `<0.01`, `>1000`, `<=5` | censored, comparator + limit | e 411 range error [DOC E-16] |
+| `-1^0.303` (qualitative test) | qualitative `-1` → mapped via `qualitativeMap` (e.g. "Non-reactive"), COI `0.303` kept as a secondary numeric | e 411 [DOC E-16, F-8] |
+| 7 spaces / empty | absent `no-result` | e 411 [DOC E-16] |
+| `***.*` | absent `masked` | Mindray examples |
+| `1.25^` | numeric `1.25`, empty message value | e 411 cobas® example [DOC F-6] |
+| `4.00-10.00` | reference range low/high | Mindray OBX-7 |
+| `<10` in OBX-7 | reference upper limit | Mindray OBX-7 |
+
+Unit conversion (only if the mapping says so) uses decimal arithmetic and the
+mapping's declared scale. The original value and unit are always retained.
+
+## 5. HMIS connector
+
+### 5.1 Configurable connector
+
+```ts
+export interface HmisConnector {
+  readonly profile: string;                          // 'generic-rest@1', 'fhir-r4@1' (only if HMIS supports it)
+  pullOrders(cursor: string | null): Promise<{ orders: HmisOrder[]; nextCursor: string | null }>;
+  acceptWebhook(req: RawHttpRequest): Promise<HmisOrderEvent[]>; // verifies signature
+  acknowledgeOrder?(orderId: string, status: 'accepted' | 'rejected', reason?: string): Promise<void>;
+  submitResult(r: HmisResultSubmission, idempotencyKey: string): Promise<SubmitOutcome>;
+  findResult(lookup: { idempotencyKey: string; hmisOrderLineId: string }): Promise<HmisResultState | null>;
+  cancelResult?(ref: HmisResultRef, reason: string): Promise<SubmitOutcome>;
+}
+
+export type SubmitOutcome =
+  | { kind: 'accepted'; hmisResultId?: string }
+  | { kind: 'retryable'; reason: string; retryAfterMs?: number }   // 429, 503, network before send
+  | { kind: 'rejected'; reason: string }                          // 4xx validation: needs human
+  | { kind: 'ambiguous'; reason: string };                        // timeout after send, 5xx after send, invalid body
+```
+
+Configuration (validated with Zod): base URL, auth type, token URL, scopes,
+timeouts (connect 5 s, response 30 s defaults), rate limit (token bucket),
+page size, retry policy, code maps, webhook secret reference.
+
+**Authentication and rotation.** Credentials are read through a
+`SecretProvider` at use time, not at start. OAuth tokens are cached until
+`expires_in − 60 s`. A rotated client secret is picked up on the next token
+refresh without restart. Two webhook secrets can be active during rotation.
+
+### 5.2 Illustrative contracts
+
+> **Illustrative only.** These show the shape the middleware needs. The real
+> contracts come from the HMIS vendor's documentation (B-6). No endpoint
+> below is known to exist.
+
+Inbound order (canonical form after the HMIS profile maps it):
+
+```json
+{
+  "hmisOrderId": "ORD-2026-000123",
+  "patient": { "mrn": "MRN0001234", "familyName": "Example", "givenName": "Test", "birthDate": "1980-01-31", "sex": "F" },
+  "encounter": { "hmisEncounterId": "ENC-889", "type": "outpatient", "location": "OPD-3" },
+  "priority": "routine",
+  "orderedAt": "2026-11-03T08:15:00+03:00",
+  "orderingClinician": "Dr Example",
+  "lines": [
+    { "hmisLineId": "1", "testCode": "TSH", "specimenType": "SERUM" },
+    { "hmisLineId": "2", "testCode": "FT4", "specimenType": "SERUM" },
+    { "hmisLineId": "3", "testCode": "CBC", "specimenType": "EDTA_WB" }
+  ],
+  "status": "active"
+}
+```
+
+Outbound result submission (canonical):
+
+```json
+{
+  "idempotencyKey": "res:6f1c…:v2:release:1",
+  "hmisOrderId": "ORD-2026-000123",
+  "hmisLineId": "1",
+  "testCode": "TSH",
+  "status": "final",
+  "value": { "type": "numeric", "value": "1.25", "unit": "µIU/mL" },
+  "referenceRange": "0.27-4.20",
+  "abnormalFlag": "N",
+  "performedAt": "2026-11-03T10:16:04+03:00",
+  "approvedBy": { "username": "jdoe", "displayName": "J. Doe" },
+  "approvedAt": "2026-11-03T10:40:00+03:00",
+  "specimen": { "accessionNo": "L26110300042", "collectedAt": "2026-11-03T08:40:00+03:00" },
+  "instrument": "cobas e 411 (e411-01)",
+  "comments": [],
+  "correctionOf": null
+}
+```
+
+Correction: same shape, `status: "corrected"`, `correctionOf` pointing to
+the previously delivered idempotency key / HMIS result ID, plus `reason`.
+
+### 5.3 Order intake
+
+| Mode | Mechanism |
+|---|---|
+| Webhook | `POST /api/v1/hmis/webhooks/orders`. Verify signature/mTLS, validate, insert `inbox_message (source, externalId)` with unique constraint, return 2xx only after commit. Duplicate deliveries return 2xx without effect. |
+| Polling | Jobs worker polls with a stored cursor (`hmis_cursor`). Page until done. Cursor advanced in the same transaction as the inbox inserts. Overlap window (e.g. re-read last 5 min) is safe because intake is idempotent. |
+
+### 5.4 Mapping
+
+* `hmis_code_map` per domain (test, specimen type, unit, sex, priority,
+  status) with versioning and approval like instrument test mappings.
+* Unknown HMIS test code: order is registered with the line flagged
+  `UNMAPPED`, and the order appears on the "needs attention" list. It is not
+  silently dropped.
+
+### 5.5 Error classification for retries
+
+| Condition | Class |
+|---|---|
+| DNS failure, connection refused, TLS handshake failure (request not sent) | retryable |
+| 408, 425, 429 (respect `Retry-After`), 502, 503, 504 **before** body sent | retryable |
+| Timeout after request body was sent; connection reset after send; 500; 2xx with invalid body | **ambiguous** → confirm via `findResult` before any retry |
+| 400, 404 (order unknown), 409 (conflict), 422 | rejected → human |
+| 401/403 | retryable once after token refresh, then alert |
+
+## 6. Middleware REST API (OpenAPI)
+
+Published at `/api/docs` (authenticated). Versioned under `/api/v1`. All
+mutating endpoints require an `Idempotency-Key` header and a role.
+
+| Method | Path | Role | Purpose |
+|---|---|---|---|
+| POST | `/api/v1/hmis/webhooks/orders` | HMIS client | Order events |
+| GET | `/api/v1/orders/{id}` | technologist+ | Order detail |
+| POST | `/api/v1/specimens/{id}/collect` | operator+ | Collection, prints label |
+| POST | `/api/v1/specimens/{id}/receive` | operator+ | Receipt in lab |
+| POST | `/api/v1/specimens/{id}/reject` | technologist+ | Reject with reason |
+| GET | `/api/v1/results?status=received` | technologist+ | Review queue |
+| POST | `/api/v1/results/{id}/review` | technologist | Review + choose version |
+| POST | `/api/v1/results/{id}/approve` | approver | Approve + release |
+| POST | `/api/v1/results/{id}/corrections` | approver | Correction with reason |
+| POST | `/api/v1/outbox/{id}/replay` | administrator | Authorised replay |
+| GET | `/api/v1/health/live`, `/api/v1/health/ready` | none (local) / monitor | Probes |

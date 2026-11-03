@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "paths": {
+      "@lis/contracts": ["./packages/contracts/src/index.ts"],
+      "@lis/domain": ["./packages/domain/src/index.ts"],
+      "@lis/protocol-astm": ["./packages/protocol-astm/src/index.ts"],
+      "@lis/protocol-hl7v2": ["./packages/protocol-hl7v2/src/index.ts"],
+      "@lis/adapter-cobas-e411": ["./packages/adapter-cobas-e411/src/index.ts"],
+      "@lis/adapter-mindray-hl7": ["./packages/adapter-mindray-hl7/src/index.ts"]
+    }
+  },
+  "include": ["packages/*/src", "packages/*/test", "vitest.config.ts"]
+}
