@@ -1,19 +1,9 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { pino } from 'pino';
-import { createDb } from '@lis/db';
+import { createDb, databaseUrlFromEnv } from '@lis/db';
 import { createApp } from './app.js';
 import { createUser, ROLES, type Role } from './auth.js';
-
-function databaseUrl(): string {
-  const dir = process.env['CREDENTIALS_DIRECTORY'];
-  if (dir) return readFileSync(join(dir, 'database_url'), 'utf8').trim();
-  const url = process.env['DATABASE_URL'];
-  if (!url) throw new Error('DATABASE_URL is not set and no credentials directory is available');
-  return url;
-}
 
 async function readPassword(): Promise<string> {
   const rl = createInterface({ input: process.stdin });
@@ -25,7 +15,7 @@ async function readPassword(): Promise<string> {
 }
 
 const logger = pino({ base: { svc: 'web' }, redact: ['*.password', '*.secret', '*.url'] });
-const db = createDb(databaseUrl());
+const db = createDb(databaseUrlFromEnv().url);
 
 async function main(): Promise<void> {
   const [cmd, ...args] = process.argv.slice(2);

@@ -57,5 +57,77 @@ jobs:
       - run: npm run generate
       - run: npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
       - name: Database tests (must not be skipped here)
-        run: npx vitest run packages/db packages/analyzer-worker packages/result-intake packages/lab packages/web --no-file-parallelism --reporter=verbose 2>&1 | tee db-test.log; test "${PIPESTATUS[0]}" -eq 0 && ! grep -q "skipped" db-test.log
+        run: npx vitest run packages/db packages/analyzer-worker packages/result-intake packages/lab packages/web packages/ops --no-file-parallelism --reporter=verbose 2>&1 | tee db-test.log; test "${PIPESTATUS[0]}" -eq 0 && ! grep -q "skipped" db-test.log
         shell: bash
+
+  # Offline release bundle (11 §2): build it twice to check it is reproducible,
+  # then install it and run its own tools against a real PostgreSQL.
+  bundle:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: lims_test
+          POSTGRES_PASSWORD: lims_test
+          POSTGRES_DB: lims_bundle
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U lims_test -d lims_bundle"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run generate
+      - name: Download the official Node.js runtime and check it against nodejs.org SHASUMS256
+        shell: bash
+        run: |
+          set -euo pipefail
+          V=$(node --version)
+          mkdir -p "$RUNNER_TEMP/node" && cd "$RUNNER_TEMP/node"
+          curl -fsSLO "https://nodejs.org/dist/$V/node-$V-linux-x64.tar.xz"
+          curl -fsSLO "https://nodejs.org/dist/$V/SHASUMS256.txt"
+          grep " node-$V-linux-x64.tar.xz\$" SHASUMS256.txt | sha256sum -c -
+          tar -xJf "node-$V-linux-x64.tar.xz"
+          echo "NODE_DIST=$RUNNER_TEMP/node/node-$V-linux-x64" >> "$GITHUB_ENV"
+      - name: Build the bundle twice and compare
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)
+          node scripts/build-bundle.mjs --node-dist "$NODE_DIST" --version 0.0.0-ci --out release
+          cp release/*/SHA256SUMS first.sums
+          rm -rf release
+          node scripts/build-bundle.mjs --node-dist "$NODE_DIST" --version 0.0.0-ci --out release --skip-build
+          diff first.sums release/*/SHA256SUMS
+          cmp <(cut -d' ' -f1 release/*.tar.gz.sha256) <(sha256sum release/*.tar.gz | cut -d' ' -f1)
+      - name: Install from the archive and run the bundle's own tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/extract" && tar -xzf release/*.tar.gz -C "$RUNNER_TEMP/extract"
+          B=$(ls -d "$RUNNER_TEMP"/extract/lims-middleware-*)
+          sudo LIMS_PREFIX=/opt/lims "$B/scripts/install.sh"
+          echo 'postgresql://lims_test:lims_test@localhost:5432/lims_bundle' | sudo tee /etc/lims/secrets/database_url >/dev/null
+          sudo chmod 600 /etc/lims/secrets/database_url
+          sudo lims db migrate
+          echo 'a long ci password' | sudo lims-web create-user ci-admin "CI Admin" admin
+          sudo lims verify --out "$RUNNER_TEMP/verify"
+          sudo env DATABASE_URL_FILE=/etc/lims/secrets/database_url PORT=3999 LIMS_INSECURE_COOKIES=true /opt/lims/current/runtime/node/bin/node /opt/lims/current/app/node_modules/@lis/web/dist/main.js > web.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS localhost:3999/api/v1/health/ready && break; sleep 1; done
+          curl -fsS localhost:3999/api/v1/health/ready | grep -q '"ok"'
+          curl -fsS -o /dev/null localhost:3999/static/bootstrap/bootstrap.min.css
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bundle-check
+          path: |
+            ${{ runner.temp }}/verify/
+            web.log
+            release/*.tar.gz.sha256

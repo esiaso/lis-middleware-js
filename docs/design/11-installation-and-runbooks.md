@@ -50,6 +50,38 @@ Build rules:
 * Windows: an MSI (WiX Toolset) wrapping the bundle, Authenticode-signed.
   Linux: a signed tarball (optionally RPM/DEB later).
 
+### 2.1 What is built today
+
+`node scripts/build-bundle.mjs --node-dist <extracted official Node.js>`
+builds the bundle for the platform it runs on. CI (`bundle` job) downloads
+the Node.js release, checks it against nodejs.org `SHASUMS256.txt`, builds
+the bundle twice and requires identical checksums, then installs it from
+the archive and runs `lims db migrate`, `lims-web create-user`, `lims verify`
+and the web readiness check against PostgreSQL.
+
+| Item | Status |
+|---|---|
+| `runtime/node`, production `node_modules` (no symlinks), Prisma client and engines, migrations, views, Bootstrap | built |
+| `service/` systemd units, `scripts/install.sh`, `bin/lims`, `bin/lims-web` | built, installed in CI |
+| `service/` WinSW XMLs, `scripts/install.ps1`, `bin\lims.cmd` | written, **not yet run on Windows** |
+| `sbom.cdx.json` (from the lockfile), `licenses/`, `manifest.json`, `SHA256SUMS` | built |
+| Linux `.tar.gz` with sorted entries and fixed times | built, reproducible |
+| `SHA256SUMS.sig` | manual step with the release key (not held by CI) |
+| WinSW executable | not built here: pass `--winsw` with a copy whose checksum was checked against its release page |
+| MSI (WiX), Authenticode signing | not built yet |
+| Bundled PostgreSQL installer | not included; use the vendor's signed installer or an existing instance |
+
+Paths inside the bundle: entry points are
+`app/node_modules/@lis/<package>/dist/main.js`; the database credential is
+read from the systemd credential `database_url` (Linux), from the file in
+`DATABASE_URL_FILE` (Windows: `C:\ProgramData\LIMS Middleware\secrets\database_url`),
+or from `DATABASE_URL` (development only; `lims verify` warns).
+
+`lims` commands built: `verify [--out <dir>]`, `status`, `db migrate`,
+`diag tcp <host> <port>`, `version`. Not built yet: `config validate`,
+`secrets set`, `diag bundle`, `backup verify`. Settings are environment
+variables (`/etc/lims/lims.env`, or the WinSW XML), not `lims.yaml`.
+
 ## 3. Installation (Windows)
 
 1. Verify the installer signature and `SHA256SUMS`.
@@ -94,8 +126,8 @@ User=lims-svc
 Group=lims-svc
 SupplementaryGroups=dialout
 WorkingDirectory=/opt/lims/current/app
-ExecStart=/opt/lims/current/runtime/node/bin/node dist/apps/analyzer-worker/main.js --instrument %i
-LoadCredential=database_url:/etc/lims/secrets/database_url_link
+ExecStart=/opt/lims/current/runtime/node/bin/node node_modules/@lis/analyzer-worker/dist/main.js --instrument %i
+LoadCredential=database_url:/etc/lims/secrets/database_url
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30
@@ -160,8 +192,9 @@ validation file.
 ## 7. Health and diagnostics
 
 * `GET /api/v1/health/live`: process is up.
-* `GET /api/v1/health/ready`: DB reachable, migrations at expected version,
-  config valid; web only.
+* `GET /api/v1/health/ready`: DB reachable and every migration this build
+  ships is applied (built; config validation is not part of it yet).
+* `GET /health`: database answers (built, for simple monitors).
 * Workers expose readiness to the health table (`health_snapshot`) every
   10 s; the web health page and `lims status` read it.
 * `lims diag bundle` collects logs (redacted), config (secrets removed),

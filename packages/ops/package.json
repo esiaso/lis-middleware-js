@@ -1,0 +1,27 @@
+{
+  "name": "@lis/ops",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "lims": "dist/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@lis/contracts": "0.1.0",
+    "@lis/db": "0.1.0",
+    "@lis/lab": "0.1.0",
+    "@serialport/bindings-cpp": "13.0.0",
+    "prisma": "6.19.0"
+  }
+}

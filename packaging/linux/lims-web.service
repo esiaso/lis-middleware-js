@@ -1,0 +1,29 @@
+# Listens on 127.0.0.1 (BIND_HOST, PORT in /etc/lims/lims.env); the hospital reverse proxy terminates TLS (11 §4).
+[Unit]
+Description=LIMS web screens
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lims-svc
+Group=lims-svc
+WorkingDirectory=/opt/lims/current/app
+EnvironmentFile=-/etc/lims/lims.env
+ExecStart=/opt/lims/current/runtime/node/bin/node node_modules/@lis/web/dist/main.js
+LoadCredential=database_url:/etc/lims/secrets/database_url
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+ReadWritePaths=/var/log/lims
+MemoryMax=768M
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+<!-- WinSW v2 service definition (11 §3). install.ps1 sets the account to the virtual account NT SERVICE\lims-jobs. -->
+<service>
+  <id>lims-jobs</id>
+  <name>lims-jobs</name>
+  <description>LIMS jobs (result intake and matching)</description>
+  <executable>%BASE%\..\runtime\node\node.exe</executable>
+  <arguments>node_modules\@lis\result-intake\dist\main.js</arguments>
+  <workingdirectory>%BASE%\..\app</workingdirectory>
+  <env name="NODE_ENV" value="production" />
+  <env name="DATABASE_URL_FILE" value="C:\ProgramData\LIMS Middleware\secrets\database_url" />
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <onfailure action="restart" delay="5 sec" />
+  <onfailure action="restart" delay="10 sec" />
+  <onfailure action="restart" delay="30 sec" />
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>30 sec</stoptimeout>
+  <logpath>C:\ProgramData\LIMS Middleware\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>20</keepFiles>
+  </log>
+</service>

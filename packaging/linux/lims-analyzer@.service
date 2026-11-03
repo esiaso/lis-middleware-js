@@ -1,0 +1,32 @@
+# One instance per instrument: systemctl enable --now lims-analyzer@<instrument-id>
+[Unit]
+Description=LIMS analyzer link %i
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lims-svc
+Group=lims-svc
+SupplementaryGroups=dialout
+WorkingDirectory=/opt/lims/current/app
+EnvironmentFile=-/etc/lims/lims.env
+ExecStart=/opt/lims/current/runtime/node/bin/node node_modules/@lis/analyzer-worker/dist/main.js --instrument %i
+LoadCredential=database_url:/etc/lims/secrets/database_url
+# Exit codes (11 §11): 2 not configured and 5 disabled are not crashes; restarting would only repeat them.
+RestartPreventExitStatus=2 5
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+ReadWritePaths=/var/lib/lims /var/log/lims
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target
