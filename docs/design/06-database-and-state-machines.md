@@ -167,13 +167,33 @@ model BarcodeAssignment {
 // ---------- Instruments & mappings ----------
 model Instrument {
   id          String @id           // e.g. "e411-01"
+  displayName String
+  manufacturer String
   model       String               // "cobas e 411"
   serialNo    String?
-  softwareVersion String?          // recorded at verification
+  softwareVersion String?          // as registered; compared with what the instrument reports
+  verifiedSoftwareVersion String?  // version the current status was granted for
+  discipline  String
+  location    String?
+  interfaceManualRef String?       // required for generic profiles
   verificationStatus VerificationStatus @default(UNVERIFIED)
   enabled     Boolean @default(false)
   connections InstrumentConnection[]
   mappingSets TestMappingSet[]
+  evidence    InstrumentVerificationEvidence[]
+}
+
+// Append-only. Each row moves the status (see 14-adding-instruments.md §3).
+model InstrumentVerificationEvidence {
+  id           String   @id @db.Uuid
+  instrumentId String
+  kind         String   // interface-test, lab-acceptance, suspension, reverification
+  evidenceJson Json     // validated by VerificationEvidence
+  fromStatus   VerificationStatus
+  toStatus     VerificationStatus
+  recordedBy   String
+  recordedAt   DateTime @default(now()) @db.Timestamptz
+  instrument   Instrument @relation(fields: [instrumentId], references: [id])
 }
 
 model InstrumentConnection {

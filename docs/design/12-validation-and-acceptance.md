@@ -67,6 +67,7 @@ are signed. Until then the instrument's `verificationStatus` stays
 | T-28 | Install | Offline install on a clean VM with no internet: completes, `lims verify` passes, no outbound connection attempts (checked with firewall logs) |
 | T-29 | Backup | Restore to clean VM; audit chain verifies; counts match |
 | T-31 | c 111 | Query reply < 3 s at p99; record-per-frame outbound framing; H-5 SW/serial captured and alert on change; `R-9 = R` re-transmission creates no new version; `X` quarantined; M.CR/M.RR never reach patient results; RSREQ recovery retrieves results after a simulated lost transfer; XON/XOFF bytes outside frames tolerated |
+| T-32 | New instruments | Registration starts UNVERIFIED and disabled; results are not releasable until LAB_ACCEPTED; evidence cannot skip a step; identity/driver/profile change resets status; generic profiles never answer queries; mapping approval by a different person; RUO never reported |
 | T-30 | Security | CSRF, session fixation, XSS in all free-text fields, role bypass attempts, raw message access audited |
 
 ## 4. Interface verification protocol (per instrument, with vendor)

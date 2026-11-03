@@ -43,10 +43,29 @@ export const TransportConfig = z.discriminatedUnion('type', [
 ]);
 export type TransportConfig = z.infer<typeof TransportConfig>;
 
+/** Model-specific drivers, each written and reviewed against the vendor's interface manual. */
+export const CertifiedAdapterName = z.enum(['cobas-e411-astm', 'cobas-c111-astm', 'mindray-hl7-mllp']);
+export type CertifiedAdapterName = z.infer<typeof CertifiedAdapterName>;
+
+/**
+ * Configurable, result-upload-only drivers for instruments that have no model-specific
+ * driver yet. Field positions come from a profile the administrator fills in from the
+ * instrument's own interface manual (see docs/design/14-adding-instruments.md).
+ */
+export const GenericAdapterName = z.enum(['generic-astm', 'generic-hl7-mllp']);
+export type GenericAdapterName = z.infer<typeof GenericAdapterName>;
+
+export const AdapterName = z.enum([...CertifiedAdapterName.options, ...GenericAdapterName.options]);
+export type AdapterName = z.infer<typeof AdapterName>;
+
+export function isGenericAdapter(name: AdapterName): name is GenericAdapterName {
+  return (GenericAdapterName.options as readonly string[]).includes(name);
+}
+
 export const InstrumentConnectionConfig = z
   .object({
     instrumentId: InstrumentId,
-    adapter: z.enum(['cobas-e411-astm', 'cobas-c111-astm', 'mindray-hl7-mllp']),
+    adapter: AdapterName,
     /** Validated again by the adapter's own schema. */
     adapterOptions: z.record(z.string(), z.unknown()).default({}),
     transport: TransportConfig,

@@ -189,7 +189,8 @@ export const TcpServerTransport = z.object({
 });
 export const InstrumentConnectionConfig = z.object({
   instrumentId: InstrumentId,
-  adapter: z.enum(['cobas-e411-astm', 'cobas-c111-astm', 'mindray-hl7-mllp']),
+  // Model-specific drivers plus the generic result-only profiles (see 14-adding-instruments.md)
+  adapter: z.enum(['cobas-e411-astm', 'cobas-c111-astm', 'mindray-hl7-mllp', 'generic-astm', 'generic-hl7-mllp']),
   adapterOptions: z.record(z.string(), z.unknown()),   // validated by the adapter's own schema
   transport: z.discriminatedUnion('type', [SerialTransport, TcpClientTransport, TcpServerTransport]),
   maxMessageBytes: z.number().int().max(16 * 1024 * 1024).default(4 * 1024 * 1024),

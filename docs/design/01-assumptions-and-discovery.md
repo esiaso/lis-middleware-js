@@ -82,7 +82,7 @@ assumption and every document that cites it.
 | A-8 | The HMIS supports some idempotency mechanism (idempotency key, or a stable external result ID we can query). | Without it, "request succeeded but response lost" can only be resolved by human reconciliation. See [08](08-durable-processing.md) §7. | D-5, D-7 |
 | A-9 | Browser users are on the hospital intranet; no internet exposure. | Internet exposure would need a separate threat model. | D-23 |
 | A-11 | The c 111 will run in **REALTIME** communication with "Send Order Query = ALWAYS", "Send Result Mode = COMPLETE", checksum ON, and Sample ID handling **"Order ID = Sample ID"**. Handshake (XON/XOFF or OFF) is set to match the device server. | If Grouped Sample ID mode is required, matching must strip the 3-character extension; not in the MVP. | B-9 |
-| A-12 | Instruments beyond the e 411, c 111 and Mindray are **out of the first release** until D-26 is answered and each has its own verified manual. | Re-plan if the lab needs another instrument first. | D-26 |
+| A-12 | Instruments beyond the e 411, c 111 and Mindray get no model-specific driver in the first release. An administrator can register them with a generic result-only profile ([14](14-adding-instruments.md)), but they stay out of clinical use until each has its own manual, an interface test and lab acceptance. | Re-plan if the lab needs host query on another instrument first. | D-26 |
 | A-10 | Mindray data arrives over TCP with MLLP framing [DOC Mindray §1]. Which side listens is configurable in the adapter until confirmed. | n/a | B-4 |
 
 ## 4. Unresolved dependencies (summary)
