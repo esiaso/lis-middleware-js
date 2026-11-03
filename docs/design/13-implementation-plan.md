@@ -61,9 +61,13 @@ registration (identity, driver or generic profile, connection; changes that
 reset verification are explained on the form), verification evidence
 (interface test, lab acceptance signed with the approver's own password,
 suspension, re-verification), turning instruments on and off, and loading
-the reviewed mapping file as a draft that a different approver activates.
+the reviewed mapping file as a draft that a different approver activates,
+W-2 orders and collection (list with STAT first, search and accession scan;
+tests grouped by specimen type; one container per collection; printable
+barcode label with a reprint count, A-14; receipt in the lab; coded
+rejection with recollection), and W-3 specimen history.
 Not built yet: the W-9 row-by-row mapping editor, attaching an unmatched result to a
-specimen (needs the second-person check), labels, downtime registration,
+specimen (needs the second-person check), downtime registration,
 OIDC/LDAPS, and the real HMIS connector, which waits for D-1 to D-6.
 
 ## Phase 3: Instrument verification and parallel run (3 to 6 weeks, calendar-bound)

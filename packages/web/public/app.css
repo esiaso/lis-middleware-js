@@ -1,2 +1,14 @@
 /* Local additions to Bootstrap. No inline styles anywhere (CSP style-src 'self'). */
 .display-6 { font-variant-numeric: tabular-nums; }
+
+/* Specimen label. ASSUMPTION A-14: 50 x 25 mm until the hospital label spec (B-8). */
+.specimen-label { width: 50mm; height: 25mm; padding: 1mm 2mm; border: 1px dashed #999; font-size: 7pt; line-height: 1.15; overflow: hidden; background: #fff; color: #000; }
+.specimen-label-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.specimen-label-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.specimen-label-barcode svg { display: block; width: 100%; height: 9mm; }
+@page label { size: 50mm 25mm; margin: 0; }
+@media print {
+  .navbar, .alert { display: none !important; }
+  main { padding: 0 !important; }
+  .specimen-label { page: label; border: none; }
+}

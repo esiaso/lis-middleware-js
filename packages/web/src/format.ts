@@ -50,6 +50,9 @@ export const NOTICES: Record<string, string> = {
   disabled: 'Instrument turned off.',
   draft: 'Mapping draft saved. A different person must approve it.',
   activated: 'Mapping set approved and active.',
+  received: 'Specimen received in the lab.',
+  rejected: 'Specimen rejected. Tests without a result are back on the collection list if recollection was chosen.',
+  reprinted: 'Reprint recorded.',
   signedout: 'You have signed out.',
 };
 

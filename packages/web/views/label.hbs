@@ -1,0 +1,18 @@
+<div class="d-print-none mb-3">
+  <p><a href="/orders/{{s.orderId}}">&larr; Order</a> · <a href="/specimens/{{s.id}}">Specimen history</a></p>
+  <p class="mb-2">Print this page on the label printer (Ctrl+P). Labels printed so far: <strong>{{s.prints}}</strong>.</p>
+  {{#if can.collect}}
+  <form method="post" action="/specimens/{{s.id}}/reprint" class="d-inline">
+    <input type="hidden" name="_csrf" value="{{csrf}}">
+    <button class="btn btn-outline-secondary btn-sm" type="submit">Record a reprint</button>
+  </form>
+  {{/if}}
+  <p class="small text-body-secondary mt-2">Label layout: Code 128 of the accession number on a 50 x 25 mm label. This is an assumption until the hospital's label specification is confirmed.</p>
+</div>
+<div class="specimen-label" aria-label="Specimen label {{s.accessionNo}}">
+  <div class="specimen-label-name">{{patient.name}}{{#if stat}} <strong>STAT</strong>{{/if}}</div>
+  <div class="specimen-label-line">MRN {{patient.mrn}}{{#if patient.birthDate}} · {{patient.birthDate}}{{/if}}{{#if patient.sex}} · {{patient.sex}}{{/if}}</div>
+  <div class="specimen-label-barcode">{{{barcode}}}</div>
+  <div class="specimen-label-line"><strong>{{s.accessionNo}}</strong> {{s.type}}</div>
+  <div class="specimen-label-line">{{s.tests}}</div>
+</div>
