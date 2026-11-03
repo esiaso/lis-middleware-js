@@ -1,0 +1,19 @@
+<div class="row justify-content-center">
+  <div class="col-sm-8 col-md-5 col-lg-4">
+    <h1 class="h4 my-4">Sign in to the lab middleware</h1>
+    {{#if error}}<div class="alert alert-danger" role="alert">{{error}}</div>{{/if}}
+    <form method="post" action="/login" autocomplete="off">
+      <input type="hidden" name="_csrf" value="{{loginCsrf}}">
+      <input type="hidden" name="next" value="{{next}}">
+      <div class="mb-3">
+        <label class="form-label" for="username">Username</label>
+        <input class="form-control" id="username" name="username" required autofocus>
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="password">Password</label>
+        <input class="form-control" id="password" name="password" type="password" required>
+      </div>
+      <button class="btn btn-primary w-100" type="submit">Sign in</button>
+    </form>
+  </div>
+</div>

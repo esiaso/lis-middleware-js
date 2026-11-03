@@ -481,3 +481,37 @@ model AuditEvent {
   @@index([entityType, entityId])
   @@map("audit_event")
 }
+
+// ---------- Users and sessions (local accounts; LDAPS/OIDC later, 10 §3) ----------
+
+model AppUser {
+  id           String        @id @db.Uuid
+  username     String        @unique
+  displayName  String        @map("display_name")
+  /// scrypt$N$r$p$salt$hash
+  passwordHash String        @map("password_hash")
+  /// admin, technologist, approver, operator, auditor
+  roles        String[]
+  active       Boolean       @default(true)
+  /// Consecutive failed sign-ins; 5 locks the account for 15 minutes (10 §3).
+  failedLogins Int           @default(0) @map("failed_logins")
+  lockedUntil  DateTime?     @map("locked_until") @db.Timestamptz
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  sessions     UserSession[]
+
+  @@map("app_user")
+}
+
+model UserSession {
+  /// Random 256-bit token (hex) kept in an HttpOnly cookie; stored hashed.
+  tokenHash  String   @id @map("token_hash")
+  userId     String   @map("user_id") @db.Uuid
+  csrfToken  String   @map("csrf_token")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  /// Idle expiry; slides forward on use but never past createdAt + absolute limit.
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz
+  user       AppUser  @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("user_session")
+}

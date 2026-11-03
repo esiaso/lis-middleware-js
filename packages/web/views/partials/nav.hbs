@@ -1,0 +1,15 @@
+<nav class="navbar navbar-expand bg-body-tertiary border-bottom">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="/">Lab middleware</a>
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link" href="/results">Results</a></li>
+      <li class="nav-item"><a class="nav-link" href="/unmatched">Unmatched</a></li>
+      <li class="nav-item"><a class="nav-link" href="/failed">Failed deliveries</a></li>
+    </ul>
+    <span class="navbar-text me-3">{{user.displayName}}</span>
+    <form method="post" action="/logout" class="d-inline">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <button class="btn btn-outline-secondary btn-sm" type="submit">Sign out</button>
+    </form>
+  </div>
+</nav>

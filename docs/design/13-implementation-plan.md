@@ -49,6 +49,19 @@ run for 1 h without crash or unbounded memory.
 
 **Exit:** T-10 to T-26 green on simulators; IQ on the hospital test VM.
 
+**Status (2026-11-03), against a stand-in HMIS** (`@lis/hmis` `SimulatedHmis`,
+because D-1 to D-6 are still open): orders, accessioning, matching,
+review, approval, release, corrections, delivery with read-back, replay and
+the hash-chained audit trail are built and tested end to end. Screens built:
+sign-in (local accounts, A-13), dashboard with instrument clearance, result
+list and detail with review, approve, release, replay and correct (password
+re-entry on approve, release and correct), unmatched results (close with a
+reason), failed deliveries, and a health endpoint. Not built yet: W-11
+instrument registration and W-9 mapping screens (instruments and mappings
+are loaded by the administrator), attaching an unmatched result to a
+specimen (needs the second-person check), labels, downtime registration,
+OIDC/LDAPS, and the real HMIS connector, which waits for D-1 to D-6.
+
 ## Phase 3: Instrument verification and parallel run (3 to 6 weeks, calendar-bound)
 
 * Interface verification of the e 411 with Roche (12 §4).

@@ -217,6 +217,24 @@ validation file.
 
 ## 11. Runbooks (summary)
 
+Web service (`lims-web`):
+
+| Setting | Default | Notes |
+|---|---|---|
+| `DATABASE_URL` or `$CREDENTIALS_DIRECTORY/database_url` | required | same as the other services |
+| `BIND_HOST`, `PORT` | `127.0.0.1`, `3000` | the reverse proxy (§4) terminates TLS and forwards here |
+| `LIMS_TWO_PERSON_RULE` | `true` | reviewer and approver must differ (10 §2) |
+| `LIMS_INSECURE_COOKIES` | `false` | `true` drops the cookie `Secure` flag and HSTS; only for a loopback-only test setup |
+
+First administrator, before the hospital IdP is connected (password on
+standard input, at least 12 characters, never on the command line):
+`lims-web create-user <username> "<display name>" admin < password-file`.
+An account cannot create itself or grant itself roles, and every account
+change is in the audit trail. `GET /health` answers `{"status":"ok"}` when
+the database answers, and nothing more, so the service monitor can poll it
+without a session.
+
+
 Analyzer worker exit codes (`lims-analyzer-worker --instrument <id>`):
 
 | Code | Meaning | Action |

@@ -1,0 +1,7 @@
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-6">
+    <h1 class="h4 my-4">{{#if (eq status 403)}}Not allowed{{else if (eq status 404)}}Not found{{else if (eq status 409)}}Not done{{else}}Error{{/if}}</h1>
+    <div class="alert alert-{{#if (eq status 409)}}warning{{else}}danger{{/if}}" role="alert">{{message}}</div>
+    <p><a href="/">Back to the dashboard</a></p>
+  </div>
+</div>

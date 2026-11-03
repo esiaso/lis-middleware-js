@@ -1,0 +1,41 @@
+{
+  "name": "@lis/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "lims-web": "dist/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "views",
+    "public"
+  ],
+  "dependencies": {
+    "@lis/contracts": "0.1.0",
+    "@lis/db": "0.1.0",
+    "@lis/domain": "0.1.0",
+    "@lis/lab": "0.1.0",
+    "@nestjs/common": "12.3.2",
+    "@nestjs/core": "12.3.2",
+    "@nestjs/platform-express": "12.3.2",
+    "bootstrap": "5.3.8",
+    "cookie-parser": "1.4.7",
+    "hbs": "4.4.0",
+    "pino": "10.4.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "1.4.10",
+    "@types/express": "5.0.6"
+  }
+}

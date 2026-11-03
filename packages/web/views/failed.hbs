@@ -1,0 +1,23 @@
+<h1 class="h4 mb-3">Failed deliveries</h1>
+<h2 class="h6">Results</h2>
+<table class="table table-sm align-middle">
+  <thead><tr><th>Patient</th><th>Test</th><th>State</th><th>Updated</th></tr></thead>
+  <tbody>
+    {{#each results}}
+    <tr><td><a href="/results/{{id}}">{{patient}}</a></td><td>{{test}}</td><td>{{status}}</td><td class="small">{{updated}}</td></tr>
+    {{else}}
+    <tr><td colspan="4" class="text-body-secondary">None.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+<h2 class="h6">Outgoing messages</h2>
+<table class="table table-sm align-middle">
+  <thead><tr><th>Created</th><th>Topic</th><th>Key</th><th>Status</th><th>Attempts</th><th>Last error</th></tr></thead>
+  <tbody>
+    {{#each outbox}}
+    <tr><td class="small">{{at}}</td><td>{{topic}}</td><td class="font-monospace small">{{#if resultId}}<a href="/results/{{resultId}}">{{key}}</a>{{else}}{{key}}{{/if}}</td><td>{{status}}</td><td>{{attempts}}</td><td class="small">{{error}}</td></tr>
+    {{else}}
+    <tr><td colspan="6" class="text-body-secondary">None.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
