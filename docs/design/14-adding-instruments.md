@@ -122,7 +122,18 @@ and are covered by tests.
 7. Parallel run, then laboratory acceptance, recorded by the signer. Status
    becomes `LAB_ACCEPTED`. Enable the instrument.
 
-## 5. Audit
+## 5. Who does what on the screens
+
+| Step | Screen | Role (10 §2) |
+|---|---|---|
+| Register, change registration, save a mapping draft | Instruments → Register / Change registration / Load mapping file | admin, technologist |
+| Record interface test, suspend, start verification again, turn off | Instrument page | admin, approver |
+| Sign lab acceptance, turn on, approve and activate a mapping draft | Instrument page (password asked again) | approver |
+
+The person who last saved a mapping draft is its author and cannot approve
+it, even if they also hold the approver role.
+
+## 6. Audit
 
 Registration, every registration change (before and after, plus the reset
 or re-test reasons), each evidence record, enable and disable, and every

@@ -1,0 +1,54 @@
+<fieldset class="mb-4">
+  <legend class="h6">Identity (from the instrument and its inventory record)</legend>
+  <div class="row g-2">
+    <div class="col-md-4"><label class="form-label" for="instrumentId">Instrument ID</label>
+      <input class="form-control" id="instrumentId" name="instrumentId" value="{{f.instrumentId}}" {{#if locked}}readonly{{/if}} required pattern="[a-z0-9][a-z0-9\-]{2,39}">
+      <div class="form-text">Lowercase letters, digits and hyphens. Cannot change later.</div></div>
+    <div class="col-md-4"><label class="form-label" for="displayName">Display name</label><input class="form-control" id="displayName" name="displayName" value="{{f.displayName}}" required></div>
+    <div class="col-md-4"><label class="form-label" for="discipline">Discipline</label>
+      <select class="form-select" id="discipline" name="discipline">{{#each disciplines}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></div>
+    <div class="col-md-4"><label class="form-label" for="manufacturer">Manufacturer</label><input class="form-control" id="manufacturer" name="manufacturer" value="{{f.manufacturer}}" required></div>
+    <div class="col-md-4"><label class="form-label" for="model">Model</label><input class="form-control" id="model" name="model" value="{{f.model}}" required></div>
+    <div class="col-md-4"><label class="form-label" for="serialNo">Serial number</label><input class="form-control" id="serialNo" name="serialNo" value="{{f.serialNo}}"></div>
+    <div class="col-md-4"><label class="form-label" for="softwareVersion">Software version</label><input class="form-control" id="softwareVersion" name="softwareVersion" value="{{f.softwareVersion}}">
+      <div class="form-text">Needed before an interface test can be recorded.</div></div>
+    <div class="col-md-4"><label class="form-label" for="location">Location</label><input class="form-control" id="location" name="location" value="{{f.location}}"></div>
+    <div class="col-md-4"><label class="form-label" for="interfaceManualRef">Interface manual (title, number, revision)</label><input class="form-control" id="interfaceManualRef" name="interfaceManualRef" value="{{f.interfaceManualRef}}">
+      <div class="form-text">Required for a generic profile.</div></div>
+  </div>
+</fieldset>
+
+<fieldset class="mb-4">
+  <legend class="h6">Driver</legend>
+  <div class="row g-2">
+    <div class="col-md-4"><label class="form-label" for="adapter">Driver</label>
+      <select class="form-select" id="adapter" name="adapter">{{#each adapters}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select>
+      <div class="form-text">Use a generic profile only when no model-specific driver exists. Generic profiles receive results only and never answer host queries.</div></div>
+    <div class="col-md-8"><label class="form-label" for="adapterOptions">Driver options or generic profile (JSON)</label>
+      <textarea class="form-control font-monospace" id="adapterOptions" name="adapterOptions" rows="6">{{f.adapterOptions}}</textarea>
+      <div class="form-text">Leave empty for a model-specific driver's defaults. Generic ASTM starting point (check every position against the manual): <code>{{astmExample}}</code>. Generic HL7: <code>{{hl7Example}}</code>.</div>
+      <div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="noQcConfirmed" name="noQcConfirmed" value="yes" {{#if noQcChecked}}checked{{/if}}>
+        <label class="form-check-label small" for="noQcConfirmed">Generic HL7 with no QC rule: I confirm every message from this instrument is a patient result.</label></div></div>
+  </div>
+</fieldset>
+
+<fieldset class="mb-4">
+  <legend class="h6">Connection</legend>
+  <div class="row g-2">
+    <div class="col-md-4"><label class="form-label" for="transportType">Transport</label>
+      <select class="form-select" id="transportType" name="transportType">{{#each transports}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select>
+      <div class="form-text">tcp-client: the middleware connects to a device server. tcp-server: the instrument connects in. serial: a COM port on this server.</div></div>
+    <div class="col-md-4"><label class="form-label" for="host">Host (tcp-client)</label><input class="form-control" id="host" name="host" value="{{f.host}}"></div>
+    <div class="col-md-4"><label class="form-label" for="port">Port (tcp-client, tcp-server)</label><input class="form-control" id="port" name="port" value="{{f.port}}" inputmode="numeric"></div>
+    <div class="col-md-4"><label class="form-label" for="bindAddress">Listen address (tcp-server)</label><input class="form-control" id="bindAddress" name="bindAddress" value="{{f.bindAddress}}"></div>
+    <div class="col-md-8"><label class="form-label" for="allowedPeers">Allowed instrument addresses (tcp-server, comma separated)</label><input class="form-control" id="allowedPeers" name="allowedPeers" value="{{f.allowedPeers}}"></div>
+    <div class="col-md-4"><label class="form-label" for="serialPath">Serial port (serial)</label><input class="form-control" id="serialPath" name="serialPath" value="{{f.serialPath}}"></div>
+    <div class="col-md-2"><label class="form-label" for="baudRate">Baud</label><input class="form-control" id="baudRate" name="baudRate" value="{{f.baudRate}}" inputmode="numeric"></div>
+    <div class="col-md-2"><label class="form-label" for="dataBits">Data bits</label><input class="form-control" id="dataBits" name="dataBits" value="{{f.dataBits}}" inputmode="numeric"></div>
+    <div class="col-md-2"><label class="form-label" for="parity">Parity</label><select class="form-select" id="parity" name="parity">{{#each parities}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></div>
+    <div class="col-md-2"><label class="form-label" for="stopBits">Stop bits</label><input class="form-control" id="stopBits" name="stopBits" value="{{f.stopBits}}" inputmode="numeric"></div>
+    <div class="col-md-4"><label class="form-label" for="flowControl">Flow control (serial)</label><select class="form-select" id="flowControl" name="flowControl">{{#each flowControls}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></div>
+    <div class="col-md-4"><label class="form-label" for="maxMessageBytes">Message size limit in bytes</label><input class="form-control" id="maxMessageBytes" name="maxMessageBytes" value="{{f.maxMessageBytes}}" inputmode="numeric">
+      <div class="form-text">Empty for the default (4 MiB).</div></div>
+  </div>
+</fieldset>

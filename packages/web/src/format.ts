@@ -41,6 +41,15 @@ export const NOTICES: Record<string, string> = {
   replayed: 'Delivery queued again.',
   corrected: 'Correction saved and approved. Release it to send it to the HMIS.',
   dismissed: 'Unmatched result closed.',
+  registered: 'Instrument registered. It is unverified and disabled until it passes verification.',
+  changed: 'Registration saved.',
+  reset: 'Registration saved. The change resets the instrument to unverified and turns it off.',
+  retest: 'Registration saved. Re-test the link before clinical use continues.',
+  evidence: 'Evidence recorded.',
+  enabled: 'Instrument turned on.',
+  disabled: 'Instrument turned off.',
+  draft: 'Mapping draft saved. A different person must approve it.',
+  activated: 'Mapping set approved and active.',
   signedout: 'You have signed out.',
 };
 

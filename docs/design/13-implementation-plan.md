@@ -56,9 +56,13 @@ the hash-chained audit trail are built and tested end to end. Screens built:
 sign-in (local accounts, A-13), dashboard with instrument clearance, result
 list and detail with review, approve, release, replay and correct (password
 re-entry on approve, release and correct), unmatched results (close with a
-reason), failed deliveries, and a health endpoint. Not built yet: W-11
-instrument registration and W-9 mapping screens (instruments and mappings
-are loaded by the administrator), attaching an unmatched result to a
+reason), failed deliveries, a health endpoint, W-11 instrument
+registration (identity, driver or generic profile, connection; changes that
+reset verification are explained on the form), verification evidence
+(interface test, lab acceptance signed with the approver's own password,
+suspension, re-verification), turning instruments on and off, and loading
+the reviewed mapping file as a draft that a different approver activates.
+Not built yet: the W-9 row-by-row mapping editor, attaching an unmatched result to a
 specimen (needs the second-person check), labels, downtime registration,
 OIDC/LDAPS, and the real HMIS connector, which waits for D-1 to D-6.
 

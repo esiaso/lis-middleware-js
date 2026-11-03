@@ -3,7 +3,7 @@ import {
   type ArgumentsHost, type CanActivate, type ExceptionFilter, type ExecutionContext,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ConcurrentChange, WorkflowRejected } from '@lis/lab';
+import { ConcurrentChange, InvalidInput, WorkflowRejected } from '@lis/lab';
 import type { NextFunction, Request, Response } from 'express';
 import type { Logger } from 'pino';
 import { sessionUser, type Role, type SessionPolicy, type SessionUser } from './auth.js';
@@ -105,6 +105,9 @@ export class PageErrorFilter implements ExceptionFilter {
     } else if (e instanceof WorkflowRejected) {
       status = 409;
       message = e.error.detail;
+    } else if (e instanceof InvalidInput) {
+      status = 422;
+      message = `Not saved: ${e.issues.join('; ')}`;
     } else if (e instanceof ConcurrentChange) {
       status = 409;
       message = 'Someone else changed this result while you were looking at it. Reload and check before trying again.';

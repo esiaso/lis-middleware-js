@@ -1,0 +1,131 @@
+<p><a href="/instruments">&larr; Instruments</a></p>
+<div class="d-flex justify-content-between align-items-start">
+  <div>
+    <h1 class="h4 mb-1">{{i.name}} <span class="small text-body-secondary">{{i.id}}</span></h1>
+    <p class="mb-2">{{i.manufacturer}} {{i.model}}{{#if i.serialNo}} · serial {{i.serialNo}}{{/if}}{{#if i.softwareVersion}} · software {{i.softwareVersion}}{{/if}} · {{i.discipline}}{{#if i.location}} · {{i.location}}{{/if}}</p>
+  </div>
+  {{#if can.register}}<a class="btn btn-outline-secondary btn-sm" href="/instruments/{{i.id}}/edit">Change registration</a>{{/if}}
+</div>
+{{#if clinical}}
+<div class="alert alert-success" role="status">Cleared for clinical use (lab accepted, software {{i.verifiedSoftwareVersion}}).</div>
+{{else}}
+<div class="alert alert-warning" role="status"><strong>Not for clinical use:</strong> {{gateDetail}}. Results are received and shown but cannot be released.</div>
+{{/if}}
+<p>Verification: <strong>{{i.verification}}</strong> · {{#if i.enabled}}turned on{{else}}turned off{{/if}} · link {{#if i.linked}}connected{{else}}no worker{{/if}}{{#if i.manual}} · manual: {{i.manual}}{{/if}}</p>
+
+<div class="row g-3 mb-4">
+  {{#if can.verify}}
+  {{#if next.interfaceTest}}
+  <div class="col-md-6 col-lg-4">
+    <form method="post" action="/instruments/{{i.id}}/evidence" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}"><input type="hidden" name="kind" value="interface-test">
+      <h2 class="h6">Record interface test</h2>
+      <label class="form-label" for="testedBy">Tested by</label><input class="form-control mb-2" id="testedBy" name="testedBy" required>
+      <label class="form-label" for="organisation">Organisation</label><input class="form-control mb-2" id="organisation" name="organisation" required>
+      <label class="form-label" for="testedAt">Date</label><input class="form-control mb-2" id="testedAt" name="testedAt" type="date" max="{{today}}" required>
+      <label class="form-label" for="recordRef">Signed test record reference</label><input class="form-control mb-2" id="recordRef" name="recordRef" required>
+      <label class="form-label" for="ev-software">Software version tested</label><input class="form-control mb-2" id="ev-software" name="softwareVersion" value="{{i.softwareVersion}}" required>
+      <button class="btn btn-primary" type="submit">Record</button>
+    </form>
+  </div>
+  {{/if}}
+  {{#if next.labAcceptance}}{{#if can.accept}}
+  <div class="col-md-6 col-lg-4">
+    <form method="post" action="/instruments/{{i.id}}/evidence" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}"><input type="hidden" name="kind" value="lab-acceptance">
+      <h2 class="h6">Sign lab acceptance</h2>
+      <p class="small text-body-secondary">You sign this yourself, as {{user.displayName}}.</p>
+      <label class="form-label" for="acceptanceRef">Parallel-run report reference</label><input class="form-control mb-2" id="acceptanceRef" name="acceptanceRef" required>
+      <label class="form-label" for="accept-password">Your password</label><input class="form-control mb-2" id="accept-password" name="password" type="password" required>
+      <button class="btn btn-success" type="submit">Sign acceptance</button>
+    </form>
+  </div>
+  {{/if}}{{/if}}
+  {{#if next.suspend}}
+  <div class="col-md-6 col-lg-4">
+    <form method="post" action="/instruments/{{i.id}}/evidence" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}"><input type="hidden" name="kind" value="suspension">
+      <h2 class="h6">Suspend</h2>
+      <label class="form-label" for="suspend-reason">Reason (at least 10 characters)</label><input class="form-control mb-2" id="suspend-reason" name="reason" minlength="10" required>
+      <button class="btn btn-danger" type="submit">Suspend</button>
+    </form>
+  </div>
+  {{/if}}
+  {{#if next.reverify}}
+  <div class="col-md-6 col-lg-4">
+    <form method="post" action="/instruments/{{i.id}}/evidence" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}"><input type="hidden" name="kind" value="reverification">
+      <h2 class="h6">Start verification again</h2>
+      <label class="form-label" for="reverify-reason">Reason (at least 10 characters)</label><input class="form-control mb-2" id="reverify-reason" name="reason" minlength="10" required>
+      <button class="btn btn-primary" type="submit">Back to unverified</button>
+    </form>
+  </div>
+  {{/if}}
+  {{#if next.enable}}{{#if can.accept}}
+  <div class="col-md-6 col-lg-4">
+    <form method="post" action="/instruments/{{i.id}}/enabled" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}"><input type="hidden" name="enabled" value="true">
+      <h2 class="h6">Turn on</h2>
+      <p class="small text-body-secondary">The link runs, but results are releasable only once the instrument is lab accepted.</p>
+      <label class="form-label" for="enable-reason">Reason</label><input class="form-control mb-2" id="enable-reason" name="reason" minlength="5" required>
+      <button class="btn btn-primary" type="submit">Turn on</button>
+    </form>
+  </div>
+  {{/if}}{{/if}}
+  {{#if next.disable}}
+  <div class="col-md-6 col-lg-4">
+    <form method="post" action="/instruments/{{i.id}}/enabled" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}"><input type="hidden" name="enabled" value="false">
+      <h2 class="h6">Turn off</h2>
+      <label class="form-label" for="disable-reason">Reason</label><input class="form-control mb-2" id="disable-reason" name="reason" minlength="5" required>
+      <button class="btn btn-outline-danger" type="submit">Turn off</button>
+    </form>
+  </div>
+  {{/if}}
+  {{/if}}
+</div>
+
+<h2 class="h5" id="mappings">Test mappings</h2>
+{{#if active}}
+<p>Active: version {{active.versionNo}}, written by {{active.by}}, approved by {{active.approvedBy}} ({{active.at}}).</p>
+{{> mapping-table mappings=active.mappings}}
+{{else}}
+<div class="alert alert-info" role="status">No active mapping set. Every result from this instrument goes to the unmatched list until one is approved.</div>
+{{/if}}
+{{#if draft}}
+<h3 class="h6">Draft version {{draft.versionNo}}, by {{draft.by}}</h3>
+{{> mapping-table mappings=draft.mappings}}
+{{#if can.accept}}
+{{#if draft.mine}}<p class="small text-body-secondary">You saved this draft, so someone else must approve it.</p>{{else}}
+<form method="post" action="/instruments/{{i.id}}/mappings/{{draft.versionNo}}/approve" class="row g-2 align-items-end mb-3">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <div class="col-auto"><label class="form-label" for="map-password">Your password</label><input class="form-control" id="map-password" name="password" type="password" required></div>
+  <div class="col-auto"><button class="btn btn-success" type="submit">Approve and make active</button></div>
+</form>
+{{/if}}
+{{/if}}
+{{/if}}
+{{#if can.register}}
+<details class="mb-4">
+  <summary>Load the reviewed mapping file as a draft</summary>
+  <form method="post" action="/instruments/{{i.id}}/mappings" class="mt-2">
+    <input type="hidden" name="_csrf" value="{{csrf}}">
+    <textarea class="form-control font-monospace mb-2" name="mappings" rows="10" aria-label="Mappings (JSON)">{{mappingText}}</textarea>
+    <div class="form-text mb-2">A list of mappings: localTestCode, instrumentTestCode, direction (order, result or both), and optionally instrumentCodeSystem, expectedUnits, decimals, qualitativeMap, reportable, ruo. Research-use-only parameters are never reported.</div>
+    <button class="btn btn-primary" type="submit">Save draft</button>
+  </form>
+</details>
+{{/if}}
+{{#if history}}
+<h3 class="h6">Versions</h3>
+<ul class="small">{{#each history}}<li>v{{versionNo}}: {{status}}, by {{by}}{{#if approvedBy}}, approved by {{approvedBy}}{{/if}}</li>{{/each}}</ul>
+{{/if}}
+
+<h2 class="h5">Verification history</h2>
+<ul class="small">
+  {{#each evidence}}<li>{{at}} · {{kind}} · {{from}} → {{to}} · {{by}} · <span class="font-monospace">{{detail}}</span></li>{{else}}<li class="text-body-secondary">No evidence recorded yet.</li>{{/each}}
+</ul>
+
+<h2 class="h5">Active connection</h2>
+<p class="small text-body-secondary">Since {{connectionSince}}. Earlier configurations are kept, so older messages are decoded with the settings they arrived under.</p>
+<pre class="small border rounded p-2">{{connection}}</pre>

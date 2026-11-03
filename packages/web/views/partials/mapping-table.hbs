@@ -1,0 +1,8 @@
+<table class="table table-sm">
+  <thead><tr><th>Local test</th><th>Instrument code</th><th>Direction</th><th>Units</th><th>Reported</th></tr></thead>
+  <tbody>
+    {{#each mappings}}
+    <tr><td>{{localTestCode}}</td><td class="font-monospace">{{instrumentTestCode}}{{#if instrumentCodeSystem}} ({{instrumentCodeSystem}}){{/if}}</td><td>{{direction}}</td><td>{{expectedUnits}}</td><td>{{#if ruo}}no (research use only){{else}}{{#if reportable}}yes{{else}}no{{/if}}{{/if}}</td></tr>
+    {{/each}}
+  </tbody>
+</table>
