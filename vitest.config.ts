@@ -19,6 +19,7 @@ export default defineConfig({
       '@lis/analyzer-worker': pkg('analyzer-worker'),
       '@lis/result-intake': pkg('result-intake'),
       '@lis/hmis': pkg('hmis'),
+      '@lis/lab': pkg('lab'),
     },
   },
   test: {

@@ -120,11 +120,26 @@ export type ClinicalGate =
  * (for verification work) under a "not for clinical use" banner.
  */
 export function clinicalGate(state: InstrumentState): ClinicalGate {
-  if (!state.enabled) return { releasable: false, reason: 'disabled', detail: 'instrument is disabled' };
-  if (state.verificationStatus !== 'lab_accepted') {
-    return { releasable: false, reason: 'not-lab-accepted', detail: `verification status is ${state.verificationStatus}` };
+  return clinicalGateFor({
+    enabled: state.enabled,
+    verificationStatus: state.verificationStatus,
+    softwareVersion: state.registration.softwareVersion,
+    verifiedSoftwareVersion: state.verifiedSoftwareVersion,
+  });
+}
+
+/** The same gate from stored columns, for callers that do not load the full registration. */
+export function clinicalGateFor(s: {
+  enabled: boolean;
+  verificationStatus: VerificationStatus;
+  softwareVersion?: string | null | undefined;
+  verifiedSoftwareVersion?: string | null | undefined;
+}): ClinicalGate {
+  if (!s.enabled) return { releasable: false, reason: 'disabled', detail: 'instrument is disabled' };
+  if (s.verificationStatus !== 'lab_accepted') {
+    return { releasable: false, reason: 'not-lab-accepted', detail: `verification status is ${s.verificationStatus}` };
   }
-  if (state.verifiedSoftwareVersion !== state.registration.softwareVersion) {
+  if ((s.verifiedSoftwareVersion ?? undefined) !== (s.softwareVersion ?? undefined)) {
     return { releasable: false, reason: 'software-changed', detail: 'software version differs from the verified one' };
   }
   return { releasable: true };

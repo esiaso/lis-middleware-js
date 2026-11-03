@@ -19,6 +19,7 @@
       "@lis/analyzer-worker": ["./packages/analyzer-worker/src/index.ts"],
       "@lis/result-intake": ["./packages/result-intake/src/index.ts"],
       "@lis/hmis": ["./packages/hmis/src/index.ts"],
+      "@lis/lab": ["./packages/lab/src/index.ts"],
       "@serialport/binding-mock": ["./node_modules/@serialport/binding-mock/dist/index.d.ts"]
     }
   },
