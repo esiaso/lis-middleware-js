@@ -9,6 +9,9 @@ Document abbreviations:
 
 * **e411 HIM**: Roche cobas e 411 Host Interface Manual v2.2, Nov 2013 (page references like B-2, E-15).
 * **c111 HIM**: Roche cobas c 111 Host Interface Manual v2.2, June 2021, SW ≥ 3.0 (section references).
+
+Other instruments in the lab have not been listed yet (D-26). Each one gets
+its own row here, from its own vendor manual, before any adapter work.
 * **Mindray HL7**: Mindray "3107 HL7 Communication Protocol", Z-110-002557-002-2.0 (section references).
 
 ## 1. Summary
@@ -17,7 +20,7 @@ Document abbreviations:
 |---|---|---|---|---|---|---|
 | Roche cobas e 411 | Immunoassay | ASTM E1381-91 / E1394-91, two record dialects: "Elecsys® type" and "cobas® type" [DOC e411 HIM A-2] | RS-232C, half duplex, one port [DOC e411 HIM B-2] | **Yes**: real-time inquiry (query) and batch download [DOC e411 HIM C-2] | Yes: real-time and batch [DOC e411 HIM C-2] | Documented, **unverified**. Installed SW version unknown (B-1). |
 | Mindray, model TBC (file name says BC-5000 / BC-5150) | Haematology | HL7 v2.3.1 over MLLP [DOC Mindray §1, 4.3.1] | "TCP interface communication/port communication" [DOC Mindray §1]. Listener side and port **not stated**. | **Query only**: analyzer sends ORM^O01 per sample, LIS answers ORR^O02 [DOC Mindray 4.1.2, 5.5]. No unsolicited download described. | Yes: ORU^R01, LIS answers ACK^R01 [DOC Mindray 4.1.1, 5.2] | Document applicability **unconfirmed** (B-3). Transport details unknown (B-4). |
-| Roche cobas c 111 | Clinical chemistry | ASTM E1381-97 / E1394-97 [DOC c111 HIM 7.1.1] | RS-232 [DOC c111 HIM 5.2, 6.3] | Yes: query and batch download [DOC c111 HIM 6.1] | Yes [DOC c111 HIM 6.4] | **Not in requested scope.** Manual received; confirm whether installed (D-12). |
+| Roche cobas c 111 | Clinical chemistry (photometry, optional ISE) | ASTM E1381-97 / E1394-97 [DOC c111 HIM 7.1.1] | RS-232, one port, 15 m [DOC c111 HIM 5.2, 6.3] | **Yes**: real-time query (once or always) and batch download [DOC c111 HIM 5.1, 6.1] | Yes: real-time and batch; **host may also request results** [DOC c111 HIM 6.4] | **In scope** (lab confirmed 2026-11-03). Documented for SW ≥ 3.0, **unverified**. Installed SW version unknown (B-9). |
 
 ## 2. Roche cobas e 411
 
@@ -207,37 +210,132 @@ the demographics, is **[UNVERIFIED]** (B-5). Until confirmed, the design
 treats the Mindray as a **query-for-demographics** instrument; the full CBC
 panel ordered in the middleware is matched to whatever parameters arrive.
 
-## 4. Roche cobas c 111 (not in scope until confirmed)
+## 4. Roche cobas c 111
 
-Recorded so the information is not lost if D-12 confirms an installed unit.
+In scope: the lab confirmed on 2026-11-03 that a cobas c 111 is installed.
+The manual we hold covers **instrument software 3.0 and higher**; the
+installed version is unknown (B-9).
 
-* RS-232, speeds 1200 to 115200 bps (default 9600), handshake none / RTS-CTS
-  / XON-XOFF (default **XON/XOFF**), line modes 7/8 bit, parity, stop bits
-  (default N81), 15 m max [DOC c111 HIM 5.2, 6.3].
-* Real-time and batch; query once or always (always is used to pick up rerun
-  orders); query timeout 10 to 300 s, default 10 s [DOC c111 HIM 5.1].
-* **Host can request results** (`RSREQ`) [DOC c111 HIM 6.4.1], unlike e 411.
-* Calibration and raw absorbance data can be sent (M-CR, M-RR records)
-  [DOC c111 HIM 6.4].
-* If the host does not confirm a communication in time, **unconfirmed
-  records are not re-sent**; after 3 failed attempts on content errors the
-  block is aborted and results must be re-sent manually [DOC c111 HIM 6.5].
-* Sample ID up to 23 printable ASCII characters [DOC c111 HIM 6.2.1].
-* Database holds max 300 samples; downloads beyond that are not stored
-  [DOC c111 HIM 6.1.2.2].
+### 4.1 Physical and link layer
+
+| Item | Value | Source | Status |
+|---|---|---|---|
+| Connector | Topmost RS-232 connector on the right side, marked "Host" | c111 HIM 5.2 | [DOC] |
+| Cable | Standard null-modem, or 3-wire cable (TxD/RxD crossed, GND) for software handshake or none | c111 HIM 5.2, Fig. 1–2 | [DOC] |
+| Max cable length | 15 m | c111 HIM 5.2.1, 6.3.1 | [DOC] |
+| Speed | 1200 to 115200 bps; default 9600 | c111 HIM 6.3.1 | [DOC] |
+| Line mode | N81 (default), E81, O81, N82, E71, O71, E72, O72 | c111 HIM 6.3.1 | [DOC] |
+| Handshake | OFF, HW (RTS/CTS), **SW (XON/XOFF, default)** | c111 HIM 6.3.1 | [DOC] |
+| Checksum validation on receive | ON (default) or OFF; the analyzer always sends a valid checksum | c111 HIM 5.1 | [DOC]. Keep ON. |
+| Frames | Max 240 text characters, 247 per frame; FN modulo 8 from 1 | c111 HIM 7.1.3, 7.1.5 | [DOC] |
+| Checksum | The text says "modulus 8 of the sum", but the worked example and every trace use the low 8 bits (mod 256), identical to the e 411 | c111 HIM 7.1.5, 9.x | [DOC], **text inconsistent**: follow the example; confirm in testing |
+| Records per frame | "Different records must be sent in different frames"; the receiver concatenates all frames until EOT, then splits on CR. In the traces the analyzer ends each record's frame with ETB and only the last with ETX; the host example uses ETX per record. | c111 HIM 7.1.4.4, 7.1.5, 9.1–9.6 | [DOC] |
+| Encoding | Printable ASCII | c111 HIM 6.2.1, 11 | [DOC] |
+
+**XON/XOFF.** With the default software handshake, DC1/DC3 bytes may appear
+on the line. The device server (or the local serial port) must handle
+XON/XOFF itself, or the analyzer must be set to handshake OFF. The
+middleware's serial config therefore has a `flowControl` setting, and the ASTM
+decoder reports stray DC1/DC3 outside frames as noise instead of failing.
+Which option to use is decided with the Roche engineer (B-9).
+
+### 4.2 Workflows and messages
+
+| Flow | Direction | Header comment | Source |
+|---|---|---|---|
+| Test order inquiry (query) | c 111 → host | `TSREQ^REAL`, `Q|1|^<SampleID>||ALL||||||||O` | c111 HIM 6.4, 7.2.2.9, 9.1 |
+| Rerun test order inquiry | c 111 → host | as above, when "Send Order Query = ALWAYS" and the sample is seen again | c111 HIM 5.1, 6.1.1.4 |
+| Test orders (reply / batch) | host → c 111 | `TSDWN^REPLY` / `TSDWN^BATCH` | c111 HIM 6.4.1, 9.2 |
+| Patient / control results | c 111 → host | `RSUPL^REAL`, `RSUPL^BATCH`, `RSUPL^REPLY` | c111 HIM 6.4 |
+| **Result request** | host → c 111 | `RSREQ^REAL`, `Q|1|^<SampleID>||ALL||||||||F` | c111 HIM 6.4.1, 9.5–9.6 |
+| Photometric / ISE calibration | c 111 → host | `PCUPL^REAL` (M.CR), `ICUPL^REAL` (M.ICR) | c111 HIM 6.4, 7.2.2.10 |
+| Raw absorbance data | c 111 → host | M.RR records after results, if Raw-Data = ON | c111 HIM 5.1, 7.2.2.11 |
+| Reagent disk loading, database reset | both | MSR INR/INU, EAC/EAR | c111 HIM 7.3; **factory use only, never sent by the middleware** |
+
+Configuration items on the analyzer (Utilities – Configuration – Host
+Settings) [DOC c111 HIM 5.1]:
+
+* Communication: OFF / BATCH / REALTIME. Automatic result upload only in REALTIME.
+* Send Order Query: OFF / ONCE / **ALWAYS** (default). ALWAYS asks again every
+  time a sample is seen, to pick up rerun orders.
+* Query Timeout: 10 to 300 s, default **10 s**, cannot be disabled.
+* Send Result Mode: OFF / COMPLETE (default) / IMMEDIATE. QC results are sent
+  immediately, not grouped.
+* Raw-Data, Trace, System ID (default `c111`), Host ID (default `host`).
+
+### 4.3 Record content
+
+| Record | Content | Source |
+|---|---|---|
+| H | H-5 sender is `<name>^Roche^c111^<SW version>^<protocol version>^<serial number>`, so **every message carries the instrument's software version and serial number**. H-11 meaning^cause, H-14 timestamp. | c111 HIM 7.2.2.2 |
+| P | Ignored on receive; on transmit P-4 carries the un-extended sample ID only in "Grouped Sample ID" (NPT) mode | c111 HIM 7.2.2.4 |
+| O (host → c 111) | O-3 sample ID (max 23); O-5 `^^^<HostCode>^<Treatment>` repeated, max 60; O-6 R/S; O-12 action `A` add (creates sample if new), `C` cancel, `Q` QC; O-26 report type, `O\Q` for a query reply, `Z` for "no tests" | c111 HIM 7.2.2.5, 9.2 |
+| O (c 111 → host) | O-3 **empty**; O-4 `<SampleID>^^<Position 1-8>`; controls use `1000 + control code` as the ID with action code `Q`; O-23 report time; O-26 `F`, `O\Q`, `F\Q` | c111 HIM 7.2.2.5, 9.4, 9.6 |
+| R | R-3 `^^^<HostCode>^<Treatment D/C/empty>`; R-4 value with `<`/`>` prefix outside measuring range; **qualitative results not available**; R-5 units; R-6 reference range lower/upper (QC: target range); R-7 `L H < > N A`; R-9 **`F` first result, `C` rerun result, `X` cannot be completed, `R` re-transmission of a result already sent, `I` QC result ignored**; R-11 operator who released, or `$SYS$` if accepted automatically | c111 HIM 7.2.2.7 |
+| C after R | `C|1|I|<flag>^<comment>\…|I`: all active flags, repeated; flag catalogue in Appendix A (data, calibration, QC, derived, treatment flags, priority list) | c111 HIM 7.2.2.8, 8 |
+| C after O (host → c 111) | `C|1|L|<comment ≤30>|G` replaces the sample comment | c111 HIM 7.2.2.6 |
+
+### 4.4 Behaviour that shapes the design
+
+* **No automatic re-send.** If the host does not confirm a communication in
+  time, "the unconfirmed communication records are not re-sent". After 3
+  failed attempts on content errors the block is aborted; results must then
+  be sent manually [DOC c111 HIM 6.5]. The middleware therefore uses the
+  documented **result request** (`RSREQ`) as an automatic recovery path: a
+  reconciliation job asks the c 111 for results of samples that were queried
+  but have no results after the expected time. Re-sent results arrive with
+  R-9 = `R`, which the deduplication rules treat as a re-transmission, not a
+  repeat ([08](08-durable-processing.md) §5).
+* **Query timeout defaults to 10 s** (shorter than the e 411's 15 s). The
+  query reply budget for the c 111 is 3 s.
+* **Database limit of 300 samples**; orders beyond the limit are not stored
+  [DOC c111 HIM 6.1.2.2]. Batch download is off by default; real-time query
+  is used.
+* **Sample ID handling modes** [DOC c111 HIM 4.4.5]: "Order ID = Sample ID",
+  "Independent ID", and "Grouped Sample ID", which **appends a 3-character
+  extension** to the ID. The middleware requires "Order ID = Sample ID" so
+  the barcode it printed is the ID it receives. Grouped mode would need a
+  separate matching rule and is not supported in the MVP.
+* **Samples are never identified by position**; a sample must be identified
+  before it is placed [DOC c111 HIM 4.4.2, 6.1.1.2]. No rack read-error
+  placeholder exists, unlike the e 411.
+* **Calibration and raw data** (M.CR, M.ICR, M.RR) go to a calibration /
+  raw-data store, never to patient results.
+* **Test codes**: the analyzer maps its ACN (Roche test number) to a
+  lab-defined Host Application Code through a table exported and imported as
+  a text file [DOC c111 HIM 6.1.2.4]. That table is part of the mapping set
+  under change control.
+* **Reruns**: manual only (no automatic rerun); the host may place rerun
+  orders when the sample is seen again with "Send Order Query = ALWAYS"
+  [DOC c111 HIM 4.4.4, 6.1.1.4].
+
+### 4.5 Open items specific to c 111
+
+* Installed software version and serial number (B-9). The H record will
+  report both once the link is up; record them in the verification file.
+* Current Host Settings and RS-232 settings, including handshake (B-9).
+* Sample ID handling mode in use (B-9).
+* Which tests are installed, and the current ACN to Host Code table (B-9).
+* Whether ISE is fitted.
+* Behaviour on `RSREQ` for a sample no longer on board **[UNVERIFIED]**.
+* How the analyzer behaves if our reply arrives after its query timeout
+  **[UNVERIFIED]**.
 
 ## 5. Capability-driven workflow per instrument
 
-| Capability | e 411 (doc) | Mindray (doc) | Middleware behaviour |
-|---|---|---|---|
-| Host query for orders | Yes | Yes (ORM/ORR) | Answer from local DB within the instrument timeout |
-| Unsolicited order download | Yes (batch, max 2000 tests, overwrite risk) | Not described | e 411: optional, off by default. Mindray: not used. |
-| Results upload | Yes | Yes | Persist raw, then ACK |
-| Host requests results | No | Not described | Operator re-sends from analyzer; UI shows the analyzer-side procedure |
-| QC upload | Yes | Yes (`MSH-11 = Q`) | Routed to the QC store, never to patient results |
-| Calibration upload | No | Not described | n/a |
-| Rerun indication | `R-9 = C` | Recheck flag `01006` | New result version marked as repeat |
-| Operator-edited result | Not described | OBX-13 `E` / `e` | Highlighted in review; cannot be autoverified |
+| Capability | e 411 (doc) | c 111 (doc) | Mindray (doc) | Middleware behaviour |
+|---|---|---|---|---|
+| Host query for orders | Yes (timeout 15 s) | Yes (timeout 10 s default, once or always) | Yes (ORM/ORR) | Answer from local DB within the instrument timeout |
+| Unsolicited order download | Yes (batch, max 2000 tests, overwrite risk) | Yes (batch, max 300 samples) | Not described | Off by default; real-time query instead |
+| Results upload | Yes | Yes (complete or immediate) | Yes | Persist raw, then ACK |
+| Host requests results | No | **Yes** (`RSREQ`) | Not described | c 111: automatic recovery job. Others: operator re-sends from analyzer. |
+| Automatic re-send after a failed transfer | Retries a frame up to 6 times | **No** | Not described | c 111 relies on the recovery job |
+| QC upload | Yes | Yes (action code `Q`) | Yes (`MSH-11 = Q`) | Routed to the QC store, never to patient results |
+| Calibration upload | No | Yes (M.CR, M.ICR) | Not described | Calibration store only |
+| Qualitative results | Yes (`1/0/-1` with COI) | **Not available** | `IS` values | Per mapping |
+| Rerun indication | `R-9 = C` | `R-9 = C`; `R` = re-transmission | Recheck flag `01006` | New version for a rerun; no new version for a re-transmission |
+| Automatically accepted result | Not described | Operator `$SYS$` | Not described | Shown in review |
+| Operator-edited result | Not described | Not described | OBX-13 `E` / `e` | Highlighted in review; cannot be autoverified |
 
 When an instrument cannot receive orders (query disabled, licence missing, or
 link down), the lab uses the **manual loading workflow**: the middleware

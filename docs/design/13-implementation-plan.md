@@ -59,6 +59,15 @@ run for 1 h without crash or unbounded memory.
 
 **Exit:** laboratory acceptance signed for e 411 → `LAB_ACCEPTED`; go-live.
 
+## Phase 3b: cobas c 111 (3 to 4 weeks, can overlap phase 3)
+
+* Close B-9 (software version, Host Settings, Sample ID mode, ACN/Host Code table).
+* `cobas-c111-astm` adapter on the existing ASTM core: record mapping, R-9
+  status handling, C-record flags, M.CR/M.RR routing, H-5 identity check,
+  RSREQ result recovery job (T-31).
+* Second device server; XON/XOFF decision with Roche.
+* Interface verification with Roche, parallel run, acceptance.
+
 ## Phase 4: Mindray (4 to 6 weeks after B-3, B-4, B-5 close)
 
 * Confirm the right Mindray document for the installed model and firmware.
@@ -74,8 +83,10 @@ run for 1 h without crash or unbounded memory.
 * Critical-result escalation via hospital SMS/email gateway.
 * Mapping editor UI with approval workflow (W-9).
 * Second OS installer; SIEM streaming; archive tooling.
-* Additional instruments (e.g. cobas c 111 if D-12 confirms it), each with
-  its own verified adapter.
+* Additional instruments from the inventory (D-26), each onboarded the same
+  way: vendor manual for the installed version → row in the compatibility
+  matrix → adapter on the shared protocol cores → simulator tests → vendor
+  interface verification → parallel run → acceptance.
 
 ## Risks
 

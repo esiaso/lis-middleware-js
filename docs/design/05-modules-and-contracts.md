@@ -173,6 +173,7 @@ export const SerialTransport = z.object({
   dataBits: z.union([z.literal(7), z.literal(8)]),
   parity: z.enum(['none', 'even', 'odd']),
   stopBits: z.union([z.literal(1), z.literal(2)]),
+  flowControl: z.enum(['none', 'rtscts', 'xonxoff']).default('none'), // c 111 default is XON/XOFF [DOC c111 HIM 6.3]
 });
 export const TcpClientTransport = z.object({
   type: z.literal('tcp-client'),
@@ -188,7 +189,7 @@ export const TcpServerTransport = z.object({
 });
 export const InstrumentConnectionConfig = z.object({
   instrumentId: InstrumentId,
-  adapter: z.enum(['cobas-e411-astm', 'mindray-hl7-mllp']),
+  adapter: z.enum(['cobas-e411-astm', 'cobas-c111-astm', 'mindray-hl7-mllp']),
   adapterOptions: z.record(z.string(), z.unknown()),   // validated by the adapter's own schema
   transport: z.discriminatedUnion('type', [SerialTransport, TcpClientTransport, TcpServerTransport]),
   maxMessageBytes: z.number().int().max(16 * 1024 * 1024).default(4 * 1024 * 1024),

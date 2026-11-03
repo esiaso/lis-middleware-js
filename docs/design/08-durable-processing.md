@@ -112,8 +112,9 @@ twice. We separate these:
 | Case | Signal | Treatment |
 |---|---|---|
 | Byte-identical re-send | Same `sha256` of the message body for the same instrument within a window (default 7 days) | Stored as raw (audit), marked `duplicate_of`, **no new result version** |
+| Declared re-transmission | c 111 `R-9 = R` ("previously transmitted result") [DOC c111 HIM 7.2.2.7] | Linked to the existing observation; no new version. If the value differs from the stored one, raise an incident instead. |
 | Same result re-sent in batch | Same instrument, sample ID, test code, completion timestamp (e 411 R-13 / Mindray OBR-7), value text, dilution | No new version; linked to the existing observation |
-| Rerun / repeat | e 411 `R-9 = C`; Mindray recheck flag; or a different completion timestamp | **New version**, kind `REPEAT` |
+| Rerun / repeat | e 411 or c 111 `R-9 = C`; Mindray recheck flag; or a different completion timestamp | **New version**, kind `REPEAT` |
 | Dilution | Different dilution component (e 411 R-3) | New version, kind `DILUTION` |
 | Operator-edited on instrument | Mindray `OBX-13` `E`/`e` | New version, flagged `edited on instrument` |
 
@@ -214,6 +215,7 @@ hospital's email/SMS gateway or monitoring system.
 | HMIS order catch-up | per polling interval | Reads cursor; idempotent upsert |
 | HMIS cancellation check | 15 min | For open orders, compare HMIS status; flag cancellations after collection for the lab |
 | Loaded-not-resulted | 30 min | Specimens on instruments past expected TAT |
+| c 111 result recovery | 15 min | For c 111 samples queried but without results past expected TAT, send `RSREQ` (one at a time); the c 111 does not re-send unconfirmed results by itself [DOC c111 HIM 6.5] |
 | Unmatched results ageing | hourly | Escalation per §10 |
 | Downtime reconciliation | on HMIS recovery | Builds match proposals for provisional patients/orders |
 | Retention / archival | nightly | §3.4 of [06](06-database-and-state-machines.md); every purge is audited |

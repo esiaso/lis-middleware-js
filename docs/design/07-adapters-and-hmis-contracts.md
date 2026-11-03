@@ -135,7 +135,27 @@ Based on [DOC e411 HIM]; every item below is re-tested on site.
 | Duplicate tests | Never send the same test twice in one O record [DOC e411 HIM E-13]. |
 | Contention | If we sent ENQ and receive ENQ, yield: reply ACK and become receiver [DOC e411 HIM D-6]. |
 
-## 3. Mindray adapter (`mindray-hl7-mllp@1`), behaviour summary
+## 3. cobas c 111 adapter (`cobas-c111-astm@1`), behaviour summary
+
+Based on [DOC c111 HIM] (SW ≥ 3.0); installed version unconfirmed (B-9). It
+reuses `protocol-astm` unchanged; only the record mapping differs from the
+e 411.
+
+| Topic | Behaviour |
+|---|---|
+| Link | Same E1381 state machine. Outbound split mode `record-per-frame` ("different records must be sent in different frames" [DOC 7.1.5]). Inbound: concatenate all frames until EOT, then split on CR [DOC 7.1.4.4]. |
+| Flow control | Serial `flowControl: 'xonxoff'` if the analyzer keeps its default; with a device server, XON/XOFF is configured on the device server. Stray DC1/DC3 outside frames are logged as noise. |
+| Instrument identity | Parse H-5 (`name^Roche^c111^<SW>^<protocol>^<serial>`) on every message; alert if SW version or serial differs from the verified values. |
+| Query | `Q|1|^<SampleID>||ALL||||||||O`. Reply `TSDWN^REPLY` with O-3 = sample ID, O-5 `^^^<HostCode>^` repeated (max 60, no treatment by default), O-6 R/S, O-12 `A`, O-26 `O\Q`. No tests: O-5 empty, O-26 `Z` [DOC 7.2.2.5]. Reply budget 3 s (analyzer default timeout 10 s). |
+| Rerun query | With "Send Order Query = ALWAYS" the analyzer asks again when a completed sample is reloaded [DOC 6.1.1.4]. Reply with rerun tests only if a technologist requested a rerun in the UI; otherwise "no tests". |
+| Results | Sample ID from O-4 component 1 (O-3 is empty when sent by the analyzer). R-3 host code and treatment (D/C). R-4 numeric or `<`/`>` censored; no qualitative results. R-6 reference range. R-7 flags. C records: repeated `flag^comment` pairs into `instrumentFlags`. |
+| Result status | `F` → initial, `C` → rerun (new version), `R` → **re-transmission** of an already-sent result (dedupe, no new version), `X` → not completed (quarantine as `INVALID_VALUE` with the C flags), `I` → QC ignored [DOC 7.2.2.7]. |
+| QC | Action code `Q` or ID `1000 + control code` → `sampleClass = 'qc'`. |
+| Calibration / raw data | M.CR / M.ICR → calibration store; M.RR → raw-data store linked to the result; never patient observations. |
+| Result recovery | `RSREQ^REAL` with `Q|1|^<SampleID>||ALL||||||||F` for samples queried but not resulted after the expected time [DOC 6.4.1, 9.5]. Rate-limited (one request in flight per link). |
+| Never sent | Database factory reset (EAC^U07) and reagent-disk commands: factory use only [DOC 6.4.1, 7.3]. The adapter has no code path that builds them. |
+
+## 4. Mindray adapter (`mindray-hl7-mllp@1`), behaviour summary
 
 Based on [DOC Mindray]; model applicability unconfirmed (B-3).
 
@@ -150,7 +170,7 @@ Based on [DOC Mindray]; model applicability unconfirmed (B-3).
 | Placeholder values | Values like `***.**` appear in the doc's examples [DOC Mindray 5.1]; treat any non-numeric `NM` value as `absent`, keep original text. |
 | Recheck | `01006` = `T` → result version kind `REPEAT`. |
 
-## 4. Value parsing rules (shared)
+## 5. Value parsing rules (shared)
 
 | Input | Parsed as | Example |
 |---|---|---|
@@ -166,9 +186,9 @@ Based on [DOC Mindray]; model applicability unconfirmed (B-3).
 Unit conversion (only if the mapping says so) uses decimal arithmetic and the
 mapping's declared scale. The original value and unit are always retained.
 
-## 5. HMIS connector
+## 6. HMIS connector
 
-### 5.1 Configurable connector
+### 6.1 Configurable connector
 
 ```ts
 export interface HmisConnector {
@@ -197,7 +217,7 @@ page size, retry policy, code maps, webhook secret reference.
 `expires_in − 60 s`. A rotated client secret is picked up on the next token
 refresh without restart. Two webhook secrets can be active during rotation.
 
-### 5.2 Illustrative contracts
+### 6.2 Illustrative contracts
 
 > **Illustrative only.** These show the shape the middleware needs. The real
 > contracts come from the HMIS vendor's documentation (B-6). No endpoint
@@ -247,14 +267,14 @@ Outbound result submission (canonical):
 Correction: same shape, `status: "corrected"`, `correctionOf` pointing to
 the previously delivered idempotency key / HMIS result ID, plus `reason`.
 
-### 5.3 Order intake
+### 6.3 Order intake
 
 | Mode | Mechanism |
 |---|---|
 | Webhook | `POST /api/v1/hmis/webhooks/orders`. Verify signature/mTLS, validate, insert `inbox_message (source, externalId)` with unique constraint, return 2xx only after commit. Duplicate deliveries return 2xx without effect. |
 | Polling | Jobs worker polls with a stored cursor (`hmis_cursor`). Page until done. Cursor advanced in the same transaction as the inbox inserts. Overlap window (e.g. re-read last 5 min) is safe because intake is idempotent. |
 
-### 5.4 Mapping
+### 6.4 Mapping
 
 * `hmis_code_map` per domain (test, specimen type, unit, sex, priority,
   status) with versioning and approval like instrument test mappings.
@@ -262,7 +282,7 @@ the previously delivered idempotency key / HMIS result ID, plus `reason`.
   `UNMAPPED`, and the order appears on the "needs attention" list. It is not
   silently dropped.
 
-### 5.5 Error classification for retries
+### 6.5 Error classification for retries
 
 | Condition | Class |
 |---|---|
@@ -272,7 +292,7 @@ the previously delivered idempotency key / HMIS result ID, plus `reason`.
 | 400, 404 (order unknown), 409 (conflict), 422 | rejected → human |
 | 401/403 | retryable once after token refresh, then alert |
 
-## 6. Middleware REST API (OpenAPI)
+## 7. Middleware REST API (OpenAPI)
 
 Published at `/api/docs` (authenticated). Versioned under `/api/v1`. All
 mutating endpoints require an `Idempotency-Key` header and a role.

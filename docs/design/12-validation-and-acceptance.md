@@ -66,6 +66,7 @@ are signed. Until then the instrument's `verificationStatus` stays
 | T-27 | Performance | At 3× expected peak (A-7), event-loop delay p99 < 50 ms in analyzer workers; query reply p99 < 2 s |
 | T-28 | Install | Offline install on a clean VM with no internet: completes, `lims verify` passes, no outbound connection attempts (checked with firewall logs) |
 | T-29 | Backup | Restore to clean VM; audit chain verifies; counts match |
+| T-31 | c 111 | Query reply < 3 s at p99; record-per-frame outbound framing; H-5 SW/serial captured and alert on change; `R-9 = R` re-transmission creates no new version; `X` quarantined; M.CR/M.RR never reach patient results; RSREQ recovery retrieves results after a simulated lost transfer; XON/XOFF bytes outside frames tolerated |
 | T-30 | Security | CSRF, session fixation, XSS in all free-text fields, role bypass attempts, raw message access audited |
 
 ## 4. Interface verification protocol (per instrument, with vendor)

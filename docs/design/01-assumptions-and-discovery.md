@@ -19,6 +19,7 @@ but they stay behind a feature flag and are labelled unverified.
 | B-5 | Mindray **worklist (ORM/ORR) behaviour**: is bidirectional mode licensed and enabled, how the analyzer encodes "no order found", timeout, and whether the host can select CBC vs CBC+5DIFF | The document shows a successful response only. | Open |
 | B-6 | **HMIS vendor, product, version**, API documentation, authentication method, test environment URL and credentials | We will not invent HMIS endpoints. The connector cannot be built without this. | Open |
 | B-7 | HMIS **code systems**: test catalogue, specimen types, units, order statuses, result statuses, and how corrections and cancellations are represented | Required for mapping tables and the outbox payloads. | Open |
+| B-9 | Installed cobas c 111 **software version** and serial number, confirmation from Roche that Host Interface Manual v2.2 (for SW ≥ 3.0) applies, and photos of **Utilities – Configuration – Host Settings** (communication type, checksum, Send Order Query, Query Timeout, Send Result Mode, Raw-Data, System ID, Host ID), the **RS-232 settings including handshake**, the **Sample ID handling mode**, and an export of the **ACN to Host Code table** | Determines link settings, matching rules (the Grouped Sample ID mode alters IDs), and the test-code map. See [04](04-analyzer-compatibility-matrix.md) §4. | Open |
 | B-8 | The hospital's **barcode label specification** (symbology, length, check digit, printer model, label stock) | Sample ID limits: e 411 accepts up to 22 characters [DOC e411 HIM E-8]; Mindray OBR-3 recommends 22 [DOC Mindray 4.3.5]. | Open |
 
 ## 2. Discovery questions
@@ -43,7 +44,8 @@ but they stay behind a feature flag and are labelled unverified.
 |---|---|---|
 | D-10 | e 411: disk or rack version? (The manual describes both; the query timeout differs: 15 s for a single inquiry, about 40 s for rack-type communication [DOC e411 HIM F-2, F-5].) | Lab / Roche FSE |
 | D-11 | e 411: is real-time inquiry (host query) wanted, or batch download? Batch download stores up to 2000 tests and **overwrites the oldest** when full [DOC e411 HIM F-9], so we propose real-time query. | Lab manager |
-| D-12 | We received the **cobas c 111** Host Interface Manual. Is a c 111 installed and in scope, or was this file sent by mistake? | Lab manager |
+| D-12 | ~~Is a cobas c 111 installed and in scope?~~ **Answered 2026-11-03: yes**, a c 111 is in the lab and is in scope. Other, not yet listed instruments are also present (D-26). | Lab manager |
+| D-26 | **Full instrument inventory.** For every analyzer in the lab (including ones not planned for the first release): manufacturer and exact model, serial number, software/firmware version, discipline, daily sample volume, physical location, available host ports (RS-232, Ethernet, USB), whether a host-interface licence or option is installed, whether it is connected to any LIS/middleware today, the vendor's host-interface manual for that version, and the service contact. | Lab manager, Biomedical engineering |
 | D-13 | Where will each analyzer physically sit relative to the middleware server? The e 411 RS-232 cable limit is 15 m [DOC e411 HIM B-2]. | Hospital IT, Biomedical engineering |
 | D-14 | Are the Mindray analyzers connected via their own PC/workstation software (the document refers to "the PC connecting the analyzer" [DOC Mindray 4.1.1])? Which network segment is that PC on, and who patches it? | Biomedical engineering |
 | D-15 | Which service contracts allow us to request host-interface configuration changes and a vendor-assisted interface test? | Lab manager |
@@ -79,6 +81,8 @@ assumption and every document that cites it.
 | A-7 | Expected peak load is below **2,000 samples/day** and **20 result messages/minute** per instrument. Sizing in [11](11-installation-and-runbooks.md) uses this. | Re-size. | D-9 |
 | A-8 | The HMIS supports some idempotency mechanism (idempotency key, or a stable external result ID we can query). | Without it, "request succeeded but response lost" can only be resolved by human reconciliation. See [08](08-durable-processing.md) §7. | D-5, D-7 |
 | A-9 | Browser users are on the hospital intranet; no internet exposure. | Internet exposure would need a separate threat model. | D-23 |
+| A-11 | The c 111 will run in **REALTIME** communication with "Send Order Query = ALWAYS", "Send Result Mode = COMPLETE", checksum ON, and Sample ID handling **"Order ID = Sample ID"**. Handshake (XON/XOFF or OFF) is set to match the device server. | If Grouped Sample ID mode is required, matching must strip the 3-character extension; not in the MVP. | B-9 |
+| A-12 | Instruments beyond the e 411, c 111 and Mindray are **out of the first release** until D-26 is answered and each has its own verified manual. | Re-plan if the lab needs another instrument first. | D-26 |
 | A-10 | Mindray data arrives over TCP with MLLP framing [DOC Mindray §1]. Which side listens is configurable in the adapter until confirmed. | n/a | B-4 |
 
 ## 4. Unresolved dependencies (summary)
@@ -86,7 +90,7 @@ assumption and every document that cites it.
 1. HMIS API and its test environment (B-6, B-7). Without these, the HMIS
    connector is built against a mock only.
 2. Installed instrument versions and current interface configuration
-   (B-1, B-2, B-3).
+   (B-1, B-2, B-3, B-9), and the full instrument inventory (D-26).
 3. Mindray transport and worklist behaviour (B-4, B-5).
 4. Barcode specification and printer (B-8).
 5. Network placement, device servers, and firewall change approvals
