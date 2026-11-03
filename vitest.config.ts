@@ -15,6 +15,7 @@ export default defineConfig({
       '@lis/adapter-generic': pkg('adapter-generic'),
       '@lis/transport': pkg('transport'),
       '@lis/analyzer-runtime': pkg('analyzer-runtime'),
+      '@lis/db': pkg('db'),
     },
   },
   test: {

@@ -15,6 +15,7 @@
       "@lis/adapter-generic": ["./packages/adapter-generic/src/index.ts"],
       "@lis/transport": ["./packages/transport/src/index.ts"],
       "@lis/analyzer-runtime": ["./packages/analyzer-runtime/src/index.ts"],
+      "@lis/db": ["./packages/db/src/index.ts"],
       "@serialport/binding-mock": ["./node_modules/@serialport/binding-mock/dist/index.d.ts"]
     }
   },
