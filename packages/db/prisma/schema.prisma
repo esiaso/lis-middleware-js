@@ -262,3 +262,256 @@ model Observation {
   @@index([mapping])
   @@map("observation")
 }
+
+// ---------- Patients, orders, specimens (from the HMIS) ----------
+
+model Patient {
+  id         String     @id @db.Uuid
+  mrn        String     @unique
+  familyName String?    @map("family_name")
+  givenName  String?    @map("given_name")
+  birthDate  DateTime?  @map("birth_date") @db.Date
+  sex        String?
+  updatedAt  DateTime   @default(now()) @map("updated_at") @db.Timestamptz
+  orders     LabOrder[]
+
+  @@map("patient")
+}
+
+model LabOrder {
+  id                String        @id @db.Uuid
+  hmisOrderId       String        @unique @map("hmis_order_id")
+  patientId         String        @map("patient_id") @db.Uuid
+  hmisEncounterId   String?       @map("hmis_encounter_id")
+  location          String?
+  priority          String
+  orderedAt         DateTime      @map("ordered_at") @db.Timestamptz
+  orderingClinician String?       @map("ordering_clinician")
+  status            String
+  /// The canonical order as received, for traceability.
+  sourceJson        Json          @map("source_json")
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  patient           Patient       @relation(fields: [patientId], references: [id])
+  tests             OrderedTest[]
+  specimens         Specimen[]
+
+  @@map("lab_order")
+}
+
+model OrderedTest {
+  id            String   @id @db.Uuid
+  orderId       String   @map("order_id") @db.Uuid
+  hmisLineId    String   @map("hmis_line_id")
+  hmisTestCode  String   @map("hmis_test_code")
+  /// Null when the HMIS code has no mapping: the order needs attention (07 §6.4).
+  localTestCode String?  @map("local_test_code")
+  specimenType  String?  @map("specimen_type")
+  status        String
+  specimenId    String?  @map("specimen_id") @db.Uuid
+  order         LabOrder @relation(fields: [orderId], references: [id])
+  specimen      Specimen? @relation(fields: [specimenId], references: [id])
+  result        Result?
+
+  @@unique([orderId, hmisLineId])
+  @@map("ordered_test")
+}
+
+model HmisCodeMap {
+  hmisTestCode  String @id @map("hmis_test_code")
+  localTestCode String @map("local_test_code")
+
+  @@map("hmis_code_map")
+}
+
+model HmisCursor {
+  name      String   @id
+  cursor    String?
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  @@map("hmis_cursor")
+}
+
+model Specimen {
+  id          String        @id @db.Uuid
+  orderId     String        @map("order_id") @db.Uuid
+  accessionNo String        @unique @map("accession_no")
+  /// Printed on the label; the only key instruments see.
+  barcode     String
+  barcodeActive Boolean     @default(true) @map("barcode_active")
+  status      String
+  collectedAt DateTime?     @map("collected_at") @db.Timestamptz
+  createdBy   String        @map("created_by")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  order       LabOrder      @relation(fields: [orderId], references: [id])
+  tests       OrderedTest[]
+
+  @@index([barcode])
+  @@map("specimen")
+}
+
+// ---------- Results ----------
+
+model Result {
+  id                   String          @id @db.Uuid
+  orderedTestId        String          @unique @map("ordered_test_id") @db.Uuid
+  status               String
+  selectedVersionNo    Int?            @map("selected_version_no")
+  reviewedBy           String?         @map("reviewed_by")
+  approvedBy           String?         @map("approved_by")
+  releaseCount         Int             @default(0) @map("release_count")
+  deliveryKey          String?         @map("delivery_key")
+  deliveredKey         String?         @map("delivered_key")
+  newDataAfterApproval Boolean         @default(false) @map("new_data_after_approval")
+  needsConfirmation    Boolean         @default(false) @map("needs_confirmation")
+  instrumentId         String?         @map("instrument_id")
+  /// Optimistic concurrency.
+  version              Int             @default(1)
+  updatedAt            DateTime        @default(now()) @map("updated_at") @db.Timestamptz
+  orderedTest          OrderedTest     @relation(fields: [orderedTestId], references: [id])
+  versions             ResultVersion[]
+  events               ResultEvent[]
+
+  @@index([status])
+  @@map("result")
+}
+
+model ResultVersion {
+  id            String   @id @db.Uuid
+  resultId      String   @map("result_id") @db.Uuid
+  versionNo     Int      @map("version_no")
+  kind          String
+  value         Json
+  units         String?
+  abnormalFlags String[] @map("abnormal_flags")
+  observationId String?  @map("observation_id") @db.Uuid
+  reason        String?
+  createdBy     String   @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  result        Result   @relation(fields: [resultId], references: [id])
+
+  @@unique([resultId, versionNo])
+  @@map("result_version")
+}
+
+/// Append-only record of every human decision on a result.
+model ResultEvent {
+  id        String   @id @db.Uuid
+  resultId  String   @map("result_id") @db.Uuid
+  /// review, approve, release, replay, correct, delivery
+  kind      String
+  versionNo Int?     @map("version_no")
+  actor     String
+  reason    String?
+  detail    Json?
+  at        DateTime @default(now()) @db.Timestamptz
+  result    Result   @relation(fields: [resultId], references: [id])
+
+  @@index([resultId, at])
+  @@map("result_event")
+}
+
+/// Observations that could not be matched (06 §5). Resolved by a person.
+model UnmatchedResult {
+  id            String    @id @db.Uuid
+  observationId String    @unique @map("observation_id") @db.Uuid
+  reason        String
+  sampleId      String?   @map("sample_id")
+  instrumentId  String    @map("instrument_id")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  resolvedAt    DateTime? @map("resolved_at") @db.Timestamptz
+  resolvedBy    String?   @map("resolved_by")
+  resolution    String?
+
+  @@index([resolvedAt])
+  @@map("unmatched_result")
+}
+
+// ---------- Outbox ----------
+
+model OutboxMessage {
+  id             String            @id @db.Uuid
+  topic          String
+  /// For result topics: the result and version being released (checked by trigger).
+  resultId       String?           @map("result_id") @db.Uuid
+  versionNo      Int?              @map("version_no")
+  idempotencyKey String            @unique @map("idempotency_key")
+  payload        Json
+  status         QueueStatus       @default(PENDING)
+  attempts       Int               @default(0)
+  availableAt    DateTime          @default(now()) @map("available_at") @db.Timestamptz
+  leasedBy       String?           @map("leased_by")
+  leaseUntil     DateTime?         @map("lease_until") @db.Timestamptz
+  lastError      String?           @map("last_error")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  attemptsLog    DeliveryAttempt[]
+
+  @@index([status, availableAt])
+  @@map("outbox_message")
+}
+
+model DeliveryAttempt {
+  id         String        @id @db.Uuid
+  outboxId   String        @map("outbox_id") @db.Uuid
+  startedAt  DateTime      @map("started_at") @db.Timestamptz
+  finishedAt DateTime      @map("finished_at") @db.Timestamptz
+  outcome    String
+  detail     String?
+  outbox     OutboxMessage @relation(fields: [outboxId], references: [id])
+
+  @@map("delivery_attempt")
+}
+
+// ---------- Clinical audit trail (10 §8) ----------
+
+model AuditEvent {
+  seq           BigInt   @id @default(autoincrement())
+  id            String   @unique @db.Uuid
+  at            DateTime @default(now()) @db.Timestamptz
+  actor         String
+  action        String
+  entityType    String   @map("entity_type")
+  entityId      String   @map("entity_id")
+  reason        String?
+  correlationId String?  @map("correlation_id")
+  before        Json?
+  after         Json?
+  prevHash      String   @map("prev_hash")
+  hash          String
+
+  @@index([entityType, entityId])
+  @@map("audit_event")
+}
+
+// ---------- Users and sessions (local accounts; LDAPS/OIDC later, 10 §3) ----------
+
+model AppUser {
+  id           String        @id @db.Uuid
+  username     String        @unique
+  displayName  String        @map("display_name")
+  /// scrypt$N$r$p$salt$hash
+  passwordHash String        @map("password_hash")
+  /// admin, technologist, approver, operator, auditor
+  roles        String[]
+  active       Boolean       @default(true)
+  /// Consecutive failed sign-ins; 5 locks the account for 15 minutes (10 §3).
+  failedLogins Int           @default(0) @map("failed_logins")
+  lockedUntil  DateTime?     @map("locked_until") @db.Timestamptz
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  sessions     UserSession[]
+
+  @@map("app_user")
+}
+
+model UserSession {
+  /// Random 256-bit token (hex) kept in an HttpOnly cookie; stored hashed.
+  tokenHash  String   @id @map("token_hash")
+  userId     String   @map("user_id") @db.Uuid
+  csrfToken  String   @map("csrf_token")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  /// Idle expiry; slides forward on use but never past createdAt + absolute limit.
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz
+  user       AppUser  @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("user_session")
+}

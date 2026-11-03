@@ -8,6 +8,7 @@
     { "path": "../adapter-cobas-e411" },
     { "path": "../adapter-mindray-hl7" },
     { "path": "../adapter-generic" },
-    { "path": "../db" }
+    { "path": "../db" },
+    { "path": "../lab" }
   ]
 }

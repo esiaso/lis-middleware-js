@@ -1,0 +1,23 @@
+{
+  "name": "@lis/lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@lis/contracts": "0.1.0",
+    "@lis/db": "0.1.0",
+    "@lis/domain": "0.1.0",
+    "@lis/hmis": "0.1.0"
+  }
+}

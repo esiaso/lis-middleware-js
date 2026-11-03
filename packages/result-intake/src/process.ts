@@ -1,6 +1,7 @@
 import { InstrumentConnectionConfig, TestMappingSet, type NormalizedAnalyzerMessage, type ResultValue } from '@lis/contracts';
 import { mapObservation } from '@lis/domain';
 import { claimInbox, completeInbox, decimal, failInbox, uuidv7, type ClaimedInbox, type Db, type DecimalValue, type JsonInput } from '@lis/db';
+import { matchNormalizedMessage, type MatchSummary } from '@lis/lab';
 import { decodeRaw, PermanentDecodeError } from './decode.js';
 
 export interface IntakeOutcome {
@@ -9,6 +10,8 @@ export interface IntakeOutcome {
   messages: number;
   observations: number;
   unmapped: number;
+  /** Observations that became result versions. */
+  matched?: number;
   notes: string[];
   error?: string;
 }
@@ -55,6 +58,7 @@ export async function processAnalyzerInbox(db: Db, worker: string, item: Claimed
 
     let observations = 0;
     let unmapped = 0;
+    const matches: MatchSummary[] = [];
     await db.$transaction(async (tx) => {
       for (const [i, m] of decoded.messages.entries()) {
         const nmId = uuidv7();
@@ -95,10 +99,12 @@ export async function processAnalyzerInbox(db: Db, worker: string, item: Claimed
             },
           });
         }
+        if (m.kind === 'result') matches.push(await matchNormalizedMessage(tx, nmId));
       }
       await completeInbox(tx, item.id, worker);
     });
-    return { ...base, status: 'done', messages: decoded.messages.length, observations, unmapped, notes: decoded.notes };
+    const matched = matches.reduce((n, m) => n + m.matched, 0);
+    return { ...base, status: 'done', messages: decoded.messages.length, observations, unmapped, matched, notes: decoded.notes };
   } catch (e) {
     const permanent = e instanceof PermanentDecodeError;
     const error = (e as Error).message;

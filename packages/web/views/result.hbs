@@ -1,0 +1,94 @@
+<p><a href="/results">&larr; Results</a></p>
+<h1 class="h4">{{test.local}} <span class="text-body-secondary small">HMIS {{test.hmis}}</span></h1>
+<p class="mb-1"><strong>{{patient}}</strong> · order {{order.hmisOrderId}} ({{order.priority}}, {{order.orderedAt}})</p>
+<p class="mb-3">{{#if specimen}}Accession {{specimen.accessionNo}}{{#if specimen.collectedAt}}, collected {{specimen.collectedAt}}{{/if}}{{/if}}
+  {{#if instrument}} · {{instrument.name}} ({{instrument.model}}){{else}} · manual entry{{/if}}</p>
+
+{{#if notClinical}}<div class="alert alert-warning" role="alert"><strong>Not for clinical use.</strong> This instrument is not cleared: {{notClinical}}. The result cannot be released.</div>{{/if}}
+{{#if r.newDataAfterApproval}}<div class="alert alert-warning" role="alert">A new value arrived from the instrument after approval. Decide whether a correction is needed.</div>{{/if}}
+{{#if r.needsConfirmation}}<div class="alert alert-info" role="status">The last delivery had no clear answer. The middleware is checking with the HMIS before any resend.</div>{{/if}}
+
+<p>Status: <strong>{{r.status}}</strong>{{#if r.reviewedBy}} · reviewed by {{r.reviewedBy}}{{/if}}{{#if r.approvedBy}} · approved by {{r.approvedBy}}{{/if}}</p>
+
+<h2 class="h6">Versions</h2>
+<table class="table table-sm">
+  <thead><tr><th>#</th><th>Kind</th><th>Value</th><th>Flags</th><th>By</th><th>At</th><th>Reason</th></tr></thead>
+  <tbody>
+    {{#each versions}}
+    <tr class="{{#if selected}}table-primary{{/if}}">
+      <td>{{no}}{{#if selected}} (selected){{/if}}</td><td>{{kind}}</td><td class="font-monospace">{{value}} {{units}}</td><td>{{flags}}</td><td>{{by}}</td><td class="small">{{at}}</td><td>{{reason}}</td>
+    </tr>
+    {{/each}}
+  </tbody>
+</table>
+
+<div class="row g-3 mb-4">
+  {{#if actions.review}}{{#if can.review}}
+  <div class="col-md-6 col-lg-4">
+    <form method="post" action="/results/{{r.id}}/review" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <label class="form-label" for="versionNo">Version to report</label>
+      <select class="form-select mb-2" id="versionNo" name="versionNo">
+        {{#each versions}}<option value="{{no}}" {{#if selected}}selected{{/if}}>#{{no}} {{kind}}: {{value}} {{units}}</option>{{/each}}
+      </select>
+      <button class="btn btn-primary" type="submit">Mark reviewed</button>
+    </form>
+  </div>
+  {{/if}}{{/if}}
+
+  {{#if actions.approve}}{{#if can.approve}}
+  <div class="col-md-6 col-lg-4">
+    <form method="post" action="/results/{{r.id}}/approve" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      {{#if twoPersonRule}}<p class="small text-body-secondary">The approver must be a different person from the reviewer.</p>{{/if}}
+      <label class="form-label" for="approve-password">Your password</label>
+      <input class="form-control mb-2" id="approve-password" name="password" type="password" required>
+      <button class="btn btn-primary" type="submit">Approve</button>
+    </form>
+  </div>
+  {{/if}}{{/if}}
+
+  {{#if actions.release}}{{#if can.approve}}
+  <div class="col-md-6 col-lg-4">
+    <form method="post" action="/results/{{r.id}}/release" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <label class="form-label" for="release-password">Your password</label>
+      <input class="form-control mb-2" id="release-password" name="password" type="password" required>
+      <button class="btn btn-success" type="submit">Release to HMIS</button>
+    </form>
+  </div>
+  {{/if}}{{/if}}
+
+  {{#if actions.replay}}{{#if can.replay}}
+  <div class="col-md-6 col-lg-4">
+    <form method="post" action="/results/{{r.id}}/replay" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <label class="form-label" for="replay-reason">Reason for sending again</label>
+      <input class="form-control mb-2" id="replay-reason" name="reason" minlength="5" required>
+      <button class="btn btn-warning" type="submit">Send again</button>
+    </form>
+  </div>
+  {{/if}}{{/if}}
+
+  {{#if actions.correct}}{{#if can.approve}}
+  <div class="col-md-6 col-lg-4">
+    <form method="post" action="/results/{{r.id}}/correct" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <label class="form-label" for="value">Corrected value</label>
+      <input class="form-control mb-2" id="value" name="value" required>
+      <label class="form-label" for="units">Units</label>
+      <input class="form-control mb-2" id="units" name="units">
+      <label class="form-label" for="reason">Reason (at least 10 characters)</label>
+      <input class="form-control mb-2" id="reason" name="reason" minlength="10" required>
+      <label class="form-label" for="correct-password">Your password</label>
+      <input class="form-control mb-2" id="correct-password" name="password" type="password" required>
+      <button class="btn btn-danger" type="submit">Save correction</button>
+    </form>
+  </div>
+  {{/if}}{{/if}}
+</div>
+
+<h2 class="h6">History</h2>
+<ul class="list-unstyled small">
+  {{#each events}}<li>{{at}} · {{kind}}{{#if version}} v{{version}}{{/if}} · {{actor}}{{#if reason}} · {{reason}}{{/if}}</li>{{else}}<li class="text-body-secondary">No decisions yet.</li>{{/each}}
+</ul>

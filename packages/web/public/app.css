@@ -1,0 +1,2 @@
+/* Local additions to Bootstrap. No inline styles anywhere (CSP style-src 'self'). */
+.display-6 { font-variant-numeric: tabular-nums; }

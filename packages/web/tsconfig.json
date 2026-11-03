@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": false
+  },
+  "include": ["src"],
+  "references": [{ "path": "../contracts" }, { "path": "../db" }, { "path": "../domain" }, { "path": "../lab" }]
+}

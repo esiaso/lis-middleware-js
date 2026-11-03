@@ -1,0 +1,30 @@
+<h1 class="h4 mb-3">Dashboard</h1>
+<div class="row g-3 mb-4">
+  {{#each tiles}}
+  <div class="col-6 col-md">
+    <a class="card text-decoration-none h-100 {{#if alert}}{{#if n}}border-danger{{/if}}{{/if}}" href="{{href}}">
+      <div class="card-body">
+        <div class="display-6">{{n}}</div>
+        <div class="text-body-secondary">{{label}}</div>
+      </div>
+    </a>
+  </div>
+  {{/each}}
+</div>
+<h2 class="h5">Instruments</h2>
+<table class="table table-sm align-middle">
+  <thead><tr><th>Instrument</th><th>Model</th><th>Link</th><th>Verification</th><th>Clinical use</th></tr></thead>
+  <tbody>
+    {{#each instruments}}
+    <tr>
+      <td>{{name}} <span class="text-body-secondary small">{{id}}</span></td>
+      <td>{{model}}</td>
+      <td>{{#if linked}}<span class="badge text-bg-success">connected</span>{{else}}<span class="badge text-bg-secondary">no worker</span>{{/if}}</td>
+      <td>{{verification}}</td>
+      <td>{{#if clinical}}<span class="badge text-bg-success">cleared</span>{{else}}<span class="badge text-bg-warning" title="{{gateDetail}}">not for clinical use</span> <span class="small text-body-secondary">{{gateDetail}}</span>{{/if}}</td>
+    </tr>
+    {{else}}
+    <tr><td colspan="5" class="text-body-secondary">No instruments registered yet.</td></tr>
+    {{/each}}
+  </tbody>
+</table>

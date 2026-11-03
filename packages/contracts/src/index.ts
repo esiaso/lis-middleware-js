@@ -5,3 +5,4 @@ export * from './config.js';
 export * from './status.js';
 export * from './generic-profiles.js';
 export * from './instrument.js';
+export * from './hmis.js';

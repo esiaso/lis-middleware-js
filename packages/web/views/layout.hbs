@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{title}} · Lab middleware</title>
+  <link rel="stylesheet" href="/static/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  {{#if user}}{{> nav}}{{/if}}
+  <main class="container-fluid py-3">
+    {{#if notice}}<div class="alert alert-success" role="status">{{notice}}</div>{{/if}}
+    {{{body}}}
+  </main>
+</body>
+</html>
