@@ -23,7 +23,9 @@
 | Correct released results | | | ✔ | | |
 | Resolve unmatched results | | ✔ (with 2nd-person check) | ✔ | | |
 | Replay failed messages | ✔ | | ✔ (result topics) | | |
-| Edit instrument config, mappings (draft) | ✔ | ✔ | | | |
+| Register instruments, edit instrument config, mappings (draft) | ✔ | ✔ | | | |
+| Record interface test, suspend instrument | ✔ | | ✔ | | |
+| Record lab acceptance, enable for clinical use | | | ✔ (lab director) | | |
 | Approve mappings | | | ✔ (lab director) | | |
 | Manage users and roles | ✔ | | | | |
 | Read raw messages | ✔ | ✔ | ✔ | | ✔ |
@@ -115,7 +117,7 @@ rule for the specific adapter).
 | Specimens | collect, label print/reprint, receive, reject, recollect, cancel, barcode retire |
 | Results | received (with raw message ID), version created, reviewed, approved, released, corrected, cancelled, delivered, HMIS-confirmed, delivery failed, retransmitted |
 | Quarantine | unmatched result linked, discarded, test added |
-| Configuration | instrument config change, mapping draft/approve/activate, HMIS code map change, autoverification enable/disable |
+| Configuration | instrument registered, instrument config change (with reset or re-test reasons), verification evidence recorded, instrument enabled/disabled, mapping draft/approve/activate, HMIS code map change, autoverification enable/disable |
 | Access | login, logout, failed login, role grant/revoke, user create/disable, raw message viewed, audit exported |
 | Operations | message replay, link pause/resume, lease takeover, retention purge |
 

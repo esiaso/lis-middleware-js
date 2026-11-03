@@ -207,6 +207,38 @@ Resolve: [Link to specimen (scan barcode)…] [Add test to order (reason)…]
 Draft → Approved (by a different user with `mapping.approve`) → Active
 (scheduled time). Results record the mapping version used.
 
+## W-11 Add or edit an instrument
+
+```
++------------------------------------------------------------------------------+
+| New instrument                                                 [Save draft]  |
++------------------------------------------------------------------------------+
+| ID [chem-02    ]  Name [Chemistry 2        ]  Discipline [Chemistry   v]     |
+| Manufacturer [         ]  Model [         ]  Serial [      ]  SW [     ]     |
+| Location [Main lab, bench 3]  Interface manual [title, doc no., revision  ]  |
++------------------------------------------------------------------------------+
+| Driver ( ) cobas-e411-astm ( ) cobas-c111-astm ( ) mindray-hl7-mllp          |
+|        (•) Generic ASTM (results only)  ( ) Generic HL7/MLLP (results only)  |
+|  Sample ID   record [O v] field [3 ] component [1 ]        (required)        |
+|  Test code   R-3.4   Value R-4   Units R-5   Flags R-7   Status R-9 [edit]   |
+|  Status map  F → final  [+ add]          QC rule  O-12 = Q  [edit]           |
+|  ⚠ Generic profiles never answer host queries: use load lists (W-5).         |
++------------------------------------------------------------------------------+
+| Transport (•) TCP client  host [10.20.5.20] port [4003]  ( ) Serial ( ) Listen|
++------------------------------------------------------------------------------+
+| [Test parse: paste a captured message] → shows the normalised result         |
++------------------------------------------------------------------------------+
+| Status: UNVERIFIED · Disabled · not for clinical use                         |
+| [Record interface test…] [Record lab acceptance…] [Suspend…]                 |
++------------------------------------------------------------------------------+
+```
+
+Saving a change to identity, driver or profile shows "this resets the
+instrument to UNVERIFIED" and asks for a reason. "Test parse" runs the
+profile on a captured message (from the link trace) without storing
+anything, so the administrator can check field positions before the
+interface test.
+
 ## W-10 Audit search and export
 
 ```

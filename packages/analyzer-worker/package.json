@@ -1,0 +1,32 @@
+{
+  "name": "@lis/analyzer-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "lims-analyzer-worker": "dist/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@lis/adapter-cobas-e411": "0.1.0",
+    "@lis/adapter-generic": "0.1.0",
+    "@lis/adapter-mindray-hl7": "0.1.0",
+    "@lis/analyzer-runtime": "0.1.0",
+    "@lis/contracts": "0.1.0",
+    "@lis/db": "0.1.0",
+    "@lis/protocol-astm": "0.1.0",
+    "@lis/protocol-hl7v2": "0.1.0",
+    "@lis/transport": "0.1.0",
+    "pino": "10.4.0"
+  }
+}

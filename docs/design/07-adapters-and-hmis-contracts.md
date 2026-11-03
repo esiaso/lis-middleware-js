@@ -13,6 +13,10 @@ flowchart LR
   AP -->|result| N["Inbox row for jobs worker"]
 ```
 
+Instruments without a model-specific driver use a generic, result-only
+adapter (`generic-astm`, `generic-hl7-mllp`) on the same protocol cores,
+configured by a profile. See [14](14-adding-instruments.md).
+
 ### 1.1 Interfaces (`packages/adapters`)
 
 ```ts

@@ -217,6 +217,17 @@ validation file.
 
 ## 11. Runbooks (summary)
 
+Analyzer worker exit codes (`lims-analyzer-worker --instrument <id>`):
+
+| Code | Meaning | Action |
+|---|---|---|
+| 0 | Stopped by the service manager | none |
+| 2 | Not configured: unknown instrument, no active connection, or invalid config | fix the registration (W-11); the service restarts and fails again until fixed |
+| 3 | Lease held by another worker | find the other copy (`lims status`), stop it |
+| 4 | Lease lost while running (taken over, or database unreachable) | check the database; the service restarts and takes the lease back |
+| 5 | Instrument disabled and the worker was told to refuse | enable it, or leave it stopped |
+
+
 | Situation | First steps |
 |---|---|
 | Analyzer link down | Health screen → link status and last error. Check device server reachability (`lims diag tcp <host> <port>`), cable, analyzer "Host Communication" on/off. Check lease conflicts. Restart only that analyzer service. |

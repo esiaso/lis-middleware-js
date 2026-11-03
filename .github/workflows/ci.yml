@@ -22,6 +22,40 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - run: npm run generate
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  # Database tests against a real PostgreSQL, one file at a time (they share the database)
+  # with the committed migrations applied. They are skipped in the job above.
+  db:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: lims_test
+          POSTGRES_PASSWORD: lims_test
+          POSTGRES_DB: lims_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U lims_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://lims_test:lims_test@localhost:5432/lims_test
+      TEST_DATABASE_URL: postgresql://lims_test:lims_test@localhost:5432/lims_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run generate
+      - run: npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+      - name: Database tests (must not be skipped here)
+        run: npx vitest run packages/db packages/analyzer-worker packages/result-intake --no-file-parallelism --reporter=verbose 2>&1 | tee db-test.log; test "${PIPESTATUS[0]}" -eq 0 && ! grep -q "skipped" db-test.log
+        shell: bash

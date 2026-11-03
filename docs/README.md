@@ -52,6 +52,7 @@ validation file.
 | 11 | Offline installation and operational runbooks | [11-installation-and-runbooks.md](design/11-installation-and-runbooks.md) |
 | 12 | Validation plan and measurable acceptance criteria | [12-validation-and-acceptance.md](design/12-validation-and-acceptance.md) |
 | 13 | Phased implementation plan with MVP scope | [13-implementation-plan.md](design/13-implementation-plan.md) |
+| 14 | Adding new instruments (registration, generic profiles, verification gate) | [14-adding-instruments.md](design/14-adding-instruments.md) |
 
 Diagrams are written in Mermaid so they render on GitHub and stay
 reviewable as text.

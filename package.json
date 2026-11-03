@@ -11,12 +11,13 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "build": "tsc -b packages/contracts packages/domain packages/protocol-astm packages/protocol-hl7v2 packages/adapter-cobas-e411 packages/adapter-mindray-hl7",
+    "build": "tsc -b packages/contracts packages/domain packages/protocol-astm packages/protocol-hl7v2 packages/adapter-cobas-e411 packages/adapter-mindray-hl7 packages/adapter-generic packages/transport packages/analyzer-runtime packages/db packages/analyzer-worker packages/result-intake",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "clean": "tsc -b --clean packages/contracts packages/domain packages/protocol-astm packages/protocol-hl7v2 packages/adapter-cobas-e411 packages/adapter-mindray-hl7",
-    "check": "npm run typecheck && npm test && npm run build"
+    "clean": "tsc -b --clean packages/contracts packages/domain packages/protocol-astm packages/protocol-hl7v2 packages/adapter-cobas-e411 packages/adapter-mindray-hl7 packages/adapter-generic packages/transport packages/analyzer-runtime packages/db packages/analyzer-worker packages/result-intake",
+    "check": "npm run generate && npm run typecheck && npm test && npm run build",
+    "generate": "prisma generate --schema packages/db/prisma/schema.prisma"
   },
   "devDependencies": {
     "@types/node": "^22.19.1",

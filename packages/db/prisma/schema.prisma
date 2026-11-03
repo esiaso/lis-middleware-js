@@ -1,0 +1,264 @@
+// Analyzer-path tables (phase 2, step 1). The full model is drafted in
+// docs/design/06-database-and-state-machines.md; tables are added here as
+// each part is built. Constraints Prisma cannot express (fencing triggers)
+// are in the hand-reviewed migration SQL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  VENDOR_TESTED
+  LAB_ACCEPTED
+  SUSPENDED
+}
+
+enum MappingStatus {
+  DRAFT
+  APPROVED
+  ACTIVE
+  RETIRED
+}
+
+enum Direction {
+  IN
+  OUT
+}
+
+enum TransportAck {
+  PENDING
+  ACKED
+  NAKED
+  NOT_APPLICABLE
+}
+
+enum QueueStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  FAILED
+  DEAD
+}
+
+model Instrument {
+  id                      String             @id
+  displayName             String             @map("display_name")
+  manufacturer            String
+  model                   String
+  serialNo                String?            @map("serial_no")
+  softwareVersion         String?            @map("software_version")
+  verifiedSoftwareVersion String?            @map("verified_software_version")
+  discipline              String
+  location                String?
+  interfaceManualRef      String?            @map("interface_manual_ref")
+  verificationStatus      VerificationStatus @default(UNVERIFIED) @map("verification_status")
+  enabled                 Boolean            @default(false)
+  createdAt               DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  createdBy               String             @map("created_by")
+  version                 Int                @default(1)
+
+  connections InstrumentConnection[]
+  mappingSets TestMappingSet[]
+  evidence    InstrumentVerificationEvidence[]
+  lease       InstrumentConnectionLease?
+
+  @@map("instrument")
+}
+
+model InstrumentVerificationEvidence {
+  id           String             @id @db.Uuid
+  instrumentId String             @map("instrument_id")
+  kind         String
+  evidenceJson Json               @map("evidence_json")
+  fromStatus   VerificationStatus @map("from_status")
+  toStatus     VerificationStatus @map("to_status")
+  recordedBy   String             @map("recorded_by")
+  recordedAt   DateTime           @default(now()) @map("recorded_at") @db.Timestamptz
+  instrument   Instrument         @relation(fields: [instrumentId], references: [id])
+
+  @@index([instrumentId, recordedAt])
+  @@map("instrument_verification_evidence")
+}
+
+model InstrumentConnection {
+  id           String     @id @db.Uuid
+  instrumentId String     @map("instrument_id")
+  /// Validated by InstrumentConnectionConfig on write and on read.
+  configJson   Json       @map("config_json")
+  activeFrom   DateTime   @map("active_from") @db.Timestamptz
+  activeTo     DateTime?  @map("active_to") @db.Timestamptz
+  createdBy    String     @map("created_by")
+  instrument   Instrument @relation(fields: [instrumentId], references: [id])
+
+  @@index([instrumentId, activeFrom])
+  @@map("instrument_connection")
+}
+
+model InstrumentConnectionLease {
+  instrumentId String     @id @map("instrument_id")
+  /// host:pid:bootId of the worker holding the link.
+  owner        String
+  /// Fencing token, incremented on every acquisition.
+  epoch        BigInt     @default(0)
+  leaseUntil   DateTime   @map("lease_until") @db.Timestamptz
+  instrument   Instrument @relation(fields: [instrumentId], references: [id])
+
+  @@map("instrument_connection_lease")
+}
+
+model TestMappingSet {
+  id           String        @id @db.Uuid
+  instrumentId String        @map("instrument_id")
+  versionNo    Int           @map("version_no")
+  status       MappingStatus
+  createdBy    String        @map("created_by")
+  approvedBy   String?       @map("approved_by")
+  approvedAt   DateTime?     @map("approved_at") @db.Timestamptz
+  activeFrom   DateTime?     @map("active_from") @db.Timestamptz
+  /// TestMapping[] validated by the TestMappingSet contract.
+  mappingsJson Json          @map("mappings_json")
+  instrument   Instrument    @relation(fields: [instrumentId], references: [id])
+
+  @@unique([instrumentId, versionNo])
+  @@map("test_mapping_set")
+}
+
+model LinkSession {
+  id           String    @id @db.Uuid
+  instrumentId String    @map("instrument_id")
+  leaseEpoch   BigInt    @map("lease_epoch")
+  owner        String
+  startedAt    DateTime  @default(now()) @map("started_at") @db.Timestamptz
+  endedAt      DateTime? @map("ended_at") @db.Timestamptz
+  endReason    String?   @map("end_reason")
+
+  frames   RawFrame[]
+  messages RawMessage[]
+
+  @@index([instrumentId, startedAt])
+  @@map("link_session")
+}
+
+model RawMessage {
+  id            String       @id @db.Uuid
+  instrumentId  String       @map("instrument_id")
+  leaseEpoch    BigInt       @map("lease_epoch")
+  linkSessionId String?      @map("link_session_id") @db.Uuid
+  direction     Direction
+  /// "astm-e1381" or "hl7-mllp".
+  protocol      String
+  /// Exact bytes. Access is restricted and audited.
+  bytes         Bytes
+  sha256        String
+  complete      Boolean
+  abortedReason String?      @map("aborted_reason")
+  receivedAt    DateTime     @map("received_at") @db.Timestamptz
+  transportAck  TransportAck @map("transport_ack")
+  dedupeKey     String?      @map("dedupe_key")
+  frames        RawFrame[]
+  linkSession   LinkSession? @relation(fields: [linkSessionId], references: [id])
+
+  @@index([instrumentId, receivedAt])
+  @@index([sha256])
+  @@map("raw_message")
+}
+
+model RawFrame {
+  id            String      @id @db.Uuid
+  instrumentId  String      @map("instrument_id")
+  leaseEpoch    BigInt      @map("lease_epoch")
+  linkSessionId String      @map("link_session_id") @db.Uuid
+  rawMessageId  String?     @map("raw_message_id") @db.Uuid
+  seq           Int
+  fn            Int
+  bytes         Bytes
+  final         Boolean
+  receivedAt    DateTime    @map("received_at") @db.Timestamptz
+  linkSession   LinkSession @relation(fields: [linkSessionId], references: [id])
+  rawMessage    RawMessage? @relation(fields: [rawMessageId], references: [id])
+
+  @@unique([linkSessionId, seq])
+  @@map("raw_frame")
+}
+
+model InboxMessage {
+  id           String      @id @db.Uuid
+  /// "hmis-webhook", "hmis-poll", "analyzer:e411-01"
+  source       String
+  /// Provider message id, or raw message id.
+  externalId   String      @map("external_id")
+  payload      Json?
+  rawMessageId String?     @map("raw_message_id") @db.Uuid
+  status       QueueStatus @default(PENDING)
+  attempts     Int         @default(0)
+  availableAt  DateTime    @default(now()) @map("available_at") @db.Timestamptz
+  leasedBy     String?     @map("leased_by")
+  leaseUntil   DateTime?   @map("lease_until") @db.Timestamptz
+  lastError    String?     @map("last_error")
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([source, externalId])
+  @@index([status, availableAt])
+  @@map("inbox_message")
+}
+
+enum ObservationMapping {
+  MAPPED
+  UNMAPPED
+  NOT_REPORTABLE
+  QC
+}
+
+/// One sample's worth of results decoded from a raw message by an adapter.
+/// A raw message can yield several (one per order record / OBR group).
+model NormalizedMessage {
+  id               String        @id @db.Uuid
+  rawMessageId     String        @map("raw_message_id") @db.Uuid
+  seq              Int
+  instrumentId     String        @map("instrument_id")
+  adapterName      String        @map("adapter_name")
+  adapterVersion   String        @map("adapter_version")
+  kind             String
+  sampleClass      String        @map("sample_class")
+  sampleId         String?       @map("sample_id")
+  sampleIdReadError Boolean      @map("sample_id_read_error")
+  /// Version of the ACTIVE mapping set used; null when none was active.
+  mappingVersionNo Int?          @map("mapping_version_no")
+  /// Full NormalizedAnalyzerMessage as produced by the adapter.
+  payload          Json
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  observations     Observation[]
+
+  @@unique([rawMessageId, seq])
+  @@index([instrumentId, sampleId])
+  @@map("normalized_message")
+}
+
+model Observation {
+  id                  String             @id @db.Uuid
+  normalizedMessageId String             @map("normalized_message_id") @db.Uuid
+  seq                 Int
+  instrumentTestCode  String             @map("instrument_test_code")
+  instrumentCodeSystem String?           @map("instrument_code_system")
+  /// Exactly as received.
+  originalValueText   String             @map("original_value_text")
+  /// ResultValue (decimal strings, never floats).
+  value               Json
+  /// Set only for plain numeric values, for range queries. Clinical logic uses `value`.
+  numericValue        Decimal?           @map("numeric_value") @db.Decimal(30, 10)
+  units               String?
+  abnormalFlags       String[]           @map("abnormal_flags")
+  mapping             ObservationMapping
+  localTestCode       String?            @map("local_test_code")
+  normalizedMessage   NormalizedMessage  @relation(fields: [normalizedMessageId], references: [id])
+
+  @@unique([normalizedMessageId, seq])
+  @@index([mapping])
+  @@map("observation")
+}

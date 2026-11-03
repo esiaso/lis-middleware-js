@@ -1,0 +1,6 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "dist" },
+  "include": ["src"],
+  "references": [{ "path": "../protocol-astm" }, { "path": "../protocol-hl7v2" }, { "path": "../transport" }]
+}

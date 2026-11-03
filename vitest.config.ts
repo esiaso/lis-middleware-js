@@ -12,6 +12,12 @@ export default defineConfig({
       '@lis/domain': pkg('domain'),
       '@lis/adapter-cobas-e411': pkg('adapter-cobas-e411'),
       '@lis/adapter-mindray-hl7': pkg('adapter-mindray-hl7'),
+      '@lis/adapter-generic': pkg('adapter-generic'),
+      '@lis/transport': pkg('transport'),
+      '@lis/analyzer-runtime': pkg('analyzer-runtime'),
+      '@lis/db': pkg('db'),
+      '@lis/analyzer-worker': pkg('analyzer-worker'),
+      '@lis/result-intake': pkg('result-intake'),
     },
   },
   test: {

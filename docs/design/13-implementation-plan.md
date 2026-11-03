@@ -42,7 +42,7 @@ run for 1 h without crash or unbounded memory.
 | HMIS result submission with idempotency + confirmation (as supported) | Corrections via API if the HMIS does not support them (manual process documented) |
 | Durable inbox/outbox, retries, failed queue, replay | Bulk replay |
 | Clinical audit with hash chain + daily signed export | SIEM streaming (if no SIEM yet) |
-| UI screens W-1, W-2, W-3, W-4, W-6, W-7, W-8 | W-5 load lists (unless Mindray is in MVP), W-9 editor (mappings loaded from reviewed file), W-10 advanced search |
+| UI screens W-1, W-2, W-3, W-4, W-6, W-7, W-8, W-11 (instrument registration) | W-5 load lists (unless Mindray is in MVP), W-9 editor (mappings loaded from reviewed file), W-10 advanced search |
 | Local accounts + LDAPS **or** OIDC (one) | Second IdP method |
 | Windows **or** Linux installer (whichever the hospital chooses, D-17) | The other OS |
 | Downtime registration + manual reconciliation | Assisted matching proposals |
@@ -83,8 +83,11 @@ run for 1 h without crash or unbounded memory.
 * Critical-result escalation via hospital SMS/email gateway.
 * Mapping editor UI with approval workflow (W-9).
 * Second OS installer; SIEM streaming; archive tooling.
-* Additional instruments from the inventory (D-26), each onboarded the same
-  way: vendor manual for the installed version → row in the compatibility
+* Additional instruments from the inventory (D-26). From phase 2 an
+  administrator can register them with a generic result-only profile
+  ([14](14-adding-instruments.md)), already built and tested in
+  `@lis/adapter-generic`. A model-specific driver follows when the
+  instrument needs host query, each onboarded the same way: vendor manual for the installed version → row in the compatibility
   matrix → adapter on the shared protocol cores → simulator tests → vendor
   interface verification → parallel run → acceptance.
 
