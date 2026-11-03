@@ -57,7 +57,7 @@ describe('runtime and credential checks', () => {
   it('fails when the bundle was built for another Node or platform', () => {
     expect(checkRuntime(manifest({})).status).toBe('pass');
     expect(checkRuntime(manifest({ node: 'v20.0.0' })).detail).toContain('built for Node v20.0.0');
-    expect(checkRuntime(manifest({ platform: 'win32' })).status).toBe('fail');
+    expect(checkRuntime(manifest({ platform: 'aix' })).status).toBe('fail'); // a platform no CI runner has
     expect(checkRuntime(undefined).status).toBe('skip');
   });
 
