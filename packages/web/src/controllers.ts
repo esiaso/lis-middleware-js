@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
-import type { Db } from '@lis/db';
+import { migrationStatus, type Db } from '@lis/db';
 import { clinicalGateFor } from '@lis/domain';
 import { approve, correct, dismissUnmatched, release, replay, review } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
@@ -359,17 +359,37 @@ export class FailedController {
   }
 }
 
-@Controller('health')
+@Controller()
 export class HealthController {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   /** For the service monitor. Says only whether the database answers; no detail leaks out. */
   @Public()
-  @Get()
+  @Get('health')
   async health(@Res() res: Response): Promise<void> {
     try {
       await this.db.$queryRaw`SELECT 1`;
       res.json({ status: 'ok' });
+    } catch {
+      res.status(503).json({ status: 'unavailable' });
+    }
+  }
+
+  /** 11 §7: the process is up. */
+  @Public()
+  @Get('api/v1/health/live')
+  live(@Res() res: Response): void {
+    res.json({ status: 'ok' });
+  }
+
+  /** 11 §7: database reachable and every migration this build expects is applied. */
+  @Public()
+  @Get('api/v1/health/ready')
+  async ready(@Res() res: Response): Promise<void> {
+    try {
+      const m = await migrationStatus(this.db);
+      if (m.ok) res.json({ status: 'ok' });
+      else res.status(503).json({ status: 'not-ready', reason: m.failed.length ? 'a migration failed' : 'migrations not applied' });
     } catch {
       res.status(503).json({ status: 'unavailable' });
     }

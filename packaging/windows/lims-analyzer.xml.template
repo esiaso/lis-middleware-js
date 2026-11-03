@@ -1,0 +1,23 @@
+<!-- WinSW v2 template for one analyzer link; install.ps1 replaces __INSTRUMENT__ for each instrument (11 §3). -->
+<service>
+  <id>lims-analyzer-__INSTRUMENT__</id>
+  <name>lims-analyzer-__INSTRUMENT__</name>
+  <description>LIMS analyzer link __INSTRUMENT__</description>
+  <executable>%BASE%\..\runtime\node\node.exe</executable>
+  <arguments>node_modules\@lis\analyzer-worker\dist\main.js --instrument __INSTRUMENT__</arguments>
+  <workingdirectory>%BASE%\..\app</workingdirectory>
+  <env name="NODE_ENV" value="production" />
+  <env name="DATABASE_URL_FILE" value="C:\ProgramData\LIMS Middleware\secrets\database_url" />
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <onfailure action="restart" delay="5 sec" />
+  <onfailure action="restart" delay="10 sec" />
+  <onfailure action="restart" delay="30 sec" />
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>30 sec</stoptimeout>
+  <logpath>C:\ProgramData\LIMS Middleware\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>20</keepFiles>
+  </log>
+</service>

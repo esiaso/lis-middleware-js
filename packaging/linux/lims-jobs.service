@@ -1,0 +1,28 @@
+[Unit]
+Description=LIMS jobs (result intake and matching)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lims-svc
+Group=lims-svc
+WorkingDirectory=/opt/lims/current/app
+EnvironmentFile=-/etc/lims/lims.env
+ExecStart=/opt/lims/current/runtime/node/bin/node node_modules/@lis/result-intake/dist/main.js
+LoadCredential=database_url:/etc/lims/secrets/database_url
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+ReadWritePaths=/var/lib/lims /var/log/lims
+MemoryMax=768M
+
+[Install]
+WantedBy=multi-user.target

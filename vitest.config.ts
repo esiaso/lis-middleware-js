@@ -21,6 +21,7 @@ export default defineConfig({
       '@lis/hmis': pkg('hmis'),
       '@lis/lab': pkg('lab'),
       '@lis/web': pkg('web'),
+      '@lis/ops': pkg('ops'),
     },
   },
   test: {

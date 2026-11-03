@@ -52,6 +52,9 @@ describe.skipIf(!url)('web screens over HTTP', () => {
     const r = await new Browser(base).get('/health');
     expect(r.status).toBe(200);
     expect(JSON.parse(r.html)).toEqual({ status: 'ok' });
+    expect((await new Browser(base).get('/api/v1/health/live')).status).toBe(200);
+    const ready = await new Browser(base).get('/api/v1/health/ready');
+    expect(ready.status).toBe(200);
   });
 
   it('sends people without a session to the sign-in page, and sets security headers', async () => {

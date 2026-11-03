@@ -1,0 +1,9 @@
+#!/bin/sh
+# Web CLI from the release bundle, for: lims-web create-user <username> "<display name>" <roles> < password-file
+set -eu
+HERE=$(dirname "$(readlink -f "$0")")/..
+if [ -z "${DATABASE_URL:-}${DATABASE_URL_FILE:-}${CREDENTIALS_DIRECTORY:-}" ] && [ -r /etc/lims/secrets/database_url ]; then
+  DATABASE_URL_FILE=/etc/lims/secrets/database_url
+  export DATABASE_URL_FILE
+fi
+exec "$HERE/runtime/node/bin/node" "$HERE/app/node_modules/@lis/web/dist/main.js" "$@"
