@@ -15,3 +15,12 @@ export function isStaleLeaseError(e: unknown): boolean {
   const text = e instanceof Error ? e.message : String(e);
   return text.includes('stale or expired lease epoch');
 }
+
+import type { Prisma as PrismaNS } from '@prisma/client';
+export type DecimalValue = PrismaNS.Decimal;
+export type JsonInput = PrismaNS.InputJsonValue;
+
+/** Exact decimal from a decimal string (never via a JS number). */
+export function decimal(text: string): DecimalValue {
+  return new Prisma.Decimal(text);
+}

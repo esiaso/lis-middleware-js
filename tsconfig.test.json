@@ -17,6 +17,7 @@
       "@lis/analyzer-runtime": ["./packages/analyzer-runtime/src/index.ts"],
       "@lis/db": ["./packages/db/src/index.ts"],
       "@lis/analyzer-worker": ["./packages/analyzer-worker/src/index.ts"],
+      "@lis/result-intake": ["./packages/result-intake/src/index.ts"],
       "@serialport/binding-mock": ["./node_modules/@serialport/binding-mock/dist/index.d.ts"]
     }
   },

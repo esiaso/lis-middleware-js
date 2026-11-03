@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "dist" },
+  "include": ["src"],
+  "references": [
+    { "path": "../contracts" },
+    { "path": "../domain" },
+    { "path": "../adapter-cobas-e411" },
+    { "path": "../adapter-mindray-hl7" },
+    { "path": "../adapter-generic" },
+    { "path": "../db" }
+  ]
+}

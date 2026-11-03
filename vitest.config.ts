@@ -17,6 +17,7 @@ export default defineConfig({
       '@lis/analyzer-runtime': pkg('analyzer-runtime'),
       '@lis/db': pkg('db'),
       '@lis/analyzer-worker': pkg('analyzer-worker'),
+      '@lis/result-intake': pkg('result-intake'),
     },
   },
   test: {

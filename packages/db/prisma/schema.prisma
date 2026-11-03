@@ -207,3 +207,58 @@ model InboxMessage {
   @@index([status, availableAt])
   @@map("inbox_message")
 }
+
+enum ObservationMapping {
+  MAPPED
+  UNMAPPED
+  NOT_REPORTABLE
+  QC
+}
+
+/// One sample's worth of results decoded from a raw message by an adapter.
+/// A raw message can yield several (one per order record / OBR group).
+model NormalizedMessage {
+  id               String        @id @db.Uuid
+  rawMessageId     String        @map("raw_message_id") @db.Uuid
+  seq              Int
+  instrumentId     String        @map("instrument_id")
+  adapterName      String        @map("adapter_name")
+  adapterVersion   String        @map("adapter_version")
+  kind             String
+  sampleClass      String        @map("sample_class")
+  sampleId         String?       @map("sample_id")
+  sampleIdReadError Boolean      @map("sample_id_read_error")
+  /// Version of the ACTIVE mapping set used; null when none was active.
+  mappingVersionNo Int?          @map("mapping_version_no")
+  /// Full NormalizedAnalyzerMessage as produced by the adapter.
+  payload          Json
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  observations     Observation[]
+
+  @@unique([rawMessageId, seq])
+  @@index([instrumentId, sampleId])
+  @@map("normalized_message")
+}
+
+model Observation {
+  id                  String             @id @db.Uuid
+  normalizedMessageId String             @map("normalized_message_id") @db.Uuid
+  seq                 Int
+  instrumentTestCode  String             @map("instrument_test_code")
+  instrumentCodeSystem String?           @map("instrument_code_system")
+  /// Exactly as received.
+  originalValueText   String             @map("original_value_text")
+  /// ResultValue (decimal strings, never floats).
+  value               Json
+  /// Set only for plain numeric values, for range queries. Clinical logic uses `value`.
+  numericValue        Decimal?           @map("numeric_value") @db.Decimal(30, 10)
+  units               String?
+  abnormalFlags       String[]           @map("abnormal_flags")
+  mapping             ObservationMapping
+  localTestCode       String?            @map("local_test_code")
+  normalizedMessage   NormalizedMessage  @relation(fields: [normalizedMessageId], references: [id])
+
+  @@unique([normalizedMessageId, seq])
+  @@index([mapping])
+  @@map("observation")
+}
