@@ -14,6 +14,7 @@ export default defineConfig({
       '@lis/adapter-mindray-hl7': pkg('adapter-mindray-hl7'),
       '@lis/adapter-generic': pkg('adapter-generic'),
       '@lis/transport': pkg('transport'),
+      '@lis/analyzer-runtime': pkg('analyzer-runtime'),
     },
   },
   test: {

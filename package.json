@@ -11,11 +11,11 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "build": "tsc -b packages/contracts packages/domain packages/protocol-astm packages/protocol-hl7v2 packages/adapter-cobas-e411 packages/adapter-mindray-hl7 packages/adapter-generic packages/transport",
+    "build": "tsc -b packages/contracts packages/domain packages/protocol-astm packages/protocol-hl7v2 packages/adapter-cobas-e411 packages/adapter-mindray-hl7 packages/adapter-generic packages/transport packages/analyzer-runtime",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "clean": "tsc -b --clean packages/contracts packages/domain packages/protocol-astm packages/protocol-hl7v2 packages/adapter-cobas-e411 packages/adapter-mindray-hl7 packages/adapter-generic packages/transport",
+    "clean": "tsc -b --clean packages/contracts packages/domain packages/protocol-astm packages/protocol-hl7v2 packages/adapter-cobas-e411 packages/adapter-mindray-hl7 packages/adapter-generic packages/transport packages/analyzer-runtime",
     "check": "npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {

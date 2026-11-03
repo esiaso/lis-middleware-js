@@ -14,6 +14,7 @@
       "@lis/adapter-mindray-hl7": ["./packages/adapter-mindray-hl7/src/index.ts"],
       "@lis/adapter-generic": ["./packages/adapter-generic/src/index.ts"],
       "@lis/transport": ["./packages/transport/src/index.ts"],
+      "@lis/analyzer-runtime": ["./packages/analyzer-runtime/src/index.ts"],
       "@serialport/binding-mock": ["./node_modules/@serialport/binding-mock/dist/index.d.ts"]
     }
   },
