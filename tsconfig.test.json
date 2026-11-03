@@ -12,7 +12,9 @@
       "@lis/protocol-hl7v2": ["./packages/protocol-hl7v2/src/index.ts"],
       "@lis/adapter-cobas-e411": ["./packages/adapter-cobas-e411/src/index.ts"],
       "@lis/adapter-mindray-hl7": ["./packages/adapter-mindray-hl7/src/index.ts"],
-      "@lis/adapter-generic": ["./packages/adapter-generic/src/index.ts"]
+      "@lis/adapter-generic": ["./packages/adapter-generic/src/index.ts"],
+      "@lis/transport": ["./packages/transport/src/index.ts"],
+      "@serialport/binding-mock": ["./node_modules/@serialport/binding-mock/dist/index.d.ts"]
     }
   },
   "include": ["packages/*/src", "packages/*/test", "vitest.config.ts"]
