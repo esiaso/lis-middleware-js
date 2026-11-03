@@ -1,0 +1,90 @@
+# 13. Phased Implementation Plan and MVP Scope
+
+Durations are rough, for a team of 2 to 3 developers plus part-time QA, and
+depend on discovery answers arriving on time. External dependencies are
+marked with the discovery IDs from [01](01-assumptions-and-discovery.md).
+
+## Phase 0: Discovery and foundations (2 to 3 weeks)
+
+* Close B-1 to B-8 as far as possible; book vendor interface-test slots (D-15).
+* Monorepo skeleton: npm workspaces, strict TS, lint boundary rules, CI with
+  PostgreSQL service, Windows + Linux runners.
+* `packages/config`, `packages/logging`, `packages/contracts` (initial),
+  Prisma baseline migration, roles.
+* Offline bundle builder proof: produce a bundle, install on a clean VM with
+  no internet, `lims verify` incl. serialport load (de-risks AC-7 early).
+
+**Exit:** bundle installs offline on both target OSes; discovery status
+reviewed with the lab.
+
+## Phase 1: Protocol cores and simulators (3 to 4 weeks)
+
+* `protocol-astm`: E1381 codec + link state machine + E1394 parser for both
+  e 411 dialects, from the manual we hold.
+* `protocol-hl7v2`: MLLP codec + HL7 v2 parser/encoder.
+* ASTM, MLLP, and HMIS simulators. Tests T-01 to T-07, T-12.
+* Transports (serial, tcp-client, tcp-server) with backpressure and leases
+  (T-08, T-09).
+
+**Exit:** all codec tests green; fuzz tests (random splits, random bytes)
+run for 1 h without crash or unbounded memory.
+
+## Phase 2: MVP (6 to 8 weeks)
+
+**MVP scope (deliberately narrow):**
+
+| In | Out (later) |
+|---|---|
+| One cobas e 411 via device server, cobas® type (or Elecsys® per B-2), real-time query + result upload | e 411 batch download |
+| Patients/encounters/orders from HMIS via **one** intake mode (whichever the HMIS supports) | Second intake mode |
+| Specimen collection, accessioning, barcode labels (one printer model), receipt | Label designer |
+| Result receipt, matching, quarantine, versioning, review, approval, release | Autoverification |
+| HMIS result submission with idempotency + confirmation (as supported) | Corrections via API if the HMIS does not support them (manual process documented) |
+| Durable inbox/outbox, retries, failed queue, replay | Bulk replay |
+| Clinical audit with hash chain + daily signed export | SIEM streaming (if no SIEM yet) |
+| UI screens W-1, W-2, W-3, W-4, W-6, W-7, W-8 | W-5 load lists (unless Mindray is in MVP), W-9 editor (mappings loaded from reviewed file), W-10 advanced search |
+| Local accounts + LDAPS **or** OIDC (one) | Second IdP method |
+| Windows **or** Linux installer (whichever the hospital chooses, D-17) | The other OS |
+| Downtime registration + manual reconciliation | Assisted matching proposals |
+
+**Exit:** T-10 to T-26 green on simulators; IQ on the hospital test VM.
+
+## Phase 3: Instrument verification and parallel run (3 to 6 weeks, calendar-bound)
+
+* Interface verification of the e 411 with Roche (12 §4).
+* Parallel run (AC-1 to AC-10). Lab continues the existing process; the
+  middleware's HMIS delivery points to the HMIS **test** environment until
+  sign-off, then production for a limited test set.
+* Fix-and-retest cycle; each fix goes through CI and a new signed bundle.
+
+**Exit:** laboratory acceptance signed for e 411 → `LAB_ACCEPTED`; go-live.
+
+## Phase 4: Mindray (4 to 6 weeks after B-3, B-4, B-5 close)
+
+* Confirm the right Mindray document for the installed model and firmware.
+* `mindray-hl7-mllp` adapter, OBX mapping for the confirmed parameter set,
+  ED blob handling, load lists (W-5) if worklist test selection is not
+  supported.
+* Interface verification with Mindray, parallel run, acceptance.
+
+## Phase 5: Hardening and extensions
+
+* Autoverification framework (disabled by default; per-test enablement after
+  validation).
+* Critical-result escalation via hospital SMS/email gateway.
+* Mapping editor UI with approval workflow (W-9).
+* Second OS installer; SIEM streaming; archive tooling.
+* Additional instruments (e.g. cobas c 111 if D-12 confirms it), each with
+  its own verified adapter.
+
+## Risks
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| HMIS API undocumented or unstable | Blocks phase 2 delivery | Build against simulator; insist on test environment before phase 3 |
+| Installed e 411 software differs from the 2013 manual | Parser changes | B-1 early; simulators updated from on-site traces (`host_trace.log`) |
+| Mindray document does not apply to installed model | Phase 4 slip | B-3 before phase 4 starts |
+| Device server timing/buffering issues | Link errors | Test in phase 0 with a loopback; vendor-recommended settings |
+| No idempotency or read-back in HMIS | Ambiguous deliveries need humans | Reconciliation UI in MVP; agree SLA with lab |
+| Network change approvals slow | Calendar slip | Submit firewall request (11 §6) in phase 0 |
+| Large Mindray messages | Disk growth | Short blob retention; measure in phase 4 |
