@@ -16,7 +16,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { arch, platform } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -163,6 +163,8 @@ if (plat === 'win32') {
   for (const f of ['lims-web.service', 'lims-jobs.service', 'lims-analyzer@.service']) cpSync(join(pk, 'linux', f), join(root, 'service', f));
   for (const f of ['lims', 'lims-web']) cpSync(join(pk, 'linux', f), join(root, 'bin', f));
   cpSync(join(pk, 'linux', 'install.sh'), join(root, 'scripts', 'install.sh'));
+  // Set modes explicitly: a checkout may not carry the executable bit.
+  for (const f of ['bin/lims', 'bin/lims-web', 'scripts/install.sh', 'runtime/node/bin/node']) chmodSync(join(root, f), 0o755);
 }
 
 // 9. Manifest, then checksums over every file.
