@@ -1,10 +1,11 @@
 # LIS Middleware JS
 
 On-premises laboratory middleware that connects a hospital HMIS API to
-laboratory analyzers (initially Roche cobas e 411 and Mindray haematology
-analyzers).
+laboratory analyzers (initially Roche cobas e 411, Roche cobas c 111 and
+Mindray haematology analyzers; further instruments once the lab's full
+inventory is known).
 
-**Status: phase 1 (protocol cores).** Protocol codecs and adapters exist; no transport, database or UI yet, and no
+**Status: phase 1 (protocol cores).** Protocol codecs and the e 411 and Mindray adapters exist (the c 111 adapter is designed, not yet built); no transport, database or UI yet, and no
 instrument compatibility is claimed until the installed instruments pass
 interface testing. Start with [`docs/README.md`](docs/README.md).
 

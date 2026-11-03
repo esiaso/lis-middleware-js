@@ -9,6 +9,8 @@ export const SerialTransportConfig = z
     dataBits: z.union([z.literal(7), z.literal(8)]),
     parity: z.enum(['none', 'even', 'odd']),
     stopBits: z.union([z.literal(1), z.literal(2)]),
+    /** c 111 defaults to XON/XOFF; the e 411 manual describes none. Set per site settings. */
+    flowControl: z.enum(['none', 'rtscts', 'xonxoff']).default('none'),
   })
   .strict();
 
@@ -44,7 +46,7 @@ export type TransportConfig = z.infer<typeof TransportConfig>;
 export const InstrumentConnectionConfig = z
   .object({
     instrumentId: InstrumentId,
-    adapter: z.enum(['cobas-e411-astm', 'mindray-hl7-mllp']),
+    adapter: z.enum(['cobas-e411-astm', 'cobas-c111-astm', 'mindray-hl7-mllp']),
     /** Validated again by the adapter's own schema. */
     adapterOptions: z.record(z.string(), z.unknown()).default({}),
     transport: TransportConfig,

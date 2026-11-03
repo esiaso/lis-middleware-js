@@ -1,10 +1,13 @@
 # LIMS Middleware: Design Package
 
 This folder holds the design for an on-premises laboratory middleware that
-connects the hospital HMIS API to laboratory analyzers. It is a design only:
-no analyzer driver has been written, and **no instrument is claimed as
-compatible** until the installed instrument has passed interface testing with
-the vendor's engineer present.
+connects the hospital HMIS API to laboratory analyzers: initially a Roche cobas
+e 411, a Roche cobas c 111, and Mindray haematology analyzers, with further
+instruments to follow once the lab's inventory is collected (D-26).
+Protocol cores and adapters exist in `packages/` (phase 1), written only from
+the vendor manuals. **No instrument is claimed as compatible** until the
+installed instrument has passed interface testing with the vendor's engineer
+present.
 
 ## How to read the evidence labels
 
@@ -23,7 +26,7 @@ of these labels.
 | File received | What it actually is | Notes |
 |---|---|---|
 | `…0000000000001013003023194…Native.pdf` (61 pp.) | **Roche cobas e 411 analyzer Host Interface Manual, Version 2.2, November 2013** | Matches the requested instrument. Does not state a minimum analyzer software version, except one note valid "from software version 02-04". |
-| `…0000000000001013001005761…Native.pdf` (91 pp.) | **Roche cobas c 111 Host Interface Manual, Version 2.2, June 2021, for instrument software 3.0 and higher** | The PDF's embedded title says "Cedex Bio Installation Manual", but the content is the cobas c 111 manual. The c 111 was **not** in the requested instrument list. See question D-12. |
+| `…0000000000001013001005761…Native.pdf` (91 pp.) | **Roche cobas c 111 Host Interface Manual, Version 2.2, June 2021, for instrument software 3.0 and higher** | The PDF's embedded title says "Cedex Bio Installation Manual", but the content is the cobas c 111 manual. The lab confirmed on 2026-11-03 that a c 111 is installed, so it is **in scope**. |
 | `BC-5000BC-5150_HL7_Communication_Protocol_V2.0_EN.pdf` (28 pp.) | **Mindray "3107 HL7 Communication Protocol", document Z-110-002557-002-2.0** | The file name says BC-5000/BC-5150, but the document body never names a model or firmware. It is marked "Security Classification: Secret". See [04](design/04-analyzer-compatibility-matrix.md). |
 
 The vendor manuals are copyrighted or marked confidential. They are **not**

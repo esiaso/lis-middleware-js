@@ -19,16 +19,20 @@ flowchart LR
     JOBS["lims-jobs<br/>NestJS app context: inbox processing,<br/>HMIS outbox, reconciliation, retention"]
     AW1["lims-analyzer@e411-01<br/>connection owner"]
     AW2["lims-analyzer@mindray-01<br/>connection owner"]
+    AW3["lims-analyzer@c111-01<br/>connection owner"]
     DB[("PostgreSQL<br/>clinical data, inbox/outbox,<br/>raw messages, audit")]
     WEB <--> DB
     JOBS <--> DB
     AW1 <--> DB
     AW2 <--> DB
+    AW3 <--> DB
   end
 
   subgraph LAB["Laboratory network segment"]
     DS["Serial device server<br/>RS-232 to TCP"]
     E411["cobas e 411<br/>RS-232 DB-9"]
+    DS2["Serial device server<br/>RS-232 to TCP"]
+    C111["cobas c 111<br/>RS-232 (Host port)"]
     MRPC["Mindray analyzer<br/>(or its workstation PC)"]
   end
 
@@ -38,6 +42,8 @@ flowchart LR
   AW1 -- "TCP raw socket" --> DS
   DS -- "RS-232, ≤15 m" --> E411
   AW2 <-- "TCP + MLLP (HL7 v2.3.1)" --> MRPC
+  AW3 -- "TCP raw socket" --> DS2
+  DS2 -- "RS-232, ≤15 m" --> C111
   USERS["Lab staff browsers"] -- HTTPS --> WEB
 ```
 
@@ -98,6 +104,8 @@ flowchart TB
   subgraph LABVLAN["Laboratory instrument VLAN (isolated)"]
     DS1["Device server<br/>raw TCP :4001 (example)"]
     E411["cobas e 411"]
+    DS2["Device server<br/>raw TCP :4002 (example)"]
+    C111["cobas c 111"]
     MR["Mindray analyzer / workstation PC"]
   end
 
@@ -110,6 +118,8 @@ flowchart TB
   PCS -- "HTTPS 443" --> FW --> MWS
   MWS -- "TCP to device server port" --> FW --> DS1
   DS1 -. "RS-232 ≤ 15 m" .- E411
+  MWS -- "TCP to device server port" --> FW --> DS2
+  DS2 -. "RS-232 ≤ 15 m" .- C111
   MR -- "TCP to middleware listener port, or middleware to MR (B-4)" --> FW
   FW --> MWS
   MWS -- "5432" --> PG
@@ -140,6 +150,11 @@ mode** next to the analyzer converts the link to TCP, so:
   way that delays single-byte ACK/NAK/ENQ/EOT beyond the 15 s ASTM timeout.
   Configure "packing" or "delimiter" options off or to a short interval
   (milliseconds) and confirm during interface testing.
+
+The cobas c 111 has the same 15 m limit and defaults to **XON/XOFF software
+handshake** [DOC c111 HIM 5.2, 6.3]. Its device server must either handle
+XON/XOFF or the analyzer must be set to handshake OFF; see
+[04](04-analyzer-compatibility-matrix.md) §4.1.
 
 If the hospital prefers a physical server near the lab, the same adapter uses
 a local serial port instead (see transport options in

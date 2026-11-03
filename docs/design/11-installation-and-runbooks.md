@@ -138,7 +138,7 @@ validation file.
 | 443/tcp | HMIS → middleware (only if webhooks) | Webhooks |
 | HMIS port | middleware → HMIS | API calls |
 | 5432/tcp | middleware → PostgreSQL | if remote |
-| Device server port (e.g. 4001) | middleware → device server | e 411 via RS-232 bridge |
+| Device server ports (e.g. 4001, 4002) | middleware → device server | e 411 and c 111 via RS-232 bridges |
 | Mindray port (B-4) | per discovery | HL7 MLLP |
 | 636/tcp or 443/tcp | middleware → IdP | LDAPS / OIDC |
 | 6514/tcp | middleware → SIEM | audit/syslog over TLS |
@@ -150,6 +150,7 @@ validation file.
 |---|---|---|---|
 | Lab workstation VLAN | Middleware | 443 | UI |
 | Middleware | Device server e411-01 | 4001 (TBC) | e 411 link |
+| Middleware | Device server c111-01 | 4002 (TBC) | c 111 link |
 | Middleware ↔ Mindray | Mindray IP | TBC (B-4) | HL7 |
 | Middleware | HMIS API | TBC (B-6) | orders/results |
 | HMIS | Middleware | 443 | webhooks (if used) |
