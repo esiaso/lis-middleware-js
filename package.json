@@ -1,0 +1,27 @@
+{
+  "name": "lis-middleware-js",
+  "private": true,
+  "version": "0.0.0",
+  "description": "On-premises LIMS middleware connecting the hospital HMIS to laboratory analyzers",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "build": "tsc -b packages/contracts packages/domain packages/protocol-astm packages/protocol-hl7v2 packages/adapter-cobas-e411 packages/adapter-mindray-hl7",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "tsc -b --clean packages/contracts packages/domain packages/protocol-astm packages/protocol-hl7v2 packages/adapter-cobas-e411 packages/adapter-mindray-hl7",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "type": "module"
+}

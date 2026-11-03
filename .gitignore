@@ -7,3 +7,4 @@ coverage/
 # Vendor manuals are licensed / confidential: never commit them.
 vendor-docs/
 *.pdf
+*.tsbuildinfo
