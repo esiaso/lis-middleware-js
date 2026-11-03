@@ -1,0 +1,6 @@
+{{#if issues}}
+<div class="alert alert-danger" role="alert">
+  <p class="mb-1"><strong>Not saved.</strong> Fix these and try again:</p>
+  <ul class="mb-0">{{#each issues}}<li>{{this}}</li>{{/each}}</ul>
+</div>
+{{/if}}

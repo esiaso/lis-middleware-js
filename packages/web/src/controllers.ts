@@ -10,16 +10,16 @@ import { formatTime, formatValue, NOTICES, parseEnteredValue, safeNext, STATUS_L
 import { LOGIN_CSRF_COOKIE, Public, Roles, SESSION_COOKIE, type WebRequest } from './security.js';
 import { DB, WEB_OPTIONS, type WebOptions } from './tokens.js';
 
-type Form = Record<string, unknown>;
-const str = (f: Form | undefined, k: string): string => (typeof f?.[k] === 'string' ? (f[k] as string) : '');
+export type Form = Record<string, unknown>;
+export const str = (f: Form | undefined, k: string): string => (typeof f?.[k] === 'string' ? (f[k] as string) : '');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function uuidParam(id: string): string {
+export function uuidParam(id: string): string {
   if (!UUID.test(id)) throw new NotFoundException();
   return id;
 }
 
 /** Render with the signed-in person, their CSRF token, and a fixed notice if the redirect asked for one. */
-function page(req: WebRequest, res: Response, view: string, data: Record<string, unknown>): void {
+export function page(req: WebRequest, res: Response, view: string, data: Record<string, unknown>): void {
   const roles = req.user?.roles ?? [];
   const notice = typeof req.query['notice'] === 'string' ? NOTICES[req.query['notice']] : undefined;
   res.render(view, {
@@ -32,6 +32,9 @@ function page(req: WebRequest, res: Response, view: string, data: Record<string,
       approve: roles.includes('approver'),
       replay: roles.includes('approver') || roles.includes('admin'),
       dismiss: roles.includes('technologist') || roles.includes('approver'),
+      register: roles.includes('admin') || roles.includes('technologist'),
+      verify: roles.includes('admin') || roles.includes('approver'),
+      accept: roles.includes('approver'),
     },
   });
 }
@@ -119,6 +122,7 @@ export class DashboardController {
         });
         return {
           id: i.id,
+          href: `/instruments/${encodeURIComponent(i.id)}`,
           name: i.displayName,
           model: `${i.manufacturer} ${i.model}`,
           verification: i.verificationStatus.replace('_', ' ').toLowerCase(),

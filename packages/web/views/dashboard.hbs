@@ -17,7 +17,7 @@
   <tbody>
     {{#each instruments}}
     <tr>
-      <td>{{name}} <span class="text-body-secondary small">{{id}}</span></td>
+      <td><a href="{{href}}">{{name}}</a> <span class="text-body-secondary small">{{id}}</span></td>
       <td>{{model}}</td>
       <td>{{#if linked}}<span class="badge text-bg-success">connected</span>{{else}}<span class="badge text-bg-secondary">no worker</span>{{/if}}</td>
       <td>{{verification}}</td>
