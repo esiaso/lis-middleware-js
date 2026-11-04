@@ -1,0 +1,45 @@
+<div class="d-flex align-items-baseline gap-3"><h1 class="h4">HMIS link</h1><a href="/failed">Failed deliveries</a></div>
+<p class="text-body-secondary">How the jobs worker's link to the HMIS is going: the order feed it polls, and released results on their way. This page refreshes every minute. A result that the HMIS refused, or that could not be delivered after every try, is on the failed deliveries page, where it can be sent again.</p>
+{{#each warnings}}<div class="alert alert-warning" role="alert">{{this}}</div>{{/each}}
+
+<h2 class="h6 mt-3">Order feed</h2>
+{{#if poll}}
+<dl class="row small mb-2">
+  <dt class="col-sm-3">Connector</dt><dd class="col-sm-9 font-monospace">{{poll.profile}}</dd>
+  <dt class="col-sm-3">Last poll</dt><dd class="col-sm-9">{{poll.lastAttempt}} {{#if poll.ok}}<span class="badge text-bg-success">worked</span>{{else}}<span class="badge text-bg-danger">failed {{poll.failures}} time{{#unless (eq poll.failures 1)}}s{{/unless}} in a row</span>{{/if}}</dd>
+  <dt class="col-sm-3">Last poll that worked</dt><dd class="col-sm-9">{{poll.lastSuccess}}{{#if poll.ok}}, {{poll.lastReceived}} order{{#unless (eq poll.lastReceived 1)}}s{{/unless}} received{{/if}}</dd>
+  <dt class="col-sm-3">Feed position last moved</dt><dd class="col-sm-9">{{poll.cursorUpdated}}</dd>
+  {{#if poll.lastError}}<dt class="col-sm-3">Last error</dt><dd class="col-sm-9"><span class="text-body-secondary">{{poll.lastErrorAt}}</span> <span class="font-monospace">{{poll.lastError}}</span></dd>{{/if}}
+</dl>
+{{else}}
+<p class="text-body-secondary">No order poll has been recorded. The jobs worker polls only when the HMIS link is configured (LIMS_HMIS_PROFILE in its settings); until then orders are entered in downtime mode.</p>
+{{/if}}
+
+<h2 class="h6 mt-3">Results on their way</h2>
+<p class="small mb-2">{{outbox.waiting}} waiting{{#if outbox.oldest}}, oldest released {{outbox.oldest}} ago{{/if}}. {{#if outbox.dead}}<a href="/failed">{{outbox.dead}} given up on</a>.{{/if}}</p>
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+  <thead><tr><th>Released</th><th>Submission</th><th>State</th><th>Tries</th><th>Next try</th><th>Last error</th></tr></thead>
+  <tbody>
+    {{#each waiting}}
+    <tr><td class="small">{{released}}</td><td class="font-monospace small">{{#if resultId}}<a href="/results/{{resultId}}">{{key}}</a>{{else}}{{key}}{{/if}}{{#if correction}} <span class="badge text-bg-secondary">correction</span>{{/if}}</td><td>{{status}}</td><td>{{attempts}}</td><td class="small">{{next}}</td><td class="small">{{error}}</td></tr>
+    {{else}}
+    <tr><td colspan="6" class="text-body-secondary">None waiting.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+</div>
+
+<h2 class="h6 mt-3">Latest delivery attempts</h2>
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+  <thead><tr><th>Started</th><th>Seconds</th><th>Submission</th><th>Outcome</th><th>Detail</th></tr></thead>
+  <tbody>
+    {{#each attempts}}
+    <tr><td class="small">{{at}}</td><td>{{seconds}}</td><td class="font-monospace small">{{#if resultId}}<a href="/results/{{resultId}}">{{key}}</a>{{else}}{{key}}{{/if}}</td><td>{{#if good}}<span class="badge text-bg-success">{{outcome}}</span>{{else}}{{outcome}}{{/if}}</td><td class="small">{{detail}}</td></tr>
+    {{else}}
+    <tr><td colspan="5" class="text-body-secondary">No deliveries yet.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+</div>

@@ -9,7 +9,7 @@ import { Browser, PW } from './browser.js';
 
 const url = process.env['TEST_DATABASE_URL'];
 const TABLES =
-  'user_session, app_user, audit_event, delivery_attempt, outbox_message, result_event, result_version, result, unmatched_result, specimen, ordered_test, lab_order, patient, instrument';
+  'user_session, app_user, audit_event, delivery_attempt, outbox_message, result_event, result_version, result, unmatched_result, specimen, ordered_test, lab_order, patient, instrument, hmis_poll_status';
 
 describe.skipIf(!url)('web screens over HTTP', () => {
   let db: Db;
@@ -161,6 +161,13 @@ describe.skipIf(!url)('web screens over HTTP', () => {
     expect(dash.html).toContain('cleared');
     expect((await b.get('/unmatched')).html).toContain('Nothing unmatched');
     expect((await b.get('/failed')).status).toBe(200);
+    expect((await b.get('/hmis')).html).toContain('No order poll has been recorded');
+    expect(dash.html).not.toContain('href="/hmis">Open');
+    await db.hmisPollStatus.create({ data: { name: 'orders', profile: 'fhir-r4@1', lastAttemptAt: new Date(), failuresInARow: 3, lastError: 'ServiceRequest/sr9: no code with system https://hmis.example/test', lastErrorAt: new Date() } });
+    expect((await b.get('/')).html).toContain('the last 3 order polls failed');
+    const hmisPage = await b.get('/hmis');
+    expect(hmisPage.html).toContain('failed 3 times in a row');
+    expect(hmisPage.html).toContain('ServiceRequest/sr9: no code with system https://hmis.example/test');
     expect((await b.get('/results/not-a-uuid')).status).toBe(404);
     expect((await b.get('/static/bootstrap/bootstrap.min.css')).status).toBe(200);
 

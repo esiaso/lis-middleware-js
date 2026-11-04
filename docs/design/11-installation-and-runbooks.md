@@ -403,7 +403,10 @@ Where the HMIS certificate is from the hospital CA, set
 `NODE_EXTRA_CA_CERTS` for `lims-jobs`. The worker logs each poll that
 brought orders, each delivery, and each failure; a poll that fails (for
 example on a feed entry missing its MRN) is retried at every interval with
-the reason in the log until the HMIS fixes the entry.
+the reason in the log until the HMIS fixes the entry. The HMIS link page
+(09 W-21) shows the same without the log: the last poll, its error, and
+results still on their way; the dashboard warns when polls keep failing or
+a result has waited more than 15 minutes.
 
 First administrator, before the hospital IdP is connected (password on
 standard input, at least 12 characters, never on the command line):

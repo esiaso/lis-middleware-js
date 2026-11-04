@@ -1,13 +1,13 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { acquireLease, createDb, PrismaRawMessageStore, startLinkSession, uuidv7, type Db } from '@lis/db';
 import { FhirR4Hmis } from '@lis/hmis';
-import { accessionSpecimen, addResultComment, approve, deliverOutbox, pullOrders, release, review } from '@lis/lab';
+import { accessionSpecimen, addResultComment, approve, deliverOutbox, hmisDeliveries, hmisLinkStatus, pullOrders, release, review } from '@lis/lab';
 import { runIntakeBatch } from '@lis/result-intake';
 import { feedLine, startStubFhir, SYSTEMS, type StubFhir } from '../../hmis/test/fhir-stub.js';
 
 const url = process.env['TEST_DATABASE_URL'];
 const ALL_TABLES =
-  'audit_event, delivery_attempt, outbox_message, result_event, result_comment, result_version, result, unmatched_result, specimen, ordered_test, lab_order, patient, hmis_code_map, hmis_cursor, observation, normalized_message, inbox_message, raw_frame, raw_message, link_session, instrument_connection_lease, instrument_verification_evidence, instrument_connection, test_mapping_set, instrument';
+  'audit_event, delivery_attempt, outbox_message, result_event, result_comment, result_version, result, unmatched_result, specimen, ordered_test, lab_order, patient, hmis_code_map, hmis_cursor, hmis_poll_status, observation, normalized_message, inbox_message, raw_frame, raw_message, link_session, instrument_connection_lease, instrument_verification_evidence, instrument_connection, test_mapping_set, instrument';
 
 const upload = (barcode: string, value: string) =>
   Buffer.from(
@@ -126,6 +126,18 @@ describe.skipIf(!url)('FHIR HMIS (stand-in) → order → result → release →
     await db.outboxMessage.updateMany({ data: { availableAt: new Date() } });
     expect((await deliverOutbox(db, hmis, 'jobs:1'))[0]).toMatchObject({ outcome: 'confirmed', resultStatus: 'hmis_confirmed' });
     expect(stub.transactions).toHaveLength(1);
+  });
+
+  it('the HMIS link page counts results on their way and warns about one waiting too long', async () => {
+    const { idempotencyKey } = await orderReleased();
+    stub.faults.transaction = [{ status: 503 }];
+    await deliverOutbox(db, hmis, 'jobs:1');
+    expect(await hmisLinkStatus(db)).toMatchObject({ outbox: { waiting: 1, dead: 0, lateCount: 0 }, warnings: [] });
+    await db.outboxMessage.updateMany({ data: { createdAt: new Date(Date.now() - 20 * 60_000) } });
+    expect((await hmisLinkStatus(db)).warnings).toEqual([{ kind: 'outbox-late', text: '1 released result not yet delivered after 15 minutes' }]);
+    const d = await hmisDeliveries(db);
+    expect(d.waiting).toMatchObject([{ idempotencyKey, status: 'FAILED', attempts: 1 }]);
+    expect(d.attempts).toMatchObject([{ outcome: 'retryable', outbox: { idempotencyKey } }]);
   });
 
   it('a busy HMIS is tried again no sooner than it asked', async () => {

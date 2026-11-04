@@ -90,7 +90,7 @@ the FHIR R4 HMIS connector in the jobs worker, built to the interface the lab
 proposed to the in-house HMIS team: polled order feed with a cursor, results
 as conditional-update transactions, read-back by submission key (A-30, 07 §6.6;
 tested against a stand-in FHIR server, not yet against the HMIS, which has no
-test environment). Not built yet: "add test to order" from an
+test environment), with an HMIS link page and dashboard warning (W-21). Not built yet: "add test to order" from an
 unmatched result, assisted reconciliation when the HMIS returns (beyond the candidate list),
 and patient merge handling (D-6).
 
