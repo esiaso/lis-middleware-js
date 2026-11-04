@@ -20,9 +20,11 @@ describe.skipIf(!url)('lims backup create and verify against PostgreSQL', () => 
   let db: Db;
   let dir: string;
   let scratchUrl: string;
-  const scratchName = `${new URL(url as string).pathname.slice(1)}_restore`;
+  // Worked out only when the suite runs: without a database it is skipped, and its body must not throw.
+  let scratchName = '';
 
   beforeAll(async () => {
+    scratchName = `${new URL(url as string).pathname.slice(1)}_restore`;
     db = createDb(url as string);
     dir = mkdtempSync(join(tmpdir(), 'lims-backup-'));
     await db.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${scratchName}"`);
@@ -35,7 +37,7 @@ describe.skipIf(!url)('lims backup create and verify against PostgreSQL', () => 
   afterAll(async () => {
     await db?.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${scratchName}"`);
     await db?.$disconnect();
-    rmSync(dir, { recursive: true, force: true });
+    if (dir) rmSync(dir, { recursive: true, force: true });
   });
 
   it('dumps from one snapshot, restores into an empty scratch database, checks the chain there, and empties it again', async () => {
