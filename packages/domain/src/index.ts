@@ -6,3 +6,4 @@ export * from './critical-limits.js';
 export * from './autoverification.js';
 export * from './delta-check.js';
 export * from './qc.js';
+export * from './tat-targets.js';

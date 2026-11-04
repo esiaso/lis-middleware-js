@@ -256,6 +256,10 @@ had both times: ordered to collected, collected to received in the lab,
 received to first value, first value to approved, approved to released,
 released to accepted by the HMIS, and collected to accepted. Approvers and
 auditors can download the per-result times as CSV, without patient names.
+With targets set (**Turnaround → Targets**, approvers, step-up, audited) a
+column shows how many met the receipt-to-release target and how many were
+late; **Overdue results** lists unreleased results past target, and the
+dashboard shows a warning while any are.
 
 ## W-10 Audit search and export
 

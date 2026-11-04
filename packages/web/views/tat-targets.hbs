@@ -1,0 +1,53 @@
+<p><a href="/reports/turnaround">&larr; Turnaround times</a></p>
+<h1 class="h4">Turnaround targets</h1>
+<p class="text-body-secondary">The lab's target time from receipt of the specimen in the lab to release of the result. The middleware comes with no targets. The most specific target applies: test and priority, then test, then priority, then one for every test. Targets apply to the report and the overdue list as soon as they are saved, including for earlier results.</p>
+
+<table class="table table-sm align-middle">
+  <thead><tr><th>Test</th><th>Priority</th><th>Target</th><th>Source</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
+  <tbody>
+    {{#each targets}}
+    <tr>
+      <td class="font-monospace">{{test}}</td><td>{{priority}}</td><td>{{target}}</td><td class="small">{{reference}}</td><td class="small">{{by}}, {{at}}</td>
+      {{#if @root.can.approve}}
+      <td>
+        <details><summary class="small">Retire</summary>
+          <form method="post" action="/reports/targets/{{id}}/retire" class="mt-2">
+            <input type="hidden" name="_csrf" value="{{@root.csrf}}">
+            <input class="form-control form-control-sm mb-1" name="reason" minlength="5" required placeholder="Reason" aria-label="Reason">
+            {{> confirm inputClass="form-control form-control-sm mb-1"}}
+            <button class="btn btn-outline-danger btn-sm" type="submit">Retire target</button>
+          </form>
+        </details>
+      </td>
+      {{/if}}
+    </tr>
+    {{else}}
+    <tr><td colspan="6" class="text-body-secondary">No targets.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+
+{{#if can.approve}}
+<h2 class="h5 mt-4">Add a target</h2>
+<p class="small text-body-secondary">One target per test and priority. To change one, retire it and add the new one.</p>
+{{> issues}}
+<form method="post" action="/reports/targets" class="row g-3">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <div class="col-md-3"><label class="form-label" for="localTestCode">Test</label>
+    <select class="form-select" id="localTestCode" name="localTestCode"><option value="">Every test</option>{{#each tests}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{code}}</option>{{/each}}</select></div>
+  <div class="col-md-3"><label class="form-label" for="priority">Priority</label>
+    <select class="form-select" id="priority" name="priority"><option value="">Every priority</option>{{#each priorities}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></div>
+  <div class="col-md-2"><label class="form-label" for="minutes">Target (minutes)</label><input class="form-control" id="minutes" name="minutes" value="{{v.minutes}}" inputmode="numeric" required></div>
+  <div class="col-md-6"><label class="form-label" for="reference">Source</label><input class="form-control" id="reference" name="reference" value="{{v.reference}}" required minlength="5" maxlength="200"><div class="form-text">The lab policy these targets come from, with its version.</div></div>
+  <div class="col-md-4">{{> confirm id="target-password" label="Your password" labelClass="form-label" inputClass="form-control"}}</div>
+  <div class="col-12"><button class="btn btn-primary" type="submit">Save target</button></div>
+</form>
+{{/if}}
+
+{{#if retired}}
+<h2 class="h6 mt-4">Retired targets</h2>
+<table class="table table-sm small text-body-secondary">
+  <thead><tr><th>Test</th><th>Priority</th><th>Target</th><th>Retired</th><th>Reason</th></tr></thead>
+  <tbody>{{#each retired}}<tr><td>{{test}}</td><td>{{priority}}</td><td>{{target}}</td><td>{{retiredBy}}, {{retiredAt}}</td><td>{{retireReason}}</td></tr>{{/each}}</tbody>
+</table>
+{{/if}}

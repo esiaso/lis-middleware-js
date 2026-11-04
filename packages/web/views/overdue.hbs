@@ -1,0 +1,11 @@
+<p><a href="/reports/turnaround">&larr; Turnaround times</a></p>
+<h1 class="h4">Overdue results</h1>
+<p class="text-body-secondary">Results not yet released whose time since the specimen was received in the lab is past the lab's <a href="/reports/targets">turnaround target</a> for that test and priority. Most overdue first. Results on a specimen with no receipt time are not listed.</p>
+{{#unless hasTargets}}<p class="text-body-secondary">No turnaround targets, so nothing can be overdue.</p>{{/unless}}
+{{#if rows}}
+<table class="table table-sm align-middle">
+  <thead><tr><th>Patient</th><th>Test</th><th>Priority</th><th>Accession</th><th>Status</th><th>Received</th><th>Target</th><th>Late by</th></tr></thead>
+  <tbody>{{#each rows}}<tr><td><a href="{{href}}">{{patient}}</a></td><td class="font-monospace">{{test}}</td><td>{{priority}}</td><td>{{accessionNo}}</td><td>{{status}}</td><td class="small">{{received}}</td><td>{{target}}</td><td class="text-danger-emphasis">{{late}}</td></tr>{{/each}}</tbody>
+</table>
+{{#if more}}<p class="small text-body-secondary">{{more}} more not shown.</p>{{/if}}
+{{else}}{{#if hasTargets}}<p class="text-body-secondary">Nothing overdue.</p>{{/if}}{{/if}}

@@ -3,7 +3,7 @@ import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, P
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
 import { migrationStatus, type Db } from '@lis/db';
 import { AUTOVERIFY_ACTOR, clinicalGateFor } from '@lis/domain';
-import { approve, confirmLink, decisionsFor, failingQc, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, waitingCriticals, withdrawLink } from '@lis/lab';
+import { approve, confirmLink, decisionsFor, failingQc, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, waitingCriticals, withdrawLink } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
 import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS } from './auth.js';
 import { elapsed, formatTime, formatValue, NOTICES, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
@@ -201,7 +201,7 @@ export class DashboardController {
   @Get()
   async dashboard(@Req() req: WebRequest, @Res() res: Response): Promise<void> {
     const now = new Date();
-    const [instruments, byStatus, unmatched, failedOutbox, needsConfirmation, criticals, qcFailing] = await Promise.all([
+    const [instruments, byStatus, unmatched, failedOutbox, needsConfirmation, criticals, qcFailing, overdue] = await Promise.all([
       this.db.instrument.findMany({ orderBy: { displayName: 'asc' }, include: { lease: true } }),
       this.db.result.groupBy({ by: ['status'], _count: { _all: true } }),
       this.db.unmatchedResult.count({ where: { resolvedAt: null } }),
@@ -209,11 +209,13 @@ export class DashboardController {
       this.db.result.count({ where: { needsConfirmation: true } }),
       waitingCriticals(this.db),
       failingQc(this.db),
+      overdueResults(this.db, now),
     ]);
     const counts = Object.fromEntries(byStatus.map((g) => [g.status, g._count._all]));
     page(req, res, 'dashboard', {
       title: 'Dashboard',
       refresh: 60,
+      overdue: overdue.length ? { n: overdue.length, oldest: elapsed(overdue[0]!.due, now) } : null,
       qcFailing: qcFailing.length ? { n: qcFailing.length, list: qcFailing.slice(0, 5).map((f) => `${f.instrumentName} ${f.localTestCode}`).join(', ') } : null,
       critical: criticals.length ? { n: criticals.length, oldest: elapsed(criticals[0]!.arrivedAt, now), more: criticals.length >= 100 } : null,
       instruments: instruments.map((i) => {

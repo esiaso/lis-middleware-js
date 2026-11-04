@@ -93,6 +93,8 @@ export const NOTICES: Record<string, string> = {
   'delta-retired': 'Delta rule retired. Results already flagged keep their flag.',
   'qc-range-added': 'QC range saved. It applies to QC results that arrive from now on.',
   'qc-range-retired': 'QC range retired. Earlier checks keep their outcome.',
+  'target-added': 'Turnaround target saved. It applies to the report and the overdue list straight away.',
+  'target-retired': 'Turnaround target retired.',
   'limit-retired': 'Critical limit retired. Results already flagged keep their flag.',
 };
 

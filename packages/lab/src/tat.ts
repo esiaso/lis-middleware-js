@@ -1,4 +1,7 @@
-import type { Db } from '@lis/db';
+import { uuidv7, type Db } from '@lis/db';
+import { parseTatTarget, targetFor, type TatTarget, type TatTargetInput } from '@lis/domain';
+import { appendAudit } from './audit.js';
+import { WorkflowRejected } from './results.js';
 import { InvalidInput } from './instruments.js';
 import type { Tx } from './tx.js';
 
@@ -36,9 +39,19 @@ export interface TatStep {
   negative: number;
 }
 
+export interface TatTargetCount {
+  /** Results with a target and a receipt time. */
+  counted: number;
+  /** Released within the target. */
+  met: number;
+  /** Released after the target, or not released and already past it. */
+  late: number;
+}
+
 export interface TatRow {
   test: string;
   results: number;
+  target: TatTargetCount;
   steps: Record<(typeof TAT_STEPS)[number]['key'], TatStep>;
 }
 
@@ -98,8 +111,19 @@ function percentile(sorted: number[], p: number): number | null {
   return sorted[Math.min(sorted.length - 1, Math.ceil(p * sorted.length) - 1)]!;
 }
 
-export function summarizeTat(rows: TatResultTimes[]): { all: TatRow; tests: TatRow[] } {
+export function summarizeTat(rows: TatResultTimes[], targets: TatTarget[] = [], now = new Date()): { all: TatRow; tests: TatRow[] } {
   const group = (test: string, list: TatResultTimes[]): TatRow => {
+    const target: TatTargetCount = { counted: 0, met: 0, late: 0 };
+    for (const r of list) {
+      const t = targetFor(targets, r.test, r.priority);
+      if (!t || !r.received) continue;
+      target.counted++;
+      const due = r.received.getTime() + t.minutes * 60_000;
+      if (r.released) {
+        if (r.released.getTime() <= due) target.met++;
+        else target.late++;
+      } else if (now.getTime() > due) target.late++;
+    }
     const steps = {} as TatRow['steps'];
     for (const s of TAT_STEPS) {
       const secs: number[] = [];
@@ -115,9 +139,73 @@ export function summarizeTat(rows: TatResultTimes[]): { all: TatRow; tests: TatR
       secs.sort((x, y) => x - y);
       steps[s.key] = { n: secs.length, median: percentile(secs, 0.5), p90: percentile(secs, 0.9), negative };
     }
-    return { test, results: list.length, steps };
+    return { test, results: list.length, target, steps };
   };
   const byTest = new Map<string, TatResultTimes[]>();
   for (const r of rows) byTest.set(r.test, [...(byTest.get(r.test) ?? []), r]);
   return { all: group('All tests', rows), tests: [...byTest.keys()].sort().map((t) => group(t, byTest.get(t)!)) };
+}
+
+export interface OverdueResult {
+  resultId: string;
+  test: string;
+  priority: string;
+  accessionNo: string | null;
+  mrn: string;
+  familyName: string | null;
+  givenName: string | null;
+  status: string;
+  received: Date;
+  due: Date;
+  targetMinutes: number;
+}
+
+/** Results not yet released whose receipt-to-release target has passed, most overdue first. */
+export async function overdueResults(db: Db | Tx, now = new Date()): Promise<OverdueResult[]> {
+  const targets = await db.tatTarget.findMany({ where: { active: true } });
+  if (!targets.length) return [];
+  const rows = await db.$queryRaw<Omit<OverdueResult, 'due' | 'targetMinutes'>[]>`
+    SELECT r.id AS "resultId", COALESCE(t.local_test_code, t.hmis_test_code) AS test, o.priority::text AS priority, s.accession_no AS "accessionNo",
+           p.mrn, p.family_name AS "familyName", p.given_name AS "givenName", r.status::text AS status, s.received_at AS received
+      FROM result r
+      JOIN ordered_test t ON t.id = r.ordered_test_id
+      JOIN lab_order o ON o.id = t.order_id
+      JOIN patient p ON p.id = o.patient_id
+      JOIN specimen s ON s.id = t.specimen_id
+     WHERE r.status IN ('received', 'reviewed', 'approved')
+       AND s.received_at IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM result_event e WHERE e.result_id = r.id AND e.kind = 'release')
+     ORDER BY s.received_at ASC
+     LIMIT 5000`;
+  const out: OverdueResult[] = [];
+  for (const r of rows) {
+    const t = targetFor(targets, r.test, r.priority);
+    if (!t) continue;
+    const due = new Date(r.received.getTime() + t.minutes * 60_000);
+    if (due < now) out.push({ ...r, due, targetMinutes: t.minutes });
+  }
+  return out.sort((a, b) => a.due.getTime() - b.due.getTime());
+}
+
+export async function addTatTarget(db: Db, actor: string, input: TatTargetInput): Promise<string> {
+  const p = parseTatTarget(input);
+  if (!p.ok) throw new InvalidInput(p.issues);
+  const id = uuidv7();
+  await db.$transaction(async (tx) => {
+    if (await tx.tatTarget.findFirst({ where: { localTestCode: p.value.localTestCode, priority: p.value.priority, active: true } })) {
+      throw new InvalidInput(['There is already an active target for that test and priority. Retire it first.']);
+    }
+    await tx.tatTarget.create({ data: { id, ...p.value, createdBy: actor } });
+    await appendAudit(tx, { actor, action: 'tat-target.add', entityType: 'tat_target', entityId: id, after: p.value });
+  });
+  return id;
+}
+
+export async function retireTatTarget(db: Db, actor: string, id: string, reason: string): Promise<void> {
+  if (reason.trim().length < 5) throw new InvalidInput(['Give a reason of at least 5 characters.']);
+  await db.$transaction(async (tx) => {
+    const n = await tx.tatTarget.updateMany({ where: { id, active: true }, data: { active: false, retiredBy: actor, retiredAt: new Date(), retireReason: reason.trim() } });
+    if (n.count !== 1) throw new WorkflowRejected({ code: 'INVALID_STATE', detail: 'that target is not active' });
+    await appendAudit(tx, { actor, action: 'tat-target.retire', entityType: 'tat_target', entityId: id, reason: reason.trim() });
+  });
 }
