@@ -32,7 +32,13 @@
 | Search and export audit | | | | | ✔ |
 
 * An administrator cannot approve results unless separately given the
-  approver role, and granting oneself a role is blocked.
+  approver role, and granting oneself a role is blocked: an administrator
+  cannot change their own roles or state; another administrator must.
+* Every account change (create, roles, disable, enable, unlock, temporary
+  password) needs the administrator's own password again and is audited
+  (`user.*`). Disabling or resetting a password ends that person's sessions
+  at once. A temporary password must be replaced before any other page opens.
+  The last active administrator cannot lose the role or be disabled.
 * Optional two-person rule: reviewer and approver must differ.
 
 ## 3. Identity

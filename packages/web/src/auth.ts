@@ -1,6 +1,6 @@
 import { createHash, randomBytes, scrypt as scryptCb, timingSafeEqual, type ScryptOptions } from 'node:crypto';
 import { uuidv7, type Db } from '@lis/db';
-import { appendAudit } from '@lis/lab';
+import { appendAudit, InvalidInput } from '@lis/lab';
 
 /**
  * Local accounts (10 §3 fallback). Passwords are hashed with scrypt from
@@ -18,6 +18,8 @@ export interface SessionUser {
   displayName: string;
   roles: Role[];
   csrfToken: string;
+  /** An administrator set a temporary password: only the change-password page is open until it is changed. */
+  mustChangePassword: boolean;
 }
 
 export interface SessionPolicy {
@@ -65,7 +67,7 @@ export function validatePassword(password: string): string | undefined {
   return undefined;
 }
 
-export async function createUser(db: Db, u: { username: string; displayName: string; password: string; roles: Role[] }, actor: string): Promise<string> {
+export async function createUser(db: Db, u: { username: string; displayName: string; password: string; roles: Role[]; mustChangePassword?: boolean }, actor: string): Promise<string> {
   const problem = validatePassword(u.password);
   if (problem) throw new Error(problem);
   const bad = u.roles.filter((r) => !ROLES.includes(r));
@@ -74,7 +76,7 @@ export async function createUser(db: Db, u: { username: string; displayName: str
   const id = uuidv7();
   const passwordHash = await hashPassword(u.password);
   await db.$transaction(async (tx) => {
-    await tx.appUser.create({ data: { id, username: u.username, displayName: u.displayName, passwordHash, roles: u.roles } });
+    await tx.appUser.create({ data: { id, username: u.username, displayName: u.displayName, passwordHash, roles: u.roles, mustChangePassword: u.mustChangePassword ?? false } });
     await appendAudit(tx, { actor, action: 'user.create', entityType: 'app_user', entityId: id, after: { username: u.username, roles: u.roles } });
   });
   return id;
@@ -108,7 +110,7 @@ export async function login(db: Db, username: string, password: string, policy =
     await tx.userSession.create({ data: { tokenHash: sha256(token), userId: user.id, csrfToken, createdAt: now, expiresAt: new Date(now.getTime() + policy.idleMs) } });
     await appendAudit(tx, { actor: username, action: 'auth.login', entityType: 'app_user', entityId: user.id });
   });
-  return { ok: true, token, user: { id: user.id, username: user.username, displayName: user.displayName, roles: user.roles as Role[], csrfToken } };
+  return { ok: true, token, user: { id: user.id, username: user.username, displayName: user.displayName, roles: user.roles as Role[], csrfToken, mustChangePassword: user.mustChangePassword } };
 }
 
 /** Re-check a signed-in person's password before approve or release (10 §3 step-up). */
@@ -130,7 +132,7 @@ export async function sessionUser(db: Db, token: string | undefined, policy = DE
   const next = Math.min(now.getTime() + policy.idleMs, hardStop);
   // Write at most once a minute to keep page loads cheap.
   if (next - s.expiresAt.getTime() > 60_000) await db.userSession.update({ where: { tokenHash: s.tokenHash }, data: { expiresAt: new Date(next) } });
-  return { id: s.user.id, username: s.user.username, displayName: s.user.displayName, roles: s.user.roles as Role[], csrfToken: s.csrfToken };
+  return { id: s.user.id, username: s.user.username, displayName: s.user.displayName, roles: s.user.roles as Role[], csrfToken: s.csrfToken, mustChangePassword: s.user.mustChangePassword };
 }
 
 export async function logout(db: Db, token: string | undefined): Promise<void> {
@@ -140,5 +142,90 @@ export async function logout(db: Db, token: string | undefined): Promise<void> {
   await db.$transaction(async (tx) => {
     await tx.userSession.delete({ where: { tokenHash: s.tokenHash } });
     await appendAudit(tx, { actor: s.user.username, action: 'auth.logout', entityType: 'app_user', entityId: s.userId });
+  });
+}
+
+// ---------- Account administration (10 §2: admins manage users and roles) ----------
+
+export const USERNAME = /^[a-z0-9][a-z0-9._-]{1,39}$/;
+
+async function loadOther(tx: Parameters<Parameters<Db['$transaction']>[0]>[0], actor: SessionUser, userId: string) {
+  const u = await tx.appUser.findUnique({ where: { id: userId } });
+  if (!u) throw new InvalidInput(['No such account.']);
+  // Granting oneself a role, or locking oneself out, is blocked (10 §2).
+  if (u.id === actor.id) throw new InvalidInput(['You cannot change your own account here. Ask another administrator.']);
+  return u;
+}
+
+/** The last active administrator cannot lose the role or be disabled, or nobody could manage accounts. */
+async function keepAnAdmin(tx: Parameters<Parameters<Db['$transaction']>[0]>[0], userId: string): Promise<void> {
+  const others = await tx.appUser.count({ where: { active: true, roles: { has: 'admin' }, id: { not: userId } } });
+  if (others === 0) throw new InvalidInput(['This is the last active administrator. Give another account the admin role first.']);
+}
+
+export function checkRoles(roles: string[]): Role[] {
+  const bad = roles.filter((r) => !ROLES.includes(r as Role));
+  if (bad.length) throw new InvalidInput([`Unknown roles: ${bad.join(', ')}.`]);
+  if (roles.length === 0) throw new InvalidInput(['Choose at least one role. To stop someone signing in, disable the account.']);
+  return [...new Set(roles)] as Role[];
+}
+
+export async function setUserRoles(db: Db, actor: SessionUser, userId: string, roles: string[]): Promise<void> {
+  const next = checkRoles(roles);
+  await db.$transaction(async (tx) => {
+    const u = await loadOther(tx, actor, userId);
+    if (u.roles.includes('admin') && !next.includes('admin') && u.active) await keepAnAdmin(tx, u.id);
+    await tx.appUser.update({ where: { id: u.id }, data: { roles: next } });
+    await appendAudit(tx, { actor: actor.username, action: 'user.roles', entityType: 'app_user', entityId: u.id, before: { roles: u.roles }, after: { roles: next } });
+  });
+}
+
+/** Disabling ends every session of that account at once. */
+export async function setUserActive(db: Db, actor: SessionUser, userId: string, active: boolean, reason: string): Promise<void> {
+  const why = reason.trim();
+  if (why.length < 5) throw new InvalidInput(['Give a reason of at least 5 characters.']);
+  await db.$transaction(async (tx) => {
+    const u = await loadOther(tx, actor, userId);
+    if (!active && u.roles.includes('admin')) await keepAnAdmin(tx, u.id);
+    await tx.appUser.update({ where: { id: u.id }, data: { active, ...(active ? { failedLogins: 0, lockedUntil: null } : {}) } });
+    if (!active) await tx.userSession.deleteMany({ where: { userId: u.id } });
+    await appendAudit(tx, { actor: actor.username, action: active ? 'user.enable' : 'user.disable', entityType: 'app_user', entityId: u.id, reason: why });
+  });
+}
+
+export async function unlockUser(db: Db, actor: SessionUser, userId: string): Promise<void> {
+  await db.$transaction(async (tx) => {
+    const u = await loadOther(tx, actor, userId);
+    await tx.appUser.update({ where: { id: u.id }, data: { failedLogins: 0, lockedUntil: null } });
+    await appendAudit(tx, { actor: actor.username, action: 'user.unlock', entityType: 'app_user', entityId: u.id });
+  });
+}
+
+/** A temporary password the person must replace at next sign-in. Their sessions end now. */
+export async function resetUserPassword(db: Db, actor: SessionUser, userId: string, temporary: string): Promise<void> {
+  const problem = validatePassword(temporary);
+  if (problem) throw new InvalidInput([`Temporary ${problem}.`]);
+  const passwordHash = await hashPassword(temporary);
+  await db.$transaction(async (tx) => {
+    const u = await loadOther(tx, actor, userId);
+    await tx.appUser.update({ where: { id: u.id }, data: { passwordHash, mustChangePassword: true, failedLogins: 0, lockedUntil: null } });
+    await tx.userSession.deleteMany({ where: { userId: u.id } });
+    // The password itself is never recorded.
+    await appendAudit(tx, { actor: actor.username, action: 'user.password-reset', entityType: 'app_user', entityId: u.id });
+  });
+}
+
+/** The signed-in person chooses a new password. Their other sessions end; this one stays. */
+export async function changeOwnPassword(db: Db, user: SessionUser, current: string, next: string, keepToken: string | undefined): Promise<void> {
+  const u = await db.appUser.findUnique({ where: { id: user.id } });
+  if (!u || !(await verifyPassword(current, u.passwordHash))) throw new InvalidInput(['Your current password is not right.']);
+  const problem = validatePassword(next);
+  if (problem) throw new InvalidInput([`New ${problem}.`]);
+  if (await verifyPassword(next, u.passwordHash)) throw new InvalidInput(['Choose a password different from the current one.']);
+  const passwordHash = await hashPassword(next);
+  await db.$transaction(async (tx) => {
+    await tx.appUser.update({ where: { id: u.id }, data: { passwordHash, mustChangePassword: false, passwordChangedAt: new Date() } });
+    await tx.userSession.deleteMany({ where: { userId: u.id, ...(keepToken ? { tokenHash: { not: sha256(keepToken) } } : {}) } });
+    await appendAudit(tx, { actor: u.username, action: 'user.password-change', entityType: 'app_user', entityId: u.id });
   });
 }

@@ -16,6 +16,7 @@ import { InstrumentsController } from './instruments.controller.js';
 import { OrdersController } from './orders.controller.js';
 import { DowntimeController } from './downtime.controller.js';
 import { AuditController } from './audit.controller.js';
+import { AccountController, UsersController } from './users.controller.js';
 import { PageErrorFilter, SecurityGuard, securityHeaders, sessionMiddleware } from './security.js';
 import { DB, LOGGER, WEB_OPTIONS, type WebOptions } from './tokens.js';
 
@@ -28,7 +29,7 @@ class WebModule {
   static with(db: Db, opts: WebOptions, logger: Logger): DynamicModule {
     return {
       module: WebModule,
-      controllers: [AuthController, DashboardController, ResultsController, UnmatchedController, FailedController, InstrumentsController, OrdersController, DowntimeController, AuditController, HealthController],
+      controllers: [AuthController, DashboardController, ResultsController, UnmatchedController, FailedController, InstrumentsController, OrdersController, DowntimeController, AuditController, UsersController, AccountController, HealthController],
       providers: [
         { provide: DB, useValue: db },
         { provide: WEB_OPTIONS, useValue: opts },

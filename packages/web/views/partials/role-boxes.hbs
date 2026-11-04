@@ -1,0 +1,6 @@
+<fieldset class="mb-2">
+  <legend class="form-label fs-6">Roles</legend>
+  {{#each roles}}
+  <div class="form-check"><input class="form-check-input" type="checkbox" name="roles" value="{{value}}" id="role-{{value}}" {{#if checked}}checked{{/if}}><label class="form-check-label" for="role-{{value}}"><strong>{{value}}</strong> <span class="small text-body-secondary">{{note}}</span></label></div>
+  {{/each}}
+</fieldset>

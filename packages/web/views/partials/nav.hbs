@@ -9,8 +9,9 @@
       <li class="nav-item"><a class="nav-link" href="/failed">Failed deliveries</a></li>
       <li class="nav-item"><a class="nav-link" href="/instruments">Instruments</a></li>
       {{#if can.audit}}<li class="nav-item"><a class="nav-link" href="/audit">Audit</a></li>{{/if}}
+      {{#if can.users}}<li class="nav-item"><a class="nav-link" href="/users">Users</a></li>{{/if}}
     </ul>
-    <span class="navbar-text me-3">{{user.displayName}}</span>
+    <a class="navbar-text me-3" href="/account/password" title="Change password">{{user.displayName}}</a>
     <form method="post" action="/logout" class="d-inline">
       <input type="hidden" name="_csrf" value="{{csrf}}">
       <button class="btn btn-outline-secondary btn-sm" type="submit">Sign out</button>

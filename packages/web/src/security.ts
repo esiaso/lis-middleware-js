@@ -23,6 +23,12 @@ const ROLES_KEY = 'lims:roles';
 export const Public = () => SetMetadata(PUBLIC, true);
 /** The signed-in person needs at least one of these roles (10 §2). */
 export const Roles = (...roles: Role[]) => SetMetadata(ROLES_KEY, roles);
+const PASSWORD_CHANGE = 'lims:password-change';
+/** Open even while the person must replace a temporary password (the change page itself, sign-out). */
+export const OpenDuringPasswordChange = () => SetMetadata(PASSWORD_CHANGE, true);
+
+/** Thrown for any other route while a temporary password is in force. */
+export class PasswordChangeRequired extends Error {}
 
 /** Loads the person behind the session cookie, if any. Runs before the guard. */
 export function sessionMiddleware(db: Db, policy: SessionPolicy) {
@@ -56,6 +62,7 @@ export class SecurityGuard implements CanActivate {
     const req = ctx.switchToHttp().getRequest<WebRequest>();
     const user = req.user;
     if (!user) throw new UnauthorizedException();
+    if (user.mustChangePassword && !this.reflector.getAllAndOverride<boolean>(PASSWORD_CHANGE, targets)) throw new PasswordChangeRequired();
     if (!['GET', 'HEAD'].includes(req.method)) {
       const sent = (req.body as Record<string, unknown> | undefined)?.['_csrf'];
       if (typeof sent !== 'string' || sent !== user.csrfToken) throw new ForbiddenException('The form has expired. Go back, reload the page and try again.');
@@ -94,7 +101,11 @@ export class PageErrorFilter implements ExceptionFilter {
     const wantsJson = req.path === '/health' || req.path.startsWith('/api/');
     let status = 500;
     let message = 'Something went wrong. The error has been logged.';
-    if (e instanceof UnauthorizedException) {
+    if (e instanceof PasswordChangeRequired) {
+      if (!wantsJson && req.method === 'GET') return res.redirect(303, '/account/password?notice=change-password');
+      status = 403;
+      message = 'Choose your own password before doing anything else.';
+    } else if (e instanceof UnauthorizedException) {
       if (!wantsJson && req.method === 'GET') return res.redirect(303, `/login?next=${encodeURIComponent(req.originalUrl)}`);
       status = 401;
       message = 'Your session has ended. Sign in again.';

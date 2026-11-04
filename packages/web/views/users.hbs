@@ -1,0 +1,15 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">Users</h1>
+  <a class="btn btn-primary btn-sm" href="/users/new">New user</a>
+</div>
+<table class="table table-sm align-middle">
+  <thead><tr><th>Username</th><th>Name</th><th>Roles</th><th>State</th></tr></thead>
+  <tbody>
+    {{#each rows}}
+    <tr class="{{#unless active}}text-body-secondary{{/unless}}">
+      <td><a href="/users/{{id}}">{{username}}</a></td><td>{{displayName}}</td><td>{{roles}}</td>
+      <td>{{#if active}}active{{else}}disabled{{/if}}{{#if locked}} <span class="badge text-bg-warning">locked</span>{{/if}}{{#if mustChange}} <span class="badge text-bg-secondary">temporary password</span>{{/if}}</td>
+    </tr>
+    {{/each}}
+  </tbody>
+</table>

@@ -7,7 +7,7 @@ import { approve, confirmLink, correct, dismissUnmatched, proposeLink, release, 
 import type { CookieOptions, Response } from 'express';
 import { confirmPassword, login, logout } from './auth.js';
 import { formatTime, formatValue, NOTICES, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
-import { LOGIN_CSRF_COOKIE, Public, Roles, SESSION_COOKIE, type WebRequest } from './security.js';
+import { LOGIN_CSRF_COOKIE, OpenDuringPasswordChange, Public, Roles, SESSION_COOKIE, type WebRequest } from './security.js';
 import { DB, WEB_OPTIONS, type WebOptions } from './tokens.js';
 
 export type Form = Record<string, unknown>;
@@ -38,6 +38,7 @@ export function page(req: WebRequest, res: Response, view: string, data: Record<
       collect: roles.includes('operator') || roles.includes('technologist') || roles.includes('approver'),
       reject: roles.includes('technologist') || roles.includes('approver'),
       audit: roles.includes('auditor'),
+      users: roles.includes('admin'),
     },
   });
 }
@@ -91,6 +92,7 @@ export class AuthController {
     res.redirect(303, next);
   }
 
+  @OpenDuringPasswordChange()
   @Post('logout')
   async postLogout(@Req() req: WebRequest, @Res() res: Response): Promise<void> {
     await logout(this.db, req.sessionToken);
