@@ -9,6 +9,7 @@
     { "path": "../adapter-mindray-hl7" },
     { "path": "../adapter-generic" },
     { "path": "../db" },
+    { "path": "../hmis" },
     { "path": "../lab" }
   ]
 }

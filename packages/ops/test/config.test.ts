@@ -7,7 +7,7 @@ import {
   buildDiagBundle, collectLogs, defaultSources, parseEnvFile, parseServiceXml, redact, redactedSettings, setSecret, summariseConfig, tar, validateConfig, type ConfigSource,
 } from '@lis/ops';
 
-const src = (text: string, web = true): ConfigSource => ({ label: 'lims.env', path: '/etc/lims/lims.env', web, values: parseEnvFile(text) });
+const src = (text: string, web = true): ConfigSource => ({ label: 'lims.env', path: '/etc/lims/lims.env', web, jobs: web, values: parseEnvFile(text) });
 const statuses = (text: string, o?: Parameters<typeof validateConfig>[1]) =>
   Object.fromEntries(validateConfig([src(text)], o).checks.map((c) => [c.name.replace('lims.env: ', ''), `${c.status}: ${c.detail}`]));
 
@@ -86,6 +86,19 @@ describe('lims config validate', () => {
     const o = { exists: (p: string) => p === '/ca.pem', read: () => 'not a cert' };
     expect(statuses(`${base}LIMS_LDAP_URL=ldaps://dc1.example.test\nLIMS_LDAP_CA_FILE=/ca.pem`, o)['LIMS_LDAP_CA_FILE']).toMatch(/not a PEM certificate file/);
     expect(statuses(`${base}LIMS_LDAP_URL=ldaps://dc1.example.test\nLIMS_LDAP_CA_FILE=/gone`, o)['LIMS_LDAP_CA_FILE']).toMatch(/does not exist/);
+  });
+
+  it('runs the jobs worker\'s own HMIS link check', () => {
+    const base = 'NODE_ENV=production\nLIMS_HMIS_BASE_URL=https://hmis.example/fhir\nLIMS_HMIS_TOKEN_URL=https://hmis.example/oauth/token\nLIMS_HMIS_CLIENT_ID=lims\nLIMS_HMIS_MRN_SYSTEM=https://hmis.example/mrn\nLIMS_HMIS_ORDER_SYSTEM=https://hmis.example/order\nLIMS_HMIS_ORDER_LINE_SYSTEM=https://hmis.example/order-line\nLIMS_HMIS_TEST_SYSTEM=https://hmis.example/test\n';
+    expect(statuses(base)['LIMS_HMIS_PROFILE']).toMatch(/^fail: other LIMS_HMIS_ settings are present/);
+    expect(statuses(`${base}LIMS_HMIS_PROFILE=fhir-r4`)['HMIS link']).toBe('pass: FHIR R4 at https://hmis.example/fhir, client lims, 100 orders a page, no client secret in these settings (the jobs worker also reads the credential hmis_client_secret)');
+    expect(statuses(`${base}LIMS_HMIS_PROFILE=fhir-r4\nLIMS_HMIS_PAGE_SIZE=1000`)['HMIS link']).toBe('fail: LIMS_HMIS_PAGE_SIZE must be 100, 25 or 10');
+    expect(statuses(`${base}LIMS_HMIS_PROFILE=fhir-r4\nLIMS_HMIS_POLL_SECONDS=1`)['LIMS_HMIS_POLL_SECONDS']).toMatch(/^fail: must be a whole number of seconds from 10 to 3600/);
+    expect(statuses(`${base}LIMS_HMIS_PROFILE=fhir-r4\nLIMS_HMIS_CLIENT_SECRET_FILE=/gone`)['LIMS_HMIS_CLIENT_SECRET_FILE']).toMatch(/does not exist/);
+    const leaked = statuses(`${base}LIMS_HMIS_PROFILE=fhir-r4\nLIMS_HMIS_CLIENT_SECRET=s3cret-s3cret`);
+    expect(leaked['LIMS_HMIS_CLIENT_SECRET']).toMatch(/^warn/);
+    expect(JSON.stringify(leaked)).not.toContain('s3cret');
+    expect(statuses(`${base}LIMS_HMIS_PROFILE=fhir-r4\nLIMS_HMIS_PAGESIZE=25`)['LIMS_HMIS_PAGESIZE']).toMatch(/did you mean LIMS_HMIS_PAGE_SIZE/);
   });
 
   it('finds the settings on each platform and says plainly when they are missing', () => {

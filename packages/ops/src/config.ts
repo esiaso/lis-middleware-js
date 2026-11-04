@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { isIP } from 'node:net';
 import { join } from 'node:path';
 import { isProtected } from '@lis/db';
+import { fhirHmisSettingsFromEnv } from '@lis/hmis';
 import { ldapSettingsFromEnv } from '@lis/web/ldap';
 import { oidcSettingsFromEnv } from '@lis/web/oidc';
 import type { Check } from './verify.js';
@@ -20,6 +21,8 @@ export interface ConfigSource {
   path: string;
   /** Which settings apply: the web service reads them all; the others need only the database and Node ones. */
   web: boolean;
+  /** The jobs worker's settings, where the HMIS link is configured. */
+  jobs?: boolean;
   values: Map<string, string>;
 }
 
@@ -60,11 +63,11 @@ export function defaultSources(o: { platform?: NodeJS.Platform; etc?: string; se
     if (!dir || !existsSync(dir)) return `no service folder${dir ? ` at ${dir}` : ''}: run from the installed bundle, or pass --service-dir`;
     const files = readdirSync(dir).filter((f) => /^lims-.*\.xml$/.test(f)).sort();
     if (!files.length) return `no lims-*.xml service files in ${dir}`;
-    return files.map((f) => ({ label: f.replace(/\.xml$/, ''), path: join(dir, f), web: f === 'lims-web.xml', values: parseServiceXml(readFileSync(join(dir, f), 'utf8')) }));
+    return files.map((f) => ({ label: f.replace(/\.xml$/, ''), path: join(dir, f), web: f === 'lims-web.xml', jobs: f === 'lims-jobs.xml', values: parseServiceXml(readFileSync(join(dir, f), 'utf8')) }));
   }
   const path = join(o.etc ?? '/etc/lims', 'lims.env');
   if (!existsSync(path)) return `${path} does not exist: run scripts/install.sh first, or pass --env-file`;
-  return [{ label: 'lims.env (all services)', path, web: true, values: parseEnvFile(readFileSync(path, 'utf8')) }];
+  return [{ label: 'lims.env (all services)', path, web: true, jobs: true, values: parseEnvFile(readFileSync(path, 'utf8')) }];
 }
 
 const OIDC_KEYS = [
@@ -84,7 +87,12 @@ const LDAP_KEYS = [
   'LIMS_LDAP_URL', 'LIMS_LDAP_CA_FILE', 'LIMS_LDAP_BIND_DN', 'LIMS_LDAP_BIND_PASSWORD', 'LIMS_LDAP_BIND_PASSWORD_FILE', 'LIMS_LDAP_BASE_DN', 'LIMS_LDAP_USER_FILTER',
   'LIMS_LDAP_ID_ATTRIBUTE', 'LIMS_LDAP_DISPLAY_NAME_ATTRIBUTE', 'LIMS_LDAP_GROUP_ATTRIBUTE', 'LIMS_LDAP_ROLE_MAP', 'LIMS_LDAP_LABEL', 'LIMS_LDAP_TIMEOUT_MS',
 ];
-export const KNOWN_LIMS_KEYS = ['LIMS_TWO_PERSON_RULE', 'LIMS_INSECURE_COOKIES', 'LIMS_HOME', 'LIMS_REPORT_HEADER', 'LIMS_TIME_ZONE', ...OIDC_KEYS, ...LDAP_KEYS];
+const HMIS_KEYS = [
+  'LIMS_HMIS_PROFILE', 'LIMS_HMIS_BASE_URL', 'LIMS_HMIS_TOKEN_URL', 'LIMS_HMIS_CLIENT_ID', 'LIMS_HMIS_CLIENT_SECRET', 'LIMS_HMIS_CLIENT_SECRET_FILE', 'LIMS_HMIS_SCOPES',
+  'LIMS_HMIS_PAGE_SIZE', 'LIMS_HMIS_TIMEOUT_MS', 'LIMS_HMIS_POLL_SECONDS', 'LIMS_HMIS_MRN_SYSTEM', 'LIMS_HMIS_ORDER_SYSTEM', 'LIMS_HMIS_ORDER_LINE_SYSTEM', 'LIMS_HMIS_TEST_SYSTEM',
+  'LIMS_HMIS_LIMS_SYSTEM_PREFIX',
+];
+export const KNOWN_LIMS_KEYS = ['LIMS_TWO_PERSON_RULE', 'LIMS_INSECURE_COOKIES', 'LIMS_HOME', 'LIMS_REPORT_HEADER', 'LIMS_TIME_ZONE', ...OIDC_KEYS, ...LDAP_KEYS, ...HMIS_KEYS];
 /** Keys whose values are never shown. */
 export const SECRET_KEY = /SECRET|PASSWORD|TOKEN|PRIVATE|^DATABASE_URL$/i;
 
@@ -195,6 +203,30 @@ export function validateSource(src: ConfigSource, o: { exists?: (p: string) => b
         } catch (e) {
           add('fail', 'directory sign-in', (e as Error).message);
         }
+      }
+    }
+  }
+
+  if (src.jobs) {
+    const anyHmis = HMIS_KEYS.some((k) => v.has(k));
+    if (anyHmis && !v.has('LIMS_HMIS_PROFILE')) add('fail', 'LIMS_HMIS_PROFILE', 'other LIMS_HMIS_ settings are present but LIMS_HMIS_PROFILE is not, so the HMIS link stays off');
+    else if (v.has('LIMS_HMIS_PROFILE')) {
+      const secretFile = v.get('LIMS_HMIS_CLIENT_SECRET_FILE');
+      plainSecret('LIMS_HMIS_CLIENT_SECRET_FILE', 'hmis_client_secret', secretFile);
+      if (secretFile !== undefined && !exists(secretFile)) add('fail', 'LIMS_HMIS_CLIENT_SECRET_FILE', `${secretFile} does not exist (lims secrets set hmis_client_secret)`);
+      if (v.has('LIMS_HMIS_CLIENT_SECRET')) add('warn', 'LIMS_HMIS_CLIENT_SECRET', 'the client secret is in the settings; store it with lims secrets set hmis_client_secret instead');
+      // The jobs worker's own check. On Linux the secret comes as a systemd credential this check cannot see.
+      const hasSecret = v.has('LIMS_HMIS_CLIENT_SECRET') || secretFile !== undefined;
+      const env = Object.fromEntries(v);
+      delete env['LIMS_HMIS_CLIENT_SECRET_FILE'];
+      env['LIMS_HMIS_CLIENT_SECRET'] = 'checked-elsewhere';
+      try {
+        const s = fhirHmisSettingsFromEnv(env);
+        const poll = v.get('LIMS_HMIS_POLL_SECONDS');
+        if (poll !== undefined && !(/^\d+$/.test(poll) && Number(poll) >= 10 && Number(poll) <= 3600)) add('fail', 'LIMS_HMIS_POLL_SECONDS', 'must be a whole number of seconds from 10 to 3600');
+        if (s) add('pass', 'HMIS link', `FHIR R4 at ${s.baseUrl.href}, client ${s.clientId}, ${s.pageSize} orders a page${hasSecret ? '' : ', no client secret in these settings (the jobs worker also reads the credential hmis_client_secret)'}`);
+      } catch (e) {
+        add('fail', 'HMIS link', (e as Error).message);
       }
     }
   }

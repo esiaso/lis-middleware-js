@@ -90,10 +90,10 @@ WinSW XML), not `lims.yaml`.
   services would misread (`True` instead of `true`, a bad port), on
   `LIMS_INSECURE_COOKIES=true` with a non-loopback address, on a missing
   credential or CA file, and runs the web service's own hospital sign-in
-  check. It warns on secrets kept in the settings, `NODE_ENV` not
+  checks and the jobs worker's own HMIS link check. It warns on secrets kept in the settings, `NODE_ENV` not
   `production`, a non-loopback `BIND_HOST`, and `LIMS_TWO_PERSON_RULE=false`.
   Secret values are never printed. `lims verify` includes its summary.
-* `lims secrets set <name>` stores `database_url`, `oidc_client_secret` or `ldap_bind_password` in
+* `lims secrets set <name>` stores `database_url`, `oidc_client_secret`, `ldap_bind_password` or `hmis_client_secret` in
   the secrets folder the installer made (`/etc/lims/secrets`, root only,
   mode 0600; `C:\ProgramData\LIMS Middleware\secrets`, readable by the
   services and administrators). The value is piped in or typed without
@@ -376,6 +376,34 @@ add the password with `systemctl edit lims-web` and a line
 Approve, release, correct and account changes are confirmed with the
 person's directory password. Keep at least one local administrator: a local
 account always signs in locally, also while the directory is down.
+
+The HMIS link (07 §6.6, 01 A-30) runs in `lims-jobs`. Leave
+`LIMS_HMIS_PROFILE` unset for none: orders are then entered in downtime mode
+only, and released results wait in the outbox until a link is configured.
+Once it is set, `lims-jobs` refuses to start until the other required
+settings are valid. Nothing here is tested against the HMIS yet.
+
+| Setting | Default | Notes |
+|---|---|---|
+| `LIMS_HMIS_PROFILE` | unset | `fhir-r4`, the only profile |
+| `LIMS_HMIS_BASE_URL` | required | the FHIR base, `https://` only, such as `https://hmis.hospital.example/fhir` |
+| `LIMS_HMIS_TOKEN_URL` | required | the OAuth 2.0 token endpoint, `https://` only |
+| `LIMS_HMIS_CLIENT_ID` | required | the middleware's client |
+| client secret | required | systemd credential `hmis_client_secret` (Linux), the file in `LIMS_HMIS_CLIENT_SECRET_FILE` (Windows), or `LIMS_HMIS_CLIENT_SECRET` (development); store it with `lims secrets set hmis_client_secret`. Read again at each token request |
+| `LIMS_HMIS_SCOPES` | read ServiceRequest, Patient; read and write Observation, DiagnosticReport | space-separated, as the HMIS names them |
+| `LIMS_HMIS_MRN_SYSTEM`, `LIMS_HMIS_ORDER_SYSTEM`, `LIMS_HMIS_ORDER_LINE_SYSTEM`, `LIMS_HMIS_TEST_SYSTEM` | required | the identifier and code systems the HMIS writes; URIs with no spaces or `\|` |
+| `LIMS_HMIS_LIMS_SYSTEM_PREFIX` | `urn:lims-middleware:` | prefix of the systems the middleware writes (`result`, `submission`, `report`); never change it once results have been sent |
+| `LIMS_HMIS_PAGE_SIZE` | `100` | orders a page: 100, 25 or 10 (D-5) |
+| `LIMS_HMIS_POLL_SECONDS` | `30` | 10 to 3600 |
+| `LIMS_HMIS_TIMEOUT_MS` | `30000` | each request, 1000 to 120000 |
+
+On Linux, add the secret with `systemctl edit lims-jobs` and a line
+`LoadCredential=hmis_client_secret:/etc/lims/secrets/hmis_client_secret`.
+Where the HMIS certificate is from the hospital CA, set
+`NODE_EXTRA_CA_CERTS` for `lims-jobs`. The worker logs each poll that
+brought orders, each delivery, and each failure; a poll that fails (for
+example on a feed entry missing its MRN) is retried at every interval with
+the reason in the log until the HMIS fixes the entry.
 
 First administrator, before the hospital IdP is connected (password on
 standard input, at least 12 characters, never on the command line):
