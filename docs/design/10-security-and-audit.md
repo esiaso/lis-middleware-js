@@ -206,6 +206,31 @@ and the UI shows a masked view by default with an explicit "reveal" action.
 * SBOM (CycloneDX) generated at build; licence inventory checked against an
   allow-list.
 * `npm audit` / OSV scan in CI; critical findings block a release.
+  **Built:** CI's `audit` job runs `node scripts/audit-check.mjs`, which
+  audits what ships (`npm audit --omit=dev`). It fails on any **high or
+  critical** advisory that `security/audit-exceptions.json` does not
+  explain, and on any explanation past its review date (three months).
+  Moderate and low findings are printed only. Development tools (vitest)
+  are not in the server bundle; they are kept current anyway. Reviewed on
+  2026-11-04:
+  * vitest 3.2.4 (two critical: its UI server and worker pool): upgraded to
+    4.1.12. Development only.
+  * `effect` and `deepmerge-ts` (high), pulled in by the Prisma **CLI**'s
+    configuration loader for `migrate deploy`; the Prisma client the
+    services run does not load them. The flaws need an Effect RPC server,
+    or self-referencing objects, neither of which occurs. The fix is the
+    Prisma 7 major upgrade, a planned change of its own.
+  * `zod` (high, unreviewed advisory, about zod 4 internals; the code here
+    uses the zod 3 API). Browser input is capped by the 100 kB body limit,
+    HL7 messages by `maxMessageBytes`; ASTM messages have no total cap yet
+    and come only from allowed instrument addresses. The HMIS connector must
+    cap response sizes when it is built.
+  * `hbs` (moderate, no fix exists): template data and engine options share
+    one object in Express `render`, so a page that passed request data as the
+    whole render object could override engine options and read files. Every
+    page here renders an object whose top-level keys are fixed in code
+    (`page()` in `controllers.ts`); request values only ever appear nested
+    under them.
 * Release artefacts are checksummed (SHA-256) and code-signed (Windows
   installer and executables with Authenticode; Linux tarball with a detached
   signature).

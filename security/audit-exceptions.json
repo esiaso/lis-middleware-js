@@ -1,0 +1,29 @@
+{
+  "_about": "Known advisories in what ships (npm audit --omit=dev) that were read and judged not to apply to how the middleware uses the package. scripts/audit-check.mjs fails CI on any high or critical advisory not listed here, and on any entry past its reviewBy date. Reasons are recorded in docs/design/10-security-and-audit.md section 10.",
+  "exceptions": [
+    {
+      "advisory": "GHSA-38f7-945m-qr2g",
+      "package": "effect",
+      "reason": "Only the Prisma CLI loads it (@prisma/config), to read its configuration during migrate deploy. The flaw needs an Effect RPC server under concurrent load; nothing here runs one.",
+      "fix": "prisma 7 (major upgrade)",
+      "reviewed": "2026-11-04",
+      "reviewBy": "2027-02-04"
+    },
+    {
+      "advisory": "GHSA-ggr8-5vv4-36mx",
+      "package": "deepmerge-ts",
+      "reason": "Only the Prisma CLI loads it (@prisma/config) to merge its own configuration. The flaw needs self-referencing objects; configuration read from files cannot contain them.",
+      "fix": "prisma 7 (major upgrade)",
+      "reviewed": "2026-11-04",
+      "reviewBy": "2027-02-04"
+    },
+    {
+      "advisory": "GHSA-mrhx-c7xc-m3w5",
+      "package": "zod",
+      "reason": "Unreviewed advisory naming zod 4 internals ($ZodArray); the middleware uses the zod 3 API. Input reaching zod is bounded or comes from known peers: browser forms by the 100 kB body limit, HL7 messages by the per-instrument maxMessageBytes, ASTM messages only from the instrument addresses allowed on the instrument network (ASTM has no total message cap yet). Revisit with the HMIS connector, whose responses must get a size limit too.",
+      "fix": "zod 4.6.6 (major upgrade)",
+      "reviewed": "2026-11-04",
+      "reviewBy": "2027-02-04"
+    }
+  ]
+}
