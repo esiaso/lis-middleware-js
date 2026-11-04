@@ -87,7 +87,7 @@ export async function runWorker(o: WorkerOptions): Promise<WorkerExit> {
   const profile = linkProfile(conn);
   const session =
     profile.protocol === 'astm'
-      ? new AstmSession({ transport, store, timings: profile.timings, splitMode: profile.splitMode, onEvent })
+      ? new AstmSession({ transport, store, timings: profile.timings, splitMode: profile.splitMode, maxMessageBytes: conn.maxMessageBytes, onEvent })
       : new MllpSession({
           transport,
           store,

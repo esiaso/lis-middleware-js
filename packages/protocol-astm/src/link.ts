@@ -60,6 +60,9 @@ export type LinkAction =
  * write, frames to persist, transfers to process. `nextDeadline()` tells the
  * driver when to call `onTick` next.
  */
+/** Same default as the HL7 side (`maxMessageBytes` in the connection settings). */
+export const DEFAULT_MAX_TRANSFER_BYTES = 4 * 1024 * 1024;
+
 export class AstmLink {
   private state: LinkState = 'idle';
   private deadline: number | null = null;
@@ -70,6 +73,9 @@ export class AstmLink {
   private committed: Buffer[] = [];
   private lastWasFinal = true;
   private pendingFrame: { fn: number; text: Buffer; final: boolean } | null = null;
+  private committedBytes = 0;
+  /** Set once a transfer passes maxTransferBytes: every further frame is refused until it ends. */
+  private overflowBytes: number | null = null;
 
   // sender
   private readonly queue: OutboundMessage[] = [];
@@ -80,6 +86,8 @@ export class AstmLink {
   constructor(
     private readonly timings: AstmLinkTimings = E411_DEFAULT_TIMINGS,
     private readonly splitMode: FrameSplitMode = 'packed',
+    /** Largest message (sum of frame text) accepted; beyond it frames are refused and the transfer is dropped. */
+    private readonly maxTransferBytes: number = DEFAULT_MAX_TRANSFER_BYTES,
   ) {}
 
   get currentState(): LinkState {
@@ -138,6 +146,7 @@ export class AstmLink {
       return [write(NAK, 'NAK: frame not stored'), { type: 'event', level: 'warn', code: 'frame-not-stored' }];
     }
     this.committed.push(f.text);
+    this.committedBytes += f.text.length;
     this.lastCommittedFn = f.fn;
     this.lastWasFinal = f.final;
     this.expectedFn = nextFrameNumber(f.fn);
@@ -186,6 +195,12 @@ export class AstmLink {
   private receivingUnit(unit: Exclude<DecodedUnit, { type: 'noise' }>, now: number): LinkAction[] {
     if (unit.type === 'control') {
       if (unit.char === 'EOT') {
+        if (this.overflowBytes !== null) {
+          const reason = `message larger than ${this.maxTransferBytes} bytes (${this.overflowBytes} so far); its frames are kept, it is not processed`;
+          this.resetReceiver();
+          this.toIdle();
+          return [{ type: 'transfer-aborted', text: Buffer.alloc(0), reason }];
+        }
         const text = Buffer.concat(this.committed);
         const frameCount = this.committed.length;
         const complete = this.lastWasFinal && frameCount > 0;
@@ -217,6 +232,20 @@ export class AstmLink {
     if (unit.fn !== this.expectedFn) {
       return [write(NAK, 'NAK wrong frame number'), { type: 'event', level: 'warn', code: 'frame-number', detail: `got ${unit.fn}, expected ${this.expectedFn}` }];
     }
+    if (this.overflowBytes !== null) {
+      this.overflowBytes += unit.text.length;
+      return [write(NAK, 'NAK: message too large')];
+    }
+    if (this.committedBytes + unit.text.length > this.maxTransferBytes) {
+      // Bounded memory: drop what was gathered (each frame is already stored) and refuse the rest.
+      this.overflowBytes = this.committedBytes + unit.text.length;
+      this.committed = [];
+      this.committedBytes = 0;
+      return [
+        write(NAK, 'NAK: message too large'),
+        { type: 'event', level: 'warn', code: 'transfer-too-large', detail: `over ${this.maxTransferBytes} bytes; the rest of this message is refused` },
+      ];
+    }
     this.pendingFrame = { fn: unit.fn, text: unit.text, final: unit.final };
     this.state = 'awaiting-commit';
     return [{ type: 'frame', fn: unit.fn, text: unit.text, final: unit.final, raw: unit.raw }];
@@ -226,6 +255,8 @@ export class AstmLink {
     this.expectedFn = 1;
     this.lastCommittedFn = null;
     this.committed = [];
+    this.committedBytes = 0;
+    this.overflowBytes = null;
     this.lastWasFinal = true;
     this.pendingFrame = null;
   }

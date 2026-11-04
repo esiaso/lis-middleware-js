@@ -8,6 +8,8 @@ export interface AstmSessionOptions {
   store: RawMessageStore;
   timings?: AstmLinkTimings;
   splitMode?: FrameSplitMode;
+  /** Largest message accepted (sum of frame text); larger transfers are refused and dropped. */
+  maxMessageBytes?: number;
   clock?: Clock;
   /** Pause reading when this many units wait to be processed (backpressure). */
   highWaterUnits?: number;
@@ -41,7 +43,7 @@ export class AstmSession {
 
   constructor(opts: AstmSessionOptions) {
     this.#o = { clock: systemClock, highWaterUnits: 64, ...opts };
-    this.#link = new AstmLink(opts.timings, opts.splitMode);
+    this.#link = new AstmLink(opts.timings, opts.splitMode, opts.maxMessageBytes);
   }
 
   get linkState(): string {

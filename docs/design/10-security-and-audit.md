@@ -222,9 +222,8 @@ and the UI shows a masked view by default with an explicit "reveal" action.
     Prisma 7 major upgrade, a planned change of its own.
   * `zod` (high, unreviewed advisory, about zod 4 internals; the code here
     uses the zod 3 API). Browser input is capped by the 100 kB body limit,
-    HL7 messages by `maxMessageBytes`; ASTM messages have no total cap yet
-    and come only from allowed instrument addresses. The HMIS connector must
-    cap response sizes when it is built.
+    instrument messages (ASTM and HL7) by the connection's `maxMessageBytes`.
+    The HMIS connector must cap response sizes when it is built.
   * `hbs` (moderate, no fix exists): template data and engine options share
     one object in Express `render`, so a page that passed request data as the
     whole render object could override engine options and read files. Every
