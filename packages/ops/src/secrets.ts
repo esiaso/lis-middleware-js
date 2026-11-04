@@ -13,6 +13,14 @@ export const SECRETS: Record<string, { readers: string; check: (v: string) => st
     readers: 'every service',
     check: (v) => (/^postgres(ql)?:\/\/[^\s]+$/.test(v) ? undefined : 'must be a postgresql:// address with no spaces'),
   },
+  ldap_bind_password: {
+    readers: 'lims-web (directory sign-in)',
+    check: (v) => (v.length >= 8 && !/[\r\n]/.test(v) ? undefined : 'must be at least 8 characters on one line'),
+    after: (platform) =>
+      platform === 'win32'
+        ? 'Set LIMS_LDAP_BIND_PASSWORD_FILE to this path in lims-web.xml if it is not set yet.'
+        : 'If not done yet: systemctl edit lims-web, add "LoadCredential=ldap_bind_password:<this path>" under [Service] (11 §11).',
+  },
   oidc_client_secret: {
     readers: 'lims-web (hospital sign-in)',
     check: (v) => (v.length >= 8 && !/\s/.test(v) ? undefined : 'must be at least 8 characters with no spaces'),

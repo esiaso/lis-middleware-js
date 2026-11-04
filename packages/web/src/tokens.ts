@@ -1,4 +1,5 @@
 import type { SessionPolicy } from './auth.js';
+import type { Directory } from './ldap.js';
 import type { OidcSettings } from './oidc.js';
 
 export const DB = Symbol('lims.db');
@@ -15,6 +16,8 @@ export interface WebOptions {
   session: SessionPolicy;
   /** Hospital sign-in (10 §3); absent means local accounts only. */
   oidc?: OidcSettings;
+  /** Directory sign-in over LDAPS (A-29); absent means none. */
+  directory?: Directory;
   /** First line of a printed result report, such as the lab's name and address (LIMS_REPORT_HEADER). */
   reportHeader?: string;
   /** IANA time zone for showing and entering times (LIMS_TIME_ZONE, A-24). Default UTC. */
