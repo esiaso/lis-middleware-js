@@ -39,6 +39,8 @@ describe.skipIf(!url)('lims backup create and verify against PostgreSQL', () => 
     const u = new URL(url as string);
     u.pathname = `/${scratchName}`;
     scratchUrl = u.href;
+    // Other suites leave a deliberately tampered chain behind; start from a clean trail.
+    await db.$executeRawUnsafe('TRUNCATE audit_event');
     await db.$transaction((tx) => appendAudit(tx, { actor: 'test', action: 'test.before-backup', entityType: 'test', entityId: 'b-1' }));
   });
   afterAll(async () => {
