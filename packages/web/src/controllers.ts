@@ -37,6 +37,7 @@ export function page(req: WebRequest, res: Response, view: string, data: Record<
       accept: roles.includes('approver'),
       collect: roles.includes('operator') || roles.includes('technologist') || roles.includes('approver'),
       reject: roles.includes('technologist') || roles.includes('approver'),
+      audit: roles.includes('auditor'),
     },
   });
 }

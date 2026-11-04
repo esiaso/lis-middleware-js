@@ -260,4 +260,5 @@ interface test.
 ```
 
 Export produces a signed bundle (JSON lines + hash manifest), see
-[10](10-security-and-audit.md) §8.
+[10](10-security-and-audit.md) §8. As built: the manifest is there, the
+signature is not yet (A-16).
