@@ -7,3 +7,4 @@ export * from './matching.js';
 export * from './outbox.js';
 export * from './unmatched.js';
 export * from './instruments.js';
+export * from './downtime.js';
