@@ -224,6 +224,11 @@ page size, retry policy, code maps, webhook secret reference.
 `expires_in − 60 s`. A rotated client secret is picked up on the next token
 refresh without restart. Two webhook secrets can be active during rotation.
 
+Built so far: `fhir-r4@1` (§6.6) and a simulated HMIS for tests. Both
+implement `pullOrders`, `submitResult` and `findResult`; there is no webhook
+intake, order acknowledgement or result cancellation, because the HMIS
+chose polling (D-3) and the proposal does not ask for the others.
+
 ### 6.2 Illustrative contracts
 
 > **Illustrative only.** These show the shape the middleware needs. The real
@@ -298,6 +303,54 @@ the previously delivered idempotency key / HMIS result ID, plus `reason`.
 | Timeout after request body was sent; connection reset after send; 500; 2xx with invalid body | **ambiguous** → confirm via `findResult` before any retry |
 | 400, 404 (order unknown), 409 (conflict), 422 | rejected → human |
 | 401/403 | retryable once after token refresh, then alert |
+
+### 6.6 FHIR R4 profile (`fhir-r4@1`)
+
+Built to the lab's proposal to the in-house HMIS team (A-30; D-1 to D-6
+answered 2026-11-04). Not tested against the HMIS: it has no test
+environment yet.
+
+* **Sign-in.** OAuth 2.0 client credentials at `LIMS_HMIS_TOKEN_URL` with
+  HTTP Basic client authentication. The token is kept until 60 s before it
+  expires. The secret is read at each token request, so a rotated secret
+  needs no restart. A 401 gets one new token and one more try. A failure to
+  get a token is retryable: nothing was sent.
+* **Orders.** `GET {base}/ServiceRequest/_lab-feed?cursor=…&_count=N`
+  (N = 100, 25 or 10). The jobs worker polls every
+  `LIMS_HMIS_POLL_SECONDS` (30 s by default) and pages until an empty page.
+  Each page and its cursor commit together (§6.3). Mapping: `requisition`
+  (order system) → order; `identifier` (order-line system) → line;
+  `code.coding` (test system) → HMIS test code, then `hmis_code_map`;
+  the subject Patient's identifier (MRN system) → MRN; `authoredOn`,
+  `priority` (asap counts as urgent), requester display, and the
+  Encounter's identifier, class and first location. Status `revoked` or
+  `entered-in-error` cancels the line.
+* **Results.** `POST {base}` with a transaction Bundle holding a
+  conditional `PUT Observation?identifier=<prefix>result|<line>` and
+  `PUT DiagnosticReport?identifier=<prefix>report|<line>`. The Observation
+  also carries `<prefix>submission|<idempotency key>`, the patient's MRN,
+  `basedOn` the order line, the value with its decimal places kept
+  (`5.40` stays `5.40`), the flag, the range, the accession number, the
+  instrument, and report comments as notes. A correction updates the same
+  two resources, with status `corrected` and the reason as a note.
+* **Lookup.** `GET {base}/Observation?identifier=<prefix>submission|<key>`.
+  If the HMIS cannot be asked, the delivery waits and asks again; it never
+  resends without an answer.
+* **Classification** follows §6.5, with two choices: 502, 503 and 504 are
+  retryable whenever they come, because the conditional update makes a
+  repeat harmless; and 2xx without a transaction response is ambiguous.
+  `Retry-After` sets the next try, up to one hour.
+* **Settings.** `LIMS_HMIS_PROFILE=fhir-r4`, `LIMS_HMIS_BASE_URL`,
+  `LIMS_HMIS_TOKEN_URL` (both https), `LIMS_HMIS_CLIENT_ID`,
+  `LIMS_HMIS_SCOPES`, `LIMS_HMIS_PAGE_SIZE`, `LIMS_HMIS_TIMEOUT_MS`
+  (30 s), `LIMS_HMIS_POLL_SECONDS`, the four identifier systems
+  `LIMS_HMIS_MRN_SYSTEM`, `LIMS_HMIS_ORDER_SYSTEM`,
+  `LIMS_HMIS_ORDER_LINE_SYSTEM`, `LIMS_HMIS_TEST_SYSTEM`, and
+  `LIMS_HMIS_LIMS_SYSTEM_PREFIX` (default `urn:lims-middleware:`). The
+  client secret is the credential `hmis_client_secret` (11 §11).
+* **Delivery worker.** A send left in progress by a stopped worker is
+  picked up again when its two-minute lease runs out. A failed read-back
+  after an accepted send leaves the result "sent".
 
 ## 7. Middleware REST API (OpenAPI)
 

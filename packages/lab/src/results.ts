@@ -5,6 +5,7 @@ import {
   type ResultAggregate, type ResultStatus, type ResultVersion, type VersionKind, type WorkflowError, type WorkflowPolicy,
 } from '@lis/domain';
 import { appendAudit } from './audit.js';
+import { reportComments } from './comments.js';
 import { criticalFor, requireCriticalCall } from './critical.js';
 import { deltaColumns, deltaFor } from './delta.js';
 import type { Tx } from './tx.js';
@@ -172,7 +173,7 @@ export async function release(db: Db, resultId: string, user: { username: string
     const before = await loadResult(tx, resultId);
     const row = await tx.result.findUniqueOrThrow({
       where: { id: resultId },
-      include: { orderedTest: { include: { order: true, specimen: true } } },
+      include: { orderedTest: { include: { order: { include: { patient: true } }, specimen: true } } },
     });
     const inst = row.instrumentId ? await tx.instrument.findUnique({ where: { id: row.instrumentId } }) : null;
     const gate = inst
@@ -195,6 +196,7 @@ export async function release(db: Db, resultId: string, user: { username: string
       idempotencyKey: r.idempotencyKey,
       hmisOrderId: t.order.hmisOrderId,
       hmisLineId: t.hmisLineId,
+      patient: { mrn: t.order.patient.mrn },
       testCode: t.hmisTestCode,
       status: r.correctionOf ? 'corrected' : 'final',
       value: toHmisValue(version.value, version.units),
@@ -203,7 +205,7 @@ export async function release(db: Db, resultId: string, user: { username: string
       specimen: { accessionNo: t.specimen?.accessionNo ?? '', ...(t.specimen?.collectedAt ? { collectedAt: t.specimen.collectedAt.toISOString() } : {}) },
       ...(version.abnormalFlags[0] ? { abnormalFlag: version.abnormalFlags[0] } : {}),
       ...(inst ? { instrument: `${inst.model} (${inst.id})` } : {}),
-      comments: [],
+      comments: (await reportComments(tx, [resultId])).get(resultId) ?? [],
       correctionOf: r.correctionOf,
       ...(version.reason && r.correctionOf ? { reason: version.reason } : {}),
     };

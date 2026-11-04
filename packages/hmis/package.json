@@ -16,6 +16,7 @@
   ],
   "dependencies": {
     "@lis/contracts": "0.1.0",
+    "@lis/db": "0.1.0",
     "zod": "^3.25.76"
   }
 }

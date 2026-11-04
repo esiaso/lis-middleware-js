@@ -2,12 +2,23 @@
 <service>
   <id>lims-jobs</id>
   <name>lims-jobs</name>
-  <description>LIMS jobs (result intake and matching)</description>
+  <description>LIMS jobs (result intake and matching, HMIS link)</description>
   <executable>%BASE%\..\runtime\node\node.exe</executable>
   <arguments>node_modules\@lis\result-intake\dist\main.js</arguments>
   <workingdirectory>%BASE%\..\app</workingdirectory>
   <env name="NODE_ENV" value="production" />
   <env name="DATABASE_URL_FILE" value="C:\ProgramData\LIMS Middleware\secrets\database_url" />
+  <!-- The HMIS link (FHIR R4, 11 §11): uncomment and fill in. Store the secret with lims secrets set hmis_client_secret.
+  <env name="LIMS_HMIS_PROFILE" value="fhir-r4" />
+  <env name="LIMS_HMIS_BASE_URL" value="https://hmis.hospital.example/fhir" />
+  <env name="LIMS_HMIS_TOKEN_URL" value="https://hmis.hospital.example/oauth/token" />
+  <env name="LIMS_HMIS_CLIENT_ID" value="lims-middleware" />
+  <env name="LIMS_HMIS_CLIENT_SECRET_FILE" value="C:\ProgramData\LIMS Middleware\secrets\hmis_client_secret" />
+  <env name="LIMS_HMIS_MRN_SYSTEM" value="https://hmis.hospital.example/id/mrn" />
+  <env name="LIMS_HMIS_ORDER_SYSTEM" value="https://hmis.hospital.example/id/order" />
+  <env name="LIMS_HMIS_ORDER_LINE_SYSTEM" value="https://hmis.hospital.example/id/order-line" />
+  <env name="LIMS_HMIS_TEST_SYSTEM" value="https://hmis.hospital.example/code/test" />
+  -->
   <startmode>Automatic</startmode>
   <delayedAutoStart>true</delayedAutoStart>
   <onfailure action="restart" delay="5 sec" />

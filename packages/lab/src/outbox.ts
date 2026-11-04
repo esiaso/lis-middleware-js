@@ -1,4 +1,4 @@
-import type { HmisResultSubmission, SubmitOutcome } from '@lis/contracts';
+import type { HmisResultState, HmisResultSubmission, SubmitOutcome } from '@lis/contracts';
 import { uuidv7, type Db } from '@lis/db';
 import { confirmation, deliveryOutcome } from '@lis/domain';
 import type { HmisConnector } from '@lis/hmis';
@@ -23,7 +23,10 @@ const MAX_ATTEMPTS = 10;
 export async function deliverOutbox(db: Db, hmis: HmisConnector, worker: string, limit = 10): Promise<DeliveryReport[]> {
   const claimed = await db.$queryRaw<{ id: string }[]>`
     UPDATE outbox_message SET status = 'IN_PROGRESS', leased_by = ${worker}, lease_until = now() + interval '2 minutes', attempts = attempts + 1
-     WHERE id IN (SELECT id FROM outbox_message WHERE status IN ('PENDING', 'FAILED') AND available_at <= now()
+     WHERE id IN (SELECT id FROM outbox_message
+                   WHERE (status IN ('PENDING', 'FAILED') AND available_at <= now())
+                      -- a worker stopped mid-send: send again (same key; the HMIS's conditional update makes a repeat harmless)
+                      OR (status = 'IN_PROGRESS' AND lease_until < now())
                   ORDER BY available_at, id LIMIT ${limit} FOR UPDATE SKIP LOCKED)
      RETURNING id`;
   const out: DeliveryReport[] = [];
@@ -39,35 +42,53 @@ async function deliverOne(db: Db, hmis: HmisConnector, worker: string, outboxId:
   const loaded = await loadResult(db, resultId);
   const lookup = { idempotencyKey: row.idempotencyKey, hmisOrderId: submission.hmisOrderId, hmisLineId: submission.hmisLineId };
 
-  let outcome: DeliveryReport['outcome'];
+  let outcome = 'retryable' as DeliveryReport['outcome'];
   let next = loaded.aggregate;
   let detail: string | undefined;
-  if (loaded.aggregate.needsConfirmation) {
-    // Last attempt was ambiguous: ask before sending again.
-    const found = await hmis.findResult(lookup);
-    next = confirmation(next, found ? { matches: found.idempotencyKey === row.idempotencyKey } : null);
-    outcome = found ? 'confirmed' : 'not-found';
-    if (!found) {
-      const o = await hmis.submitResult(submission, row.idempotencyKey);
-      next = deliveryOutcome(next, o, row.attempts >= MAX_ATTEMPTS);
-      outcome = o.kind;
-      detail = 'reason' in o ? o.reason : undefined;
-    }
-  } else {
+  let retryAfterMs: number | undefined;
+  const send = async () => {
     const o = await hmis.submitResult(submission, row.idempotencyKey);
     next = deliveryOutcome(next, o, row.attempts >= MAX_ATTEMPTS);
     outcome = o.kind;
     detail = 'reason' in o ? o.reason : undefined;
+    if (o.kind === 'retryable') retryAfterMs = o.retryAfterMs;
+    return o;
+  };
+  /** Undefined when the HMIS could not be asked. */
+  const readBack = async (): Promise<{ found: HmisResultState | null } | undefined> => {
+    try {
+      return { found: await hmis.findResult(lookup) };
+    } catch (e) {
+      detail = `read-back failed: ${(e as Error).message}`.slice(0, 1000);
+      return undefined;
+    }
+  };
+  if (loaded.aggregate.needsConfirmation) {
+    // Last attempt was ambiguous: ask before sending again.
+    const asked = await readBack();
+    if (!asked) {
+      // The HMIS could not be asked: try later, still without resending.
+      outcome = 'retryable';
+    } else {
+      next = confirmation(next, asked.found ? { matches: asked.found.idempotencyKey === row.idempotencyKey } : null);
+      outcome = asked.found ? 'confirmed' : 'not-found';
+      if (!asked.found) await send();
+    }
+  } else {
+    const o = await send();
     if (o.kind === 'accepted') {
       // Read-back confirms what the HMIS stored (HMIS_CONFIRMED is never assumed from a 2xx).
-      const found = await hmis.findResult(lookup);
-      next = confirmation(next, found ? { matches: found.idempotencyKey === row.idempotencyKey } : null);
+      // If the read-back itself fails, the result stays "sent", which it is.
+      const asked = await readBack();
+      if (asked) next = confirmation(next, asked.found ? { matches: asked.found.idempotencyKey === row.idempotencyKey } : null);
     }
   }
 
   const done = next.status === 'sent' || next.status === 'hmis_confirmed';
   const dead = next.status === 'failed';
-  const retryAfter = outcome === 'ambiguous' ? 5 : 30 * 2 ** Math.min(row.attempts - 1, 6);
+  const backoff = outcome === 'ambiguous' ? 5 : 30 * 2 ** Math.min(row.attempts - 1, 6);
+  // The HMIS may ask for a longer wait (Retry-After); never more than an hour.
+  const retryAfter = retryAfterMs !== undefined ? Math.min(3600, Math.max(backoff, Math.ceil(retryAfterMs / 1000))) : backoff;
   await db.$transaction(async (tx) => {
     const fresh = await loadResult(tx, resultId);
     await saveResult(tx, fresh, { ...next, versions: fresh.aggregate.versions }, worker);

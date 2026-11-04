@@ -21,8 +21,9 @@
     "@lis/contracts": "0.1.0",
     "@lis/db": "0.1.0",
     "@lis/domain": "0.1.0",
-    "pino": "10.4.0",
-    "@lis/lab": "0.1.0"
+    "@lis/hmis": "0.1.0",
+    "@lis/lab": "0.1.0",
+    "pino": "10.4.0"
   },
   "bin": {
     "lims-jobs-worker": "dist/main.js"

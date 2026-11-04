@@ -21,6 +21,14 @@ export const SECRETS: Record<string, { readers: string; check: (v: string) => st
         ? 'Set LIMS_LDAP_BIND_PASSWORD_FILE to this path in lims-web.xml if it is not set yet.'
         : 'If not done yet: systemctl edit lims-web, add "LoadCredential=ldap_bind_password:<this path>" under [Service] (11 §11).',
   },
+  hmis_client_secret: {
+    readers: 'lims-jobs (HMIS link)',
+    check: (v) => (v.length >= 8 && !/\s/.test(v) ? undefined : 'must be at least 8 characters with no spaces'),
+    after: (platform) =>
+      platform === 'win32'
+        ? 'Set LIMS_HMIS_CLIENT_SECRET_FILE to this path in lims-jobs.xml if it is not set yet.'
+        : 'If not done yet: systemctl edit lims-jobs, add "LoadCredential=hmis_client_secret:<this path>" under [Service] (11 §11).',
+  },
   oidc_client_secret: {
     readers: 'lims-web (hospital sign-in)',
     check: (v) => (v.length >= 8 && !/\s/.test(v) ? undefined : 'must be at least 8 characters with no spaces'),

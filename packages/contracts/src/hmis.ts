@@ -58,6 +58,8 @@ export const HmisResultSubmission = z
     idempotencyKey: z.string().min(1).max(200),
     hmisOrderId: z.string(),
     hmisLineId: z.string(),
+    /** The patient the order is for, so the HMIS can check the result lands on the right record. Absent in rows written before it was added. */
+    patient: z.object({ mrn: z.string().min(1).max(64) }).strict().optional(),
     testCode: z.string(),
     status: z.enum(['final', 'corrected']),
     value: HmisResultValue,
