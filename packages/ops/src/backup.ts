@@ -59,23 +59,45 @@ export function libpqEnv(url: string): Record<string, string> {
   return env;
 }
 
-/** pg_dump / pg_restore: from --pg-bin, PATH, or (Windows) the newest PostgreSQL install. */
-export function findPgTool(name: 'pg_dump' | 'pg_restore', pgBin?: string, platform: NodeJS.Platform = process.platform): string {
+/** "pg_dump (PostgreSQL) 16.15 (Ubuntu ...)" → 16 */
+export function toolMajor(versionText: string): number | undefined {
+  const m = /\(PostgreSQL\)\s+(\d+)/.exec(versionText);
+  return m ? Number(m[1]) : undefined;
+}
+
+/**
+ * pg_dump / pg_restore of the server's major version: a newer pg_restore
+ * writes settings an older server rejects, and an older one cannot read a
+ * newer archive. Looked for in --pg-bin, then the usual install folders for
+ * that version, then PATH.
+ */
+export function findPgTool(name: 'pg_dump' | 'pg_restore', o: { pgBin?: string | undefined; major?: number | undefined; platform?: NodeJS.Platform } = {}): string {
+  const platform = o.platform ?? process.platform;
   const exe = platform === 'win32' ? `${name}.exe` : name;
   const candidates: string[] = [];
-  if (pgBin) candidates.push(join(pgBin, exe));
+  if (o.pgBin) candidates.push(join(o.pgBin, exe));
   else {
+    const winRoot = join(process.env['ProgramFiles'] ?? 'C:\\Program Files', 'PostgreSQL');
+    const dirs = platform === 'win32' ? (existsSync(winRoot) ? readdirSync(winRoot) : []) : existsSync('/usr/lib/postgresql') ? readdirSync('/usr/lib/postgresql') : [];
+    const ordered = [...dirs].sort((a, b) => (Number(a) === o.major ? -1 : Number(b) === o.major ? 1 : Number(b) - Number(a)));
+    for (const v of ordered) candidates.push(platform === 'win32' ? join(winRoot, v, 'bin', exe) : `/usr/lib/postgresql/${v}/bin/${name}`);
     candidates.push(exe);
-    if (platform === 'win32') {
-      const root = join(process.env['ProgramFiles'] ?? 'C:\\Program Files', 'PostgreSQL');
-      if (existsSync(root)) for (const v of readdirSync(root).sort((a, b) => Number(b) - Number(a))) candidates.push(join(root, v, 'bin', exe));
-    } else for (const v of ['17', '16']) candidates.push(`/usr/lib/postgresql/${v}/bin/${name}`);
   }
+  const found: string[] = [];
   for (const c of candidates) {
     const r = spawnSync(c, ['--version'], { encoding: 'utf8' });
-    if (r.status === 0) return c;
+    if (r.status !== 0) continue;
+    const major = toolMajor(r.stdout ?? '');
+    if (o.major === undefined || major === o.major) return c;
+    found.push(`${c} is version ${major ?? '?'}`);
   }
-  throw new Error(`${name} not found${pgBin ? ` in ${pgBin}` : ''}; install the PostgreSQL client tools of the server's major version, or pass --pg-bin`);
+  const want = o.major ? ` version ${o.major} (the server's major version)` : '';
+  throw new Error(`${name}${want} not found${o.pgBin ? ` in ${o.pgBin}` : ''}${found.length ? ` (${found.join('; ')})` : ''}; install the PostgreSQL client tools${want}, or pass --pg-bin`);
+}
+
+async function serverMajor(db: Db): Promise<number> {
+  const [r] = await db.$queryRaw<{ v: string }[]>`SELECT current_setting('server_version_num') AS v`;
+  return Math.floor(Number(r!.v) / 10000);
 }
 
 function run(cmd: string, args: string[], env: Record<string, string>): Promise<{ code: number; stderr: string }> {
@@ -114,7 +136,7 @@ async function snapshotFacts(tx: Tx | Db): Promise<{ counts: Record<string, numb
  * audit head are read inside the same transaction.
  */
 export async function createBackup(db: Db, url: string, o: { outDir: string; pgBin?: string; version?: string; now?: Date; actor?: string }): Promise<{ dump: string; manifest: string; m: BackupManifest }> {
-  const pgDump = findPgTool('pg_dump', o.pgBin);
+  const pgDump = findPgTool('pg_dump', { pgBin: o.pgBin, major: await serverMajor(db) });
   const pgDumpVersion = (spawnSync(pgDump, ['--version'], { encoding: 'utf8' }).stdout ?? '').trim();
   if (!existsSync(o.outDir) || !statSync(o.outDir).isDirectory()) throw new Error(`${o.outDir} does not exist`);
   const now = o.now ?? new Date();
@@ -205,7 +227,8 @@ export async function verifyBackup(path: string, o: { restoreTo?: string; pgBin?
 
   let pgRestore: string;
   try {
-    pgRestore = findPgTool('pg_restore', o.pgBin);
+    // Reading the archive works with any version at least as new; restoring needs the scratch server's version (below).
+    pgRestore = findPgTool('pg_restore', { pgBin: o.pgBin });
   } catch (e) {
     checks.push({ name: 'readable', status: 'fail', detail: (e as Error).message });
     return done();
@@ -232,6 +255,12 @@ export async function verifyBackup(path: string, o: { restoreTo?: string; pgBin?
       }
     } catch (e) {
       checks.push({ name: 'restore', status: 'fail', detail: `cannot connect to the scratch database: ${lastLine((e as Error).message)}` });
+      return done();
+    }
+    try {
+      pgRestore = findPgTool('pg_restore', { pgBin: o.pgBin, major: await serverMajor(scratch) });
+    } catch (e) {
+      checks.push({ name: 'restore', status: 'fail', detail: (e as Error).message });
       return done();
     }
     const r = await run(pgRestore, ['--no-owner', '--no-acl', '--exit-on-error', '--single-transaction', '--dbname', libpqEnv(o.restoreTo)['PGDATABASE']!, dump], libpqEnv(o.restoreTo));

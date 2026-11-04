@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDb, type Db } from '@lis/db';
 import { appendAudit } from '@lis/lab';
-import { createBackup, libpqEnv, readBackup, verifyBackup } from '@lis/ops';
+import { createBackup, findPgTool, libpqEnv, readBackup, toolMajor, verifyBackup } from '@lis/ops';
 
 describe('backup connection settings', () => {
   it('passes the address to the PostgreSQL tools in the environment, decoded', () => {
@@ -12,6 +12,13 @@ describe('backup connection settings', () => {
     expect(libpqEnv('postgres://u@localhost/x')).toEqual({ PGHOST: 'localhost', PGPORT: '5432', PGDATABASE: 'x', PGUSER: 'u' });
     expect(() => libpqEnv('mysql://u@h/x')).toThrow(/postgresql/);
     expect(() => libpqEnv('postgresql://u@h/')).toThrow(/no database/);
+  });
+
+  it('insists on client tools of the server\'s major version', () => {
+    expect(toolMajor('pg_dump (PostgreSQL) 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)')).toBe(16);
+    expect(toolMajor('pg_restore (PostgreSQL) 17.2')).toBe(17);
+    expect(toolMajor('something else')).toBeUndefined();
+    expect(() => findPgTool('pg_dump', { pgBin: '/nowhere', major: 16 })).toThrow(/pg_dump version 16 \(the server's major version\) not found in \/nowhere/);
   });
 });
 
