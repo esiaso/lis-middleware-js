@@ -3,7 +3,7 @@ import { TestMapping, type VerificationStatus } from '@lis/contracts';
 import type { Db } from '@lis/db';
 import { clinicalGateFor } from '@lis/domain';
 import {
-  approveAndActivateMappings, changeInstrumentRegistration, InvalidInput, loadInstrument, MAPPING_FILE_EXAMPLE, recordInstrumentEvidence,
+  approveAndActivateMappings, changeInstrumentRegistration, diffMappings, InvalidInput, loadInstrument, MAPPING_FILE_EXAMPLE, recordInstrumentEvidence,
   registerInstrumentRecord, saveMappingDraft, setInstrumentEnabled,
 } from '@lis/lab';
 import type { Response } from 'express';
@@ -11,6 +11,7 @@ import { confirmPassword } from './auth.js';
 import { page, str, type Form } from './controllers.js';
 import { formatTime } from './format.js';
 import { formOptions, formToRegistration, GENERIC_ASTM_EXAMPLE, GENERIC_HL7_EXAMPLE, pickForm, registrationToForm, type InstrumentForm } from './instrument-form.js';
+import { issueForRows, MAX_ROWS, rowsFromForm, rowsFromMappings, type MappingRow } from './mapping-form.js';
 import { Roles, type WebRequest } from './security.js';
 import { DB } from './tokens.js';
 
@@ -133,7 +134,7 @@ export class InstrumentsController {
       },
       today: new Date().toISOString().slice(0, 10),
       active: active ? { versionNo: active.versionNo, by: active.createdBy, approvedBy: active.approvedBy, at: formatTime(active.activeFrom), mappings: mappingsOf(active) } : null,
-      draft: draft ? { versionNo: draft.versionNo, by: draft.createdBy, mappings: mappingsOf(draft), mine: draft.createdBy === req.user?.username } : null,
+      draft: draft ? { versionNo: draft.versionNo, by: draft.createdBy, mappings: mappingsOf(draft), mine: draft.createdBy === req.user?.username, changes: diffMappings(mappingsOf(active), mappingsOf(draft)) } : null,
       mappingText: JSON.stringify(draft ? draft.mappingsJson : active ? active.mappingsJson : MAPPING_FILE_EXAMPLE, null, 2),
       history: i.mappingSets.map((m) => ({ versionNo: m.versionNo, status: m.status.toLowerCase(), by: m.createdBy, approvedBy: m.approvedBy ?? '' })),
     });
@@ -202,6 +203,51 @@ export class InstrumentsController {
       throw new InvalidInput(['mappings: not valid JSON']);
     }
     await saveMappingDraft(this.db, idParam(id), mappings, req.user!.username);
+    res.redirect(303, `/instruments/${id}?notice=draft#mappings`);
+  }
+
+  /** W-9 row editor: starts from the open draft, else a copy of the active set, else empty. */
+  @Get(':id/mappings/edit')
+  @Roles('admin', 'technologist')
+  async editRows(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string): Promise<void> {
+    const sets = await this.db.testMappingSet.findMany({ where: { instrumentId: idParam(id), status: { in: ['DRAFT', 'ACTIVE'] } } });
+    if (!(await this.db.instrument.findUnique({ where: { id } }))) throw new NotFoundException();
+    const from = sets.find((m) => m.status === 'DRAFT') ?? sets.find((m) => m.status === 'ACTIVE');
+    const list = from ? TestMapping.array().safeParse(from.mappingsJson).data ?? [] : [];
+    await this.renderRows(req, res, id, rowsFromMappings(list), [], from ? `${from.status === 'DRAFT' ? 'the open draft' : 'the active set'}, version ${from.versionNo}` : 'an empty set');
+  }
+
+  private async renderRows(req: WebRequest, res: Response, id: string, rows: MappingRow[], issues: string[], startedFrom: string, status = 200): Promise<void> {
+    const active = await this.db.testMappingSet.findFirst({ where: { instrumentId: id, status: 'ACTIVE' } });
+    res.status(status);
+    page(req, res, 'mapping-edit', {
+      title: `Edit mappings · ${id}`,
+      id,
+      rows: rows.map((r, i) => ({ ...r, n: i, no: i + 1, both: r.direction === 'both', order: r.direction === 'order', result: r.direction === 'result' })),
+      rowCount: rows.length,
+      issues,
+      startedFrom,
+      activeVersion: active?.versionNo ?? null,
+      canAdd: rows.length < MAX_ROWS,
+    });
+  }
+
+  @Post(':id/mappings/rows')
+  @Roles('admin', 'technologist')
+  async saveRows(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Body() body: Form): Promise<void> {
+    const parsed = rowsFromForm(body);
+    // "Add rows" re-shows the form with more blank rows and saves nothing.
+    if (str(body, 'more') === 'yes') {
+      return this.renderRows(req, res, idParam(id), [...parsed.rows, ...rowsFromMappings([], 5).map((r) => ({ ...r }))].slice(0, MAX_ROWS), [], 'your unsaved rows');
+    }
+    if (parsed.issues.length) return this.renderRows(req, res, idParam(id), parsed.rows, parsed.issues, 'your unsaved rows', 422);
+    if (parsed.mappings.length === 0) return this.renderRows(req, res, idParam(id), parsed.rows, ['Add at least one mapping. To stop all results from this instrument, turn the instrument off instead.'], 'your unsaved rows', 422);
+    try {
+      await saveMappingDraft(this.db, idParam(id), parsed.mappings, req.user!.username);
+    } catch (e) {
+      if (!(e instanceof InvalidInput)) throw e;
+      return this.renderRows(req, res, id, parsed.rows, e.issues.map((x) => issueForRows(x, parsed.kept)), 'your unsaved rows', 422);
+    }
     res.redirect(303, `/instruments/${id}?notice=draft#mappings`);
   }
 
