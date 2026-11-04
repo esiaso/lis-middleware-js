@@ -1,0 +1,35 @@
+<p><a href="/instruments/{{id}}#mappings">&larr; Instrument {{id}}</a></p>
+<h1 class="h4">Edit test mappings</h1>
+<p class="text-body-secondary">Started from {{startedFrom}}. Saving makes this the draft{{#if activeVersion}}; version {{activeVersion}} stays active until a different person approves the draft{{else}}; nothing is matched until a different person approves it{{/if}}. Leave a row's codes empty to ignore it.</p>
+{{> issues}}
+<form method="post" action="/instruments/{{id}}/mappings/rows">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <input type="hidden" name="rowCount" value="{{rowCount}}">
+  <div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead><tr><th>#</th><th>Local test</th><th>Instrument code</th><th>Code system</th><th>Direction</th><th>Units</th><th>Decimals</th><th>Qualitative codes</th><th>Reported</th><th>Research use only</th><th>Remove</th></tr></thead>
+    <tbody>
+      {{#each rows}}
+      <tr>
+        <td class="small text-body-secondary">{{no}}</td>
+        <td><input class="form-control form-control-sm font-monospace" name="r{{n}}.local" value="{{localTestCode}}" maxlength="40" aria-label="Row {{no}} local test"></td>
+        <td><input class="form-control form-control-sm font-monospace" name="r{{n}}.code" value="{{instrumentTestCode}}" maxlength="40" aria-label="Row {{no}} instrument code"></td>
+        <td><input class="form-control form-control-sm" name="r{{n}}.system" value="{{instrumentCodeSystem}}" maxlength="20" aria-label="Row {{no}} code system"></td>
+        <td><select class="form-select form-select-sm" name="r{{n}}.direction" aria-label="Row {{no}} direction"><option value="both" {{#if both}}selected{{/if}}>both</option><option value="result" {{#if result}}selected{{/if}}>result</option><option value="order" {{#if order}}selected{{/if}}>order</option></select></td>
+        <td><input class="form-control form-control-sm" name="r{{n}}.units" value="{{expectedUnits}}" maxlength="40" aria-label="Row {{no}} units"></td>
+        <td><input class="form-control form-control-sm" name="r{{n}}.decimals" value="{{decimals}}" maxlength="1" inputmode="numeric" aria-label="Row {{no}} decimals"></td>
+        <td><input class="form-control form-control-sm font-monospace" name="r{{n}}.qual" value="{{qualitative}}" placeholder="-1=NEG, 1=POS" aria-label="Row {{no}} qualitative codes"></td>
+        <td class="text-center"><input class="form-check-input" type="checkbox" name="r{{n}}.reportable" value="yes" {{#if reportable}}checked{{/if}} aria-label="Row {{no}} reported"></td>
+        <td class="text-center"><input class="form-check-input" type="checkbox" name="r{{n}}.ruo" value="yes" {{#if ruo}}checked{{/if}} aria-label="Row {{no}} research use only"></td>
+        <td class="text-center"><input class="form-check-input" type="checkbox" name="r{{n}}.remove" value="yes" {{#if remove}}checked{{/if}} aria-label="Row {{no}} remove"></td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  </div>
+  <p class="small text-body-secondary">Research-use-only parameters are never reported, whatever "Reported" says. Units are compared with what the instrument sends; a mismatch holds the result for review.</p>
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" type="submit">Save draft</button>
+    {{#if canAdd}}<button class="btn btn-outline-secondary" type="submit" name="more" value="yes">Add 5 rows</button>{{/if}}
+  </div>
+</form>

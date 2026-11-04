@@ -70,8 +70,10 @@ on a specimen (one person proposes with a reason, a different person sees
 the patient and confirms with their password; unmapped codes and rejected
 specimens are refused), and downtime registration with results held until
 the order is reconciled to the HMIS order (A-15), and W-10 audit search,
-export (A-16) and on-demand chain verification for auditors.
-Not built yet: the W-9 row-by-row mapping editor, "add test to order" from an
+export (A-16) and on-demand chain verification for auditors, and the W-9
+row-by-row mapping editor (the approver sees what a draft changes against
+the active set).
+Not built yet: "add test to order" from an
 unmatched result (needs the HMIS, D-1 to D-6), assisted reconciliation when the HMIS returns (beyond the candidate list),
 OIDC/LDAPS, and the real HMIS connector, which waits for D-1 to D-6.
 

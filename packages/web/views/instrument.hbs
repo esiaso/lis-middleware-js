@@ -94,6 +94,14 @@
 {{/if}}
 {{#if draft}}
 <h3 class="h6">Draft version {{draft.versionNo}}, by {{draft.by}}</h3>
+<h4 class="h6 small">Changes against the active set</h4>
+<ul class="small" id="mapping-changes">
+  {{#each draft.changes}}
+  <li><span class="badge {{#if (eq kind "removed")}}text-bg-danger{{else}}{{#if (eq kind "added")}}text-bg-success{{else}}text-bg-warning{{/if}}{{/if}}">{{kind}}</span> <span class="font-monospace">{{instrumentTestCode}}{{#if instrumentCodeSystem}} ({{instrumentCodeSystem}}){{/if}}</span> &rarr; {{localTestCode}}{{#each fields}}<br><span class="font-monospace">{{this}}</span>{{/each}}</li>
+  {{else}}
+  <li class="text-body-secondary">No differences.</li>
+  {{/each}}
+</ul>
 {{> mapping-table mappings=draft.mappings}}
 {{#if can.accept}}
 {{#if draft.mine}}<p class="small text-body-secondary">You saved this draft, so someone else must approve it.</p>{{else}}
@@ -106,8 +114,9 @@
 {{/if}}
 {{/if}}
 {{#if can.register}}
+<p><a class="btn btn-outline-primary btn-sm" href="/instruments/{{i.id}}/mappings/edit">Edit mappings row by row</a></p>
 <details class="mb-4">
-  <summary>Load the reviewed mapping file as a draft</summary>
+  <summary>Or load the reviewed mapping file as a draft</summary>
   <form method="post" action="/instruments/{{i.id}}/mappings" class="mt-2">
     <input type="hidden" name="_csrf" value="{{csrf}}">
     <textarea class="form-control font-monospace mb-2" name="mappings" rows="10" aria-label="Mappings (JSON)">{{mappingText}}</textarea>

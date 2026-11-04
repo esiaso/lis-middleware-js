@@ -266,3 +266,40 @@ export async function approveAndActivateMappings(db: Db, instrumentId: string, v
 export const MAPPING_FILE_EXAMPLE: TestMapping[] = [
   { localTestCode: 'TSH', instrumentTestCode: '10', direction: 'both', expectedUnits: 'uIU/mL', reportable: true, ruo: false },
 ];
+
+export interface MappingChange {
+  kind: 'added' | 'removed' | 'changed';
+  instrumentTestCode: string;
+  instrumentCodeSystem?: string;
+  localTestCode: string;
+  /** For "changed": each field as "field: before → after". */
+  fields: string[];
+}
+
+/**
+ * What a draft changes against the active set, keyed by instrument code and
+ * code system, so the approver checks the differences and not only the end
+ * state (rule 6, W-9).
+ */
+export function diffMappings(before: TestMapping[], after: TestMapping[]): MappingChange[] {
+  const key = (m: TestMapping) => `${m.instrumentTestCode}\u0000${m.instrumentCodeSystem ?? ''}`;
+  const show = (v: unknown) => (v === undefined ? '(none)' : typeof v === 'object' ? JSON.stringify(v) : String(v));
+  const old = new Map(before.map((m) => [key(m), m]));
+  const out: MappingChange[] = [];
+  const base = (m: TestMapping) => ({ instrumentTestCode: m.instrumentTestCode, ...(m.instrumentCodeSystem ? { instrumentCodeSystem: m.instrumentCodeSystem } : {}), localTestCode: m.localTestCode });
+  for (const m of after) {
+    const o = old.get(key(m));
+    old.delete(key(m));
+    if (!o) {
+      out.push({ kind: 'added', ...base(m), fields: [] });
+      continue;
+    }
+    const fields: string[] = [];
+    for (const f of ['localTestCode', 'direction', 'expectedUnits', 'decimals', 'qualitativeMap', 'reportable', 'ruo'] as const) {
+      if (JSON.stringify(o[f]) !== JSON.stringify(m[f])) fields.push(`${f}: ${show(o[f])} → ${show(m[f])}`);
+    }
+    if (fields.length) out.push({ kind: 'changed', ...base(m), fields });
+  }
+  for (const o of old.values()) out.push({ kind: 'removed', ...base(o), fields: [] });
+  return out;
+}
