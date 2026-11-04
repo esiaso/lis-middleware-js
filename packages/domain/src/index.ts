@@ -7,4 +7,5 @@ export * from './autoverification.js';
 export * from './delta-check.js';
 export * from './qc.js';
 export * from './westgard.js';
+export * from './time-zone.js';
 export * from './tat-targets.js';

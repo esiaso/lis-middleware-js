@@ -19,7 +19,7 @@
   {{#if collectable}}{{#if ../can.collect}}
   <div class="row g-2 mt-1 align-items-end">
     <div class="col-auto">
-      <label class="form-label small" for="at-{{@index}}">Collected at (UTC, leave as now if just drawn)</label>
+      <label class="form-label small" for="at-{{@index}}">Collected at ({{@root.timeZone}}, leave as now if just drawn)</label>
       <input class="form-control form-control-sm" type="datetime-local" id="at-{{@index}}" name="collectedAt" value="{{../now}}">
     </div>
     <div class="col-auto"><button class="btn btn-primary btn-sm" type="submit">Collect and print label</button></div>

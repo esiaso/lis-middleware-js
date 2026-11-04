@@ -1,3 +1,5 @@
+import { isTimeZone } from '@lis/domain';
+import { setDisplayTimeZone } from './format.js';
 import 'reflect-metadata';
 import { readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -67,7 +69,9 @@ export interface CreateAppOptions extends Partial<WebOptions> {
  * the internet at runtime.
  */
 export async function createApp(db: Db, o: CreateAppOptions = {}): Promise<NestExpressApplication> {
-  const opts: WebOptions = { twoPersonRule: o.twoPersonRule ?? true, secureCookies: o.secureCookies ?? true, session: o.session ?? DEFAULT_SESSION_POLICY, ...(o.oidc ? { oidc: o.oidc } : {}), ...(o.reportHeader ? { reportHeader: o.reportHeader } : {}) };
+  const opts: WebOptions = { twoPersonRule: o.twoPersonRule ?? true, secureCookies: o.secureCookies ?? true, session: o.session ?? DEFAULT_SESSION_POLICY, ...(o.oidc ? { oidc: o.oidc } : {}), ...(o.reportHeader ? { reportHeader: o.reportHeader } : {}), timeZone: o.timeZone ?? 'UTC' };
+  if (!isTimeZone(opts.timeZone as string)) throw new Error(`LIMS_TIME_ZONE "${String(opts.timeZone).slice(0, 64)}" is not a time zone name such as Africa/Nairobi`);
+  setDisplayTimeZone(opts.timeZone as string);
   const logger = o.logger ?? pino({ base: { svc: 'web' } });
   const app = await NestFactory.create<NestExpressApplication>(WebModule.with(db, opts, logger), { logger: false, bodyParser: true });
   const express = app.getHttpAdapter().getInstance() as { disable(name: string): void; set(name: string, v: unknown): void };

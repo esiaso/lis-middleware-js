@@ -55,6 +55,8 @@ describe('lims config validate', () => {
     expect(JSON.stringify(s)).not.toContain('a:b@');
     expect(statuses('NODE_ENV=production\nLIMS_TWO_PERSON_RULE=false')['LIMS_TWO_PERSON_RULE']).toMatch(/^warn/);
     expect(statuses('PORT=3000')['NODE_ENV']).toBe('warn: is not set; set NODE_ENV=production on a server');
+    expect(statuses('LIMS_TIME_ZONE=Africa/Nairobi')['LIMS_TIME_ZONE']).toBeUndefined();
+    expect(statuses('LIMS_TIME_ZONE=Nairobi')['LIMS_TIME_ZONE']).toBe('fail: "Nairobi" is not a time zone name such as Africa/Nairobi; the web service will not start');
   });
 
   it('runs the web service\'s own hospital sign-in check, and checks files it names', () => {

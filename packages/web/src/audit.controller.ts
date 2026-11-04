@@ -4,7 +4,8 @@ import type { Db } from '@lis/db';
 import { appendAudit, InvalidInput, verifyAuditChain } from '@lis/lab';
 import type { Response } from 'express';
 import { page } from './controllers.js';
-import { formatTime } from './format.js';
+import { fromZonedLocal } from '@lis/domain';
+import { displayTimeZone, formatTime } from './format.js';
 import { Roles, type WebRequest } from './security.js';
 import { DB } from './tokens.js';
 
@@ -26,19 +27,19 @@ function readFilters(q: Record<string, unknown>): AuditFilters {
   return { entityType: s('entityType', 40), entityId: s('entityId', 80), actor: s('actor', 80), action: s('action', 80), from: s('from', 10), to: s('to', 10) };
 }
 
-/** Dates are whole UTC days, both ends included. */
+/** Dates are whole days in the lab's time zone (A-24), both ends included. */
 function where(f: AuditFilters) {
   const issues: string[] = [];
   const day = (v: string, name: string) => {
     if (!v) return undefined;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(Date.parse(`${v}T00:00:00Z`))) {
-      issues.push(`${name} must be a date.`);
-      return undefined;
-    }
-    return new Date(`${v}T00:00:00Z`);
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? fromZonedLocal(v, displayTimeZone()) : null;
+    if (!d) issues.push(`${name} must be a date.`);
+    return d ?? undefined;
   };
   const from = day(f.from, 'From');
-  const to = day(f.to, 'To');
+  // The end of the last day is the start of the next one, on the lab's clock.
+  const next = /^\d{4}-\d{2}-\d{2}$/.test(f.to) ? new Date(Date.parse(`${f.to}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10) : f.to;
+  const to = f.to ? day(next, 'To') : undefined;
   if (issues.length) throw new InvalidInput(issues);
   return {
     ...(f.entityType ? { entityType: f.entityType } : {}),
@@ -46,7 +47,7 @@ function where(f: AuditFilters) {
     ...(f.actor ? { actor: f.actor } : {}),
     // "result." finds every result action; a full name finds just that one.
     ...(f.action ? { action: f.action.endsWith('.') ? { startsWith: f.action } : f.action } : {}),
-    ...(from || to ? { at: { ...(from ? { gte: from } : {}), ...(to ? { lt: new Date(to.getTime() + 86_400_000) } : {}) } } : {}),
+    ...(from || to ? { at: { ...(from ? { gte: from } : {}), ...(to ? { lt: to } : {}) } } : {}),
   };
 }
 

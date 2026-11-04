@@ -1,4 +1,12 @@
 import type { ResultValue } from '@lis/contracts';
+import { formatZoned } from '@lis/domain';
+
+/** The lab's time zone (A-24), set once when the app starts. Every page shows times on this clock. */
+let zone = 'UTC';
+export const setDisplayTimeZone = (tz: string): void => {
+  zone = tz;
+};
+export const displayTimeZone = (): string => zone;
 
 /** Shows a stored value exactly as received: numbers keep their reported digits, never re-rounded. */
 export function formatValue(v: ResultValue | null | undefined): string {
@@ -19,7 +27,7 @@ export function formatValue(v: ResultValue | null | undefined): string {
 
 export function formatTime(d: Date | null | undefined): string {
   if (!d) return '';
-  return d.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+  return formatZoned(d, zone);
 }
 
 /** A duration for reports: "under 1 min", "45 min", "2 h 05 min", "3 d 4 h". */

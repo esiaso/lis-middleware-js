@@ -249,7 +249,7 @@ interface test.
 
 ## W-12 Turnaround times
 
-**Reports → Turnaround** (A-22): a date range (UTC days, both included, at
+**Reports → Turnaround** (A-22): a date range (days in the lab's time zone, A-24, both included, at
 most 366) and a priority filter. One row for all tests and one per test.
 Each step column shows the median and 90th percentile and how many results
 had both times: ordered to collected, collected to received in the lab,
@@ -301,7 +301,7 @@ plotted. The x axis is result order, not time.
 ## W-16 Workload
 
 **Reports → Workload** (linked from Turnaround times): what the instruments
-measured over a date range (UTC days, at most 366), by instrument, by test
+measured over a date range (days in the lab's time zone, A-24, at most 366), by instrument, by test
 (with a column per instrument) and by day. A measurement is an instrument
 value stored on a patient result, counted on the day its message arrived;
 values typed or corrected by a person are not counted. A repeat is any
