@@ -27,6 +27,8 @@ export interface AutoverifyInput {
   criticalFlag: string | null;
   /** Delta check flag on this version, if a delta rule exists for the test. */
   deltaFlag: string | null;
+  /** QC check when the rule asks for one; null when it does not. */
+  qc: { ok: boolean; detail: string } | null;
   /** Instrument cleared for clinical use (verification gate). */
   instrumentCleared: boolean;
 }
@@ -63,6 +65,7 @@ export function evaluateAutoverification(rule: AutoverifyRule, i: AutoverifyInpu
   add('instrument flags', i.instrumentFlags.length === 0, i.instrumentFlags.length ? `instrument flags ${i.instrumentFlags.join(' ')}` : 'none');
   add('not edited', !i.editedOnInstrument, i.editedOnInstrument ? 'edited on the instrument' : 'not edited');
   add('not critical', !i.criticalFlag, i.criticalFlag ? `critical check: ${i.criticalFlag}` : 'not critical');
+  add('QC', i.qc ? i.qc.ok : true, i.qc ? i.qc.detail : 'not checked by this rule; the lab confirmed how QC is covered');
   add('delta check', !i.deltaFlag, i.deltaFlag ? `delta check: ${i.deltaFlag}` : 'no delta flag');
   return { passed: checks.every((c) => c.ok), checks };
 }
@@ -74,10 +77,12 @@ export interface AutoverifyRuleInput {
   units: string;
   reference: string;
   qcAcknowledged: boolean;
+  /** Optional: require QC in range within this many hours (1 to 168). Empty for none. */
+  qcWithinHours?: string;
 }
 
 /** Check a rule typed into the form. Both bounds are required: an open-ended range would pass anything above or below. */
-export function parseAutoverifyRule(i: AutoverifyRuleInput): { ok: true; value: Omit<AutoverifyRuleInput, 'qcAcknowledged'> } | { ok: false; issues: string[] } {
+export function parseAutoverifyRule(i: AutoverifyRuleInput): { ok: true; value: { localTestCode: string; low: string; high: string; units: string; reference: string; qcWithinHours: number | null } } | { ok: false; issues: string[] } {
   const issues: string[] = [];
   const low = i.low.trim();
   const high = i.high.trim();
@@ -87,9 +92,11 @@ export function parseAutoverifyRule(i: AutoverifyRuleInput): { ok: true; value: 
   if (isDecimal(low) && isDecimal(high) && compareDecimal(low, high) > 0) issues.push('The lowest value must not be above the highest.');
   if (!i.units.trim() || i.units.trim().length > 20) issues.push('Units: 1 to 20 characters, exactly as the instrument reports them.');
   if (i.reference.trim().length < 5 || i.reference.trim().length > 200) issues.push('Validation report: 5 to 200 characters naming the report and its version.');
+  const hours = (i.qcWithinHours ?? '').trim();
+  if (hours && (!/^\d{1,3}$/.test(hours) || Number(hours) < 1 || Number(hours) > 168)) issues.push('QC within: 1 to 168 hours, or leave it empty.');
   if (!i.qcAcknowledged) issues.push('Confirm how QC is covered: the middleware does not check QC.');
   if (issues.length) return { ok: false, issues };
-  return { ok: true, value: { localTestCode: i.localTestCode.trim(), low, high, units: i.units.trim(), reference: i.reference.trim() } };
+  return { ok: true, value: { localTestCode: i.localTestCode.trim(), low, high, units: i.units.trim(), reference: i.reference.trim(), qcWithinHours: hours ? Number(hours) : null } };
 }
 
 /**

@@ -1,14 +1,14 @@
 <h1 class="h4">Autoverification</h1>
 <p><a href="/delta-checks">Delta checks &rarr;</a></p>
-<p class="text-body-secondary">With a rule, the first value of a new result for that test is approved without a person when every check passes: a first value (not a repeat or dilution), a plain number, the rule's units exactly, inside the rule's range (both ends included), no abnormal or instrument flags, not edited on the instrument, not critical, no delta flag, and from an instrument cleared for clinical use. Any failed check leaves the result for a person, and the result page lists the checks either way. Release to the HMIS is still done by a person.</p>
-<div class="alert alert-warning small">The middleware does not check quality control. It compares with the patient's previous result only for tests with a <a href="/delta-checks">delta rule</a>. Add a rule only after the lab's own validation of it, and only where the lab's QC procedure stops results when QC fails. No test is autoverified until a rule is added here.</div>
+<p class="text-body-secondary">With a rule, the first value of a new result for that test is approved without a person when every check passes: a first value (not a repeat or dilution), a plain number, the rule's units exactly, inside the rule's range (both ends included), no abnormal or instrument flags, not edited on the instrument, not critical, no delta flag, QC in range when the rule asks for it, and from an instrument cleared for clinical use. Any failed check leaves the result for a person, and the result page lists the checks either way. Release to the HMIS is still done by a person.</p>
+<div class="alert alert-warning small">The middleware checks quality control only when a rule asks for QC in range within a number of hours, using the lab's <a href="/qc/ranges">QC ranges</a>. It compares with the patient's previous result only for tests with a <a href="/delta-checks">delta rule</a>. Add a rule only after the lab's own validation of it, and only where the lab's QC procedure stops results when QC fails. No test is autoverified until a rule is added here.</div>
 
 <table class="table table-sm align-middle">
   <thead><tr><th>Test</th><th>Range</th><th>Units</th><th>Validation report</th><th>Last 7 days</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
   <tbody>
     {{#each rules}}
     <tr>
-      <td class="font-monospace">{{test}}</td><td class="font-monospace">{{low}} to {{high}}</td><td>{{units}}</td><td class="small">{{reference}}</td><td class="small">{{passed}} autoverified, {{held}} left for a person</td><td class="small">{{by}}, {{at}}</td>
+      <td class="font-monospace">{{test}}</td><td class="font-monospace">{{low}} to {{high}}</td><td>{{units}}</td><td class="small">{{reference}}{{#if qcHours}}<br>QC in range within {{qcHours}} h{{/if}}</td><td class="small">{{passed}} autoverified, {{held}} left for a person</td><td class="small">{{by}}, {{at}}</td>
       {{#if @root.can.approve}}
       <td>
         <details><summary class="small">Turn off</summary>
@@ -40,6 +40,7 @@
   <div class="col-md-2"><label class="form-label" for="high">Highest value</label><input class="form-control font-monospace" id="high" name="high" value="{{v.high}}" inputmode="decimal" required></div>
   <div class="col-md-2"><label class="form-label" for="units">Units</label><input class="form-control" id="units" name="units" value="{{v.units}}" required maxlength="20"><div class="form-text">Exactly as the instrument sends them.</div></div>
   <div class="col-md-6"><label class="form-label" for="reference">Validation report</label><input class="form-control" id="reference" name="reference" value="{{v.reference}}" required minlength="5" maxlength="200"><div class="form-text">The lab's validation of this rule, with its version.</div></div>
+  <div class="col-md-3"><label class="form-label" for="qcWithinHours">QC in range within (hours, optional)</label><input class="form-control" id="qcWithinHours" name="qcWithinHours" value="{{v.qcWithinHours}}" inputmode="numeric"><div class="form-text">Needs <a href="/qc/ranges">QC ranges</a> for this test on the instrument.</div></div>
   <div class="col-12"><div class="form-check">
     <input class="form-check-input" type="checkbox" id="qc" name="qc" value="yes" {{#if (eq v.qc "yes")}}checked{{/if}} required>
     <label class="form-check-label" for="qc">I confirm the lab's QC procedure covers this test, because the middleware does not check QC.</label></div></div>

@@ -2,6 +2,7 @@ import type { InstrumentFlag, ResultValue, VerificationStatus } from '@lis/contr
 import { uuidv7, type Db, type JsonInput } from '@lis/db';
 import { AUTOVERIFY_ACTOR, autoverifyResult, clinicalGateFor, evaluateAutoverification, parseAutoverifyRule, type AutoverifyCheck, type AutoverifyRuleInput, type VersionKind } from '@lis/domain';
 import { appendAudit } from './audit.js';
+import { qcCheckFor } from './qc.js';
 import { InvalidInput } from './instruments.js';
 import { loadResult, saveResult, WorkflowRejected } from './results.js';
 import type { Tx } from './tx.js';
@@ -42,6 +43,7 @@ export async function autoverifyNewResult(tx: Tx, resultId: string, instrumentId
     editedOnInstrument: v.editedOnInstrument,
     criticalFlag: v.criticalFlag,
     deltaFlag: v.deltaFlag,
+    qc: rule.qcWithinHours ? await qcCheckFor(tx, instrumentId, code, rule.qcWithinHours) : null,
     instrumentCleared: gate.releasable,
   });
   await tx.autoverificationDecision.create({ data: { id: uuidv7(), resultId, versionNo: 1, ruleId: rule.id, passed: outcome.passed, checks: outcome.checks as unknown as JsonInput } });
