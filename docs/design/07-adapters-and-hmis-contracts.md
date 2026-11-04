@@ -98,11 +98,14 @@ change that is audited and re-verified.
   event can contain half a frame, or a frame plus the next ENQ. The codec
   loop extracts every complete unit and keeps the rest.
 * Limits (configurable): ASTM frame ≤ 247 bytes [DOC e411 HIM D-3] with an
-  allowance (default 512) for line noise; ASTM message ≤ 1 MB; MLLP block
-  ≤ `maxMessageBytes` (default 4 MB, Mindray `ED` fields can be large
-  [DOC Mindray 6.2]).
-* On limit breach: ASTM sends NAK and resets the frame; MLLP closes the
-  connection (the only safe resynchronisation) and records an incident.
+  allowance (default 512) for line noise; ASTM message (all frame text of
+  one transfer) and MLLP block ≤ `maxMessageBytes` of the connection
+  (default 4 MB, Mindray `ED` fields can be large [DOC Mindray 6.2]).
+* On limit breach: ASTM sends NAK and resets the frame; for a message past
+  its limit it NAKs every further frame until the instrument gives up with
+  EOT, then records the transfer as aborted (its frames stay stored, nothing
+  is parsed). MLLP closes the connection (the only safe resynchronisation)
+  and records an incident.
 * Garbage before `STX`/`0x0B` is skipped and counted in a metric.
 * Backpressure: the worker awaits the DB persist before ACKing; while a
   persist is in flight the codec calls `transport.pause()` once more than one

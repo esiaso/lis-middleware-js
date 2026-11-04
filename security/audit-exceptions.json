@@ -20,7 +20,7 @@
     {
       "advisory": "GHSA-mrhx-c7xc-m3w5",
       "package": "zod",
-      "reason": "Unreviewed advisory naming zod 4 internals ($ZodArray); the middleware uses the zod 3 API. Input reaching zod is bounded or comes from known peers: browser forms by the 100 kB body limit, HL7 messages by the per-instrument maxMessageBytes, ASTM messages only from the instrument addresses allowed on the instrument network (ASTM has no total message cap yet). Revisit with the HMIS connector, whose responses must get a size limit too.",
+      "reason": "Unreviewed advisory naming zod 4 internals ($ZodArray); the middleware uses the zod 3 API. Input reaching zod is bounded or comes from known peers: browser forms by the 100 kB body limit, instrument messages (ASTM and HL7) by the connection's maxMessageBytes. Revisit with the HMIS connector, whose responses must get a size limit too.",
       "fix": "zod 4.6.6 (major upgrade)",
       "reviewed": "2026-11-04",
       "reviewBy": "2027-02-04"

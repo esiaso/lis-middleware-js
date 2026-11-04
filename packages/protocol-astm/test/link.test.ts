@@ -50,6 +50,28 @@ describe('AstmLink as receiver', () => {
     expect(ofType(link.onUnit(frameUnit(1, 'H|\\^&\r'), 3), 'frame')).toHaveLength(1);
   });
 
+  it('refuses a message past its size limit, then drops it without processing', () => {
+    const link = new AstmLink(E411_DEFAULT_TIMINGS, 'packed', 20);
+    link.onUnit(ctl('ENQ'), 0);
+    link.onUnit(frameUnit(1, 'H|\\^&|0123456\r', false), 1); // 16 bytes
+    expect(writes(link.commitFrame(true, 2))).toEqual([ACK]);
+    const over = link.onUnit(frameUnit(2, 'P|1|abcdef\r', false), 3); // would make 27
+    expect(writes(over)).toEqual([NAK]);
+    expect(ofType(over, 'frame')).toEqual([]);
+    expect(ofType(over, 'event')[0]).toMatchObject({ code: 'transfer-too-large' });
+    // The instrument retries; every further frame is refused without being offered for storage.
+    expect(writes(link.onUnit(frameUnit(2, 'P|1|abcdef\r', false), 4))).toEqual([NAK]);
+    const end = link.onUnit(ctl('EOT'), 5);
+    expect(ofType(end, 'transfer-complete')).toEqual([]);
+    expect(ofType(end, 'transfer-aborted')[0]).toMatchObject({ reason: expect.stringContaining('larger than 20 bytes') });
+    expect(ofType(end, 'transfer-aborted')[0]!.text.length).toBe(0);
+    // The next message starts clean.
+    link.onUnit(ctl('ENQ'), 6);
+    link.onUnit(frameUnit(1, 'H|\\^&\r'), 7);
+    expect(writes(link.commitFrame(true, 8))).toEqual([ACK]);
+    expect(ofType(link.onUnit(ctl('EOT'), 9), 'transfer-complete')[0]).toMatchObject({ complete: true });
+  });
+
   it('NAKs a bad checksum and a wrong frame number', () => {
     const link = new AstmLink();
     link.onUnit(ctl('ENQ'), 0);
