@@ -13,5 +13,6 @@ export * from './autoverification.js';
 export * from './delta.js';
 export * from './qc.js';
 export * from './tat.js';
+export * from './workload.js';
 export * from './history.js';
 export * from './order-report.js';
