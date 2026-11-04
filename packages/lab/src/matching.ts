@@ -1,6 +1,7 @@
 import type { ResultValue } from '@lis/contracts';
 import { uuidv7, type JsonInput } from '@lis/db';
 import { addInstrumentVersion, newResult, type VersionKind } from '@lis/domain';
+import { criticalFor } from './critical.js';
 import { loadResult, saveResult } from './results.js';
 import type { Tx } from './tx.js';
 
@@ -29,8 +30,12 @@ export async function attachObservation(tx: Tx, nm: NormalizedRow, o: Observatio
     const resultId = uuidv7();
     const agg = newResult(resultId, version);
     await tx.result.create({ data: { id: resultId, orderedTestId: test.id, status: agg.status, selectedVersionNo: 1, instrumentId: nm.instrumentId } });
+    const crit = await criticalFor(tx, resultId, version.value, version.units);
     await tx.resultVersion.create({
-      data: { id: uuidv7(), resultId, versionNo: 1, kind: version.kind, value: version.value as unknown as JsonInput, units: version.units ?? null, abnormalFlags: version.abnormalFlags, observationId: o.id, createdBy: version.createdBy },
+      data: {
+        id: uuidv7(), resultId, versionNo: 1, kind: version.kind, value: version.value as unknown as JsonInput, units: version.units ?? null, abnormalFlags: version.abnormalFlags, observationId: o.id, createdBy: version.createdBy,
+        criticalFlag: crit?.flag ?? null, criticalLimitId: crit?.limitId ?? null, criticalDetail: crit?.detail ?? null,
+      },
     });
     return resultId;
   }

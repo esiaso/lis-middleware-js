@@ -14,7 +14,7 @@
       <td>{{accessionNo}}</td>
       <td>{{test}}</td>
       <td class="font-monospace">{{value}} {{units}}</td>
-      <td>{{flags}}</td>
+      <td>{{flags}}{{#if critical}} <span class="badge text-bg-danger">critical {{critical}}</span>{{/if}}</td>
       <td>{{status}}{{#if attention}} <span class="badge text-bg-warning">needs attention</span>{{/if}}</td>
       <td class="small">{{updated}}</td>
     </tr>

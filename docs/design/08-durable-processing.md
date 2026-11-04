@@ -241,3 +241,20 @@ hospital's email/SMS gateway or monitoring system.
   record the communication (who was told, when, read-back confirmed), and
   show unacknowledged criticals on a dashboard with an escalation timer.
   Critical notification does not depend on HMIS availability.
+
+  **Built** (A-18): approvers keep limits at **Critical → Critical limits**
+  (`critical_limit`: test, sex, age band, low and/or high, units, and the
+  lab document the values come from; never edited, a change retires the old
+  limit and adds a new one; both audited). Each result version is checked
+  once, as it is written (instrument value, repeat, dilution, or
+  correction), and keeps its flag (`result_version.critical_flag`: `LOW`,
+  `HIGH`, or `UNITS_DIFFER` when the units do not match the limit, which a
+  person must compare by hand). A `LOW` or `HIGH` version cannot be approved
+  or released until someone records the call (`critical_call`, append-only:
+  who was told, their role and ward, when, read back; a call without
+  read-back cannot be saved). The dashboard and the **Critical** page list
+  every critical version without a call, oldest first, with the time
+  waiting, and refresh every minute. A critical version replaced before
+  approval by a later selected one (a repeat that came back normal) drops
+  off the list; one arriving after approval stays. Sending SMS or e-mail
+  waits for the hospital gateway (13, phase 5).

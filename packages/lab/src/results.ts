@@ -5,6 +5,7 @@ import {
   type ResultAggregate, type ResultStatus, type ResultVersion, type VersionKind, type WorkflowError, type WorkflowPolicy,
 } from '@lis/domain';
 import { appendAudit } from './audit.js';
+import { criticalFor, requireCriticalCall } from './critical.js';
 import type { Tx } from './tx.js';
 
 export class WorkflowRejected extends Error {
@@ -55,6 +56,7 @@ export async function loadResult(tx: Tx | Db, resultId: string): Promise<LoadedR
 /** Write the aggregate back: new versions are inserted (versions are append-only), the row is updated with an optimistic check. */
 export async function saveResult(tx: Tx, before: LoadedResult, after: ResultAggregate, actor: string): Promise<void> {
   for (const v of after.versions.slice(before.aggregate.versions.length)) {
+    const crit = await criticalFor(tx, after.resultId, v.value, v.units);
     await tx.resultVersion.create({
       data: {
         id: uuidv7(),
@@ -67,6 +69,9 @@ export async function saveResult(tx: Tx, before: LoadedResult, after: ResultAggr
         observationId: v.observationId ?? null,
         reason: v.reason ?? null,
         createdBy: v.createdBy ?? actor,
+        criticalFlag: crit?.flag ?? null,
+        criticalLimitId: crit?.limitId ?? null,
+        criticalDetail: crit?.detail ?? null,
       },
     });
   }
@@ -101,10 +106,12 @@ async function command(
   kind: 'review' | 'approve' | 'replay' | 'correct',
   apply: (a: ResultAggregate) => ResultAggregate,
   reason?: string,
+  check?: (tx: Tx, a: ResultAggregate) => Promise<void>,
 ): Promise<ResultAggregate> {
   return db.$transaction(async (tx) => {
     const before = await loadResult(tx, resultId);
     const after = apply(before.aggregate);
+    await check?.(tx, after);
     await saveResult(tx, before, after, actor);
     await tx.resultEvent.create({ data: { id: uuidv7(), resultId, kind, versionNo: after.selectedVersionNo ?? null, actor, reason: reason ?? null } });
     await appendAudit(tx, {
@@ -124,7 +131,7 @@ export const review = (db: Db, resultId: string, user: string, versionNo: number
   command(db, resultId, user, 'review', (a) => unwrap(reviewResult(a, user, versionNo)));
 
 export const approve = (db: Db, resultId: string, user: string, policy: WorkflowPolicy) =>
-  command(db, resultId, user, 'approve', (a) => unwrap(approveResult(a, user, policy)));
+  command(db, resultId, user, 'approve', (a) => unwrap(approveResult(a, user, policy)), undefined, (tx, a) => requireCriticalCall(tx, resultId, a.selectedVersionNo));
 
 export const replay = (db: Db, resultId: string, user: string, reason: string) =>
   command(db, resultId, user, 'replay', (a) => unwrap(replayDelivery(a, reason)), reason).then(async (a) => {
@@ -178,6 +185,7 @@ export async function release(db: Db, resultId: string, user: { username: string
       throw new WorkflowRejected({ code: 'NOT_RELEASABLE', detail: `${row.orderedTest.order.hmisOrderId} is a downtime order; reconcile it to the HMIS order before release` });
     }
     const r = unwrap(releaseResult(before.aggregate, gate));
+    await requireCriticalCall(tx, resultId, r.aggregate.selectedVersionNo);
     const version = r.aggregate.versions.find((v) => v.versionNo === r.aggregate.selectedVersionNo) as ResultVersion;
     const t = row.orderedTest;
     const submission: HmisResultSubmission = {

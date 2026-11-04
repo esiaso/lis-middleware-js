@@ -1,0 +1,61 @@
+<p><a href="/critical">&larr; Critical results</a></p>
+<h1 class="h4">Critical limits</h1>
+<p class="text-body-secondary">A result is critical when it is below the low limit or above the high limit (the limit itself is not critical). The middleware comes with no limits: every value here was entered by the lab from its own policy. A limit applies to results that arrive after it is saved. When a patient's sex or age is not known, every limit for the test applies. Units must match exactly; when they differ the result is marked for a person to compare.</p>
+
+<table class="table table-sm align-middle">
+  <thead><tr><th>Test</th><th>Applies to</th><th>Low</th><th>High</th><th>Units</th><th>Source</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
+  <tbody>
+    {{#each limits}}
+    <tr>
+      <td class="font-monospace">{{test}}</td><td>{{who}}</td><td class="font-monospace">{{#if low}}&lt; {{low}}{{/if}}</td><td class="font-monospace">{{#if high}}&gt; {{high}}{{/if}}</td><td>{{units}}</td><td class="small">{{reference}}</td><td class="small">{{by}}, {{at}}</td>
+      {{#if @root.can.approve}}
+      <td>
+        <details><summary class="small">Retire</summary>
+          <form method="post" action="/critical/limits/{{id}}/retire" class="mt-2">
+            <input type="hidden" name="_csrf" value="{{@root.csrf}}">
+            <input class="form-control form-control-sm mb-1" name="reason" minlength="5" required placeholder="Reason" aria-label="Reason">
+            {{> confirm inputClass="form-control form-control-sm mb-1"}}
+            <button class="btn btn-outline-danger btn-sm" type="submit">Retire limit</button>
+          </form>
+        </details>
+      </td>
+      {{/if}}
+    </tr>
+    {{else}}
+    <tr><td colspan="8" class="text-body-secondary">No critical limits yet, so no result is flagged as critical.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+
+{{#if can.approve}}
+<h2 class="h5 mt-4">Add a limit</h2>
+<p class="small text-body-secondary">To change a limit, add the new one and retire the old one. Both stay in the history.</p>
+{{> issues}}
+<form method="post" action="/critical/limits" class="row g-3">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <div class="col-md-3"><label class="form-label" for="localTestCode">Test</label>
+    <select class="form-select" id="localTestCode" name="localTestCode" required><option value="">Choose</option>{{#each tests}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{code}}</option>{{/each}}</select></div>
+  <div class="col-md-2"><label class="form-label" for="sex">Sex</label>
+    <select class="form-select" id="sex" name="sex"><option value="">Everyone</option><option value="F" {{#if (eq v.sex "F")}}selected{{/if}}>Female</option><option value="M" {{#if (eq v.sex "M")}}selected{{/if}}>Male</option></select></div>
+  <div class="col-md-3"><label class="form-label" for="ageMin">Age from (optional)</label>
+    <div class="input-group"><input class="form-control" id="ageMin" name="ageMin" value="{{v.ageMin}}" inputmode="numeric">
+      <select class="form-select" name="ageMinUnit" aria-label="Unit">{{#each minUnits}}<option {{#if selected}}selected{{/if}}>{{unit}}</option>{{/each}}</select></div></div>
+  <div class="col-md-3"><label class="form-label" for="ageMax">Age up to, not including (optional)</label>
+    <div class="input-group"><input class="form-control" id="ageMax" name="ageMax" value="{{v.ageMax}}" inputmode="numeric">
+      <select class="form-select" name="ageMaxUnit" aria-label="Unit">{{#each maxUnits}}<option {{#if selected}}selected{{/if}}>{{unit}}</option>{{/each}}</select></div></div>
+  <div class="col-md-2"><label class="form-label" for="low">Critical below</label><input class="form-control font-monospace" id="low" name="low" value="{{v.low}}" inputmode="decimal"></div>
+  <div class="col-md-2"><label class="form-label" for="high">Critical above</label><input class="form-control font-monospace" id="high" name="high" value="{{v.high}}" inputmode="decimal"></div>
+  <div class="col-md-2"><label class="form-label" for="units">Units</label><input class="form-control" id="units" name="units" value="{{v.units}}" required maxlength="20"><div class="form-text">Exactly as the instrument sends them.</div></div>
+  <div class="col-md-6"><label class="form-label" for="reference">Source</label><input class="form-control" id="reference" name="reference" value="{{v.reference}}" required minlength="5" maxlength="200"><div class="form-text">The lab policy or document these values come from, with its version.</div></div>
+  <div class="col-md-4">{{> confirm id="limit-password" label="Your password" labelClass="form-label" inputClass="form-control"}}</div>
+  <div class="col-12"><button class="btn btn-primary" type="submit">Save limit</button></div>
+</form>
+{{/if}}
+
+{{#if retired}}
+<h2 class="h6 mt-4">Retired limits</h2>
+<table class="table table-sm small text-body-secondary">
+  <thead><tr><th>Test</th><th>Applies to</th><th>Low</th><th>High</th><th>Units</th><th>Retired</th><th>Reason</th></tr></thead>
+  <tbody>{{#each retired}}<tr><td class="font-monospace">{{test}}</td><td>{{who}}</td><td>{{low}}</td><td>{{high}}</td><td>{{units}}</td><td>{{retiredBy}}, {{retiredAt}}</td><td>{{retireReason}}</td></tr>{{/each}}</tbody>
+</table>
+{{/if}}

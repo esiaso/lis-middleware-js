@@ -22,6 +22,12 @@ export function formatTime(d: Date | null | undefined): string {
   return d.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
 }
 
+/** "0:07" or "2:15": hours and minutes since a moment. */
+export function elapsed(since: Date, now = new Date()): string {
+  const m = Math.max(0, Math.floor((now.getTime() - since.getTime()) / 60_000));
+  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+}
+
 export const STATUS_LABELS: Record<string, string> = {
   received: 'To review',
   reviewed: 'To approve',
@@ -68,6 +74,9 @@ export const NOTICES: Record<string, string> = {
   'link-withdrawn': 'Proposal withdrawn.',
   linked: 'Unmatched result linked. It now needs review and approval like any other result.',
   signedout: 'You have signed out.',
+  'critical-called': 'Call recorded. The critical result can now be approved.',
+  'limit-added': 'Critical limit saved. It applies to results that arrive from now on.',
+  'limit-retired': 'Critical limit retired. Results already flagged keep their flag.',
 };
 
 /** Accept only a local path for the post-login redirect. */

@@ -154,6 +154,9 @@ verification with the vendor report attached.
 +------------------------------------------------------------------------------+
 ```
 
+* A critical version shows a red banner with the time waiting and a
+  "Record the call" form (person told, role and ward, minutes ago, read-back
+  ticked). Approval is refused until it is saved (08 §12).
 * Selecting a version is explicit; the default is the latest, but a newer
   version arriving after review resets the item to RECEIVED.
 * Approve & release shows a confirmation listing exactly which values will
