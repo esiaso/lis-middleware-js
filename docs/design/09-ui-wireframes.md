@@ -280,7 +280,7 @@ specimens and one line per ordered test. Only approved results (by a person
 or by autoverification) carry a value, with units, abnormal and critical
 flags, "corrected" where it applies, the reference range text the
 instrument sent with the value, or the lab's own range when one applies (A-25, marked "lab", with "below range" or "above range"),
-and who approved it and when. Every other test prints as pending or
+and who approved it and when, with any report comments (A-26) under the line. Every other test prints as pending or
 cancelled, never with a value. Each view is recorded in the audit trail
 (`order.report-viewed`). For handing results out during HMIS downtime; the
 HMIS record stays the official result once it has it.
@@ -322,6 +322,14 @@ page shows the range for its patient above the versions, and each version
 whose value is below or above it gets a badge; without a lab range it shows
 the text the instrument sent, if any. The printed report (W-14) does the
 same and names the source.
+
+## W-18 Result comments
+
+**Result → Comments**: every comment on the result, oldest first, marked
+"lab only" or "on the report", with who added it and when. Technologists and
+approvers add comments; only an approver can tick "Print it on the result
+report" or withdraw such a comment. Withdrawing needs a reason; the comment
+stays, struck through, with who withdrew it and why.
 
 ## W-10 Audit search and export
 

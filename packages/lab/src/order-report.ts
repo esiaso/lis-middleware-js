@@ -1,6 +1,7 @@
 import type { ResultValue } from '@lis/contracts';
 import type { Db } from '@lis/db';
 import { APPROVED_STATUSES } from './history.js';
+import { reportComments } from './comments.js';
 import { instrumentReferenceText, labReferences, type ReferenceShown } from './reference-ranges.js';
 import type { Tx } from './tx.js';
 
@@ -25,6 +26,8 @@ export interface ReportLine {
   /** The instrument's text; shown only when the lab has no range for this patient. */
   referenceRange: string | null;
   labReference: ReferenceShown | null;
+  /** Comments marked for the report (A-26), on approved lines only. */
+  comments: string[];
   approvedBy: string | null;
   approvedAt: Date | null;
 }
@@ -58,9 +61,12 @@ export async function orderReport(db: Db | Tx, orderId: string): Promise<ReportL
       corrected: approved && v!.kind === 'correction',
       referenceRange,
       labReference: labReference ?? null,
+      comments: [],
       approvedBy: approved ? (event?.actor ?? r!.approvedBy) : null,
       approvedAt: approved ? (event?.at ?? null) : null,
     });
   }
+  const comments = await reportComments(db, lines.filter((l) => l.state === 'approved' && l.resultId).map((l) => l.resultId as string));
+  for (const l of lines) if (l.resultId && l.state === 'approved') l.comments = comments.get(l.resultId) ?? [];
   return lines;
 }

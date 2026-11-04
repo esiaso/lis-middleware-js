@@ -3,7 +3,7 @@ import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, P
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
 import { migrationStatus, type Db } from '@lis/db';
 import { AUTOVERIFY_ACTOR, clinicalGateFor } from '@lis/domain';
-import { approve, confirmLink, decisionsFor, failingQc, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, waitingCriticals, withdrawLink } from '@lis/lab';
+import { addResultComment, approve, confirmLink, decisionsFor, failingQc, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
 import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS } from './auth.js';
 import { displayTimeZone, elapsed, formatTime, formatValue, NOTICES, REFERENCE_MARK, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
@@ -297,6 +297,7 @@ export class ResultsController {
         versions: { orderBy: { versionNo: 'asc' } },
         events: { orderBy: { at: 'asc' } },
         criticalCalls: { orderBy: { recordedAt: 'asc' } },
+        comments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
         orderedTest: { include: { order: { include: { patient: true } }, specimen: true } },
       },
     });
@@ -364,6 +365,7 @@ export class ResultsController {
         : null,
       calls: r.criticalCalls.map((c) => ({ version: c.versionNo, notified: c.notified, role: c.notifiedRole, at: formatTime(c.calledAt), by: c.recordedBy, recordedAt: formatTime(c.recordedAt), note: c.note ?? '' })),
       autoverify: decisions.map((d) => ({ version: d.versionNo, passed: d.passed, at: formatTime(d.at), reference: d.reference, failed: d.checks.filter((c) => !c.ok), checks: d.checks })),
+      comments: r.comments.map((c) => ({ id: c.id, text: c.text, onReport: c.onReport, by: c.createdBy, at: formatTime(c.createdAt), withdrawn: c.withdrawnAt ? { by: c.withdrawnBy, at: formatTime(c.withdrawnAt), reason: c.withdrawReason } : null })),
       events: r.events.map((e) => ({ kind: e.kind, version: e.versionNo, actor: e.actor, reason: e.reason, at: formatTime(e.at) })),
       actions: {
         review: r.status === 'received' || r.status === 'reviewed',
@@ -374,6 +376,26 @@ export class ResultsController {
       },
       twoPersonRule: this.opts.twoPersonRule,
     });
+  }
+
+  /** A comment on the result (A-26). One printed on the report is an approver's call. */
+  @Post(':id/comments')
+  @Roles('technologist', 'approver')
+  async comment(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Body() body: Form): Promise<void> {
+    const onReport = str(body, 'onReport') === 'yes';
+    if (onReport && !req.user!.roles.includes('approver')) throw new ForbiddenException('Only an approver can add a comment to the printed report.');
+    await addResultComment(this.db, uuidParam(id), req.user!.username, { text: str(body, 'text'), onReport });
+    res.redirect(303, `/results/${id}?notice=comment-added`);
+  }
+
+  @Post(':id/comments/:commentId/withdraw')
+  @Roles('technologist', 'approver')
+  async withdrawComment(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Param('commentId') commentId: string, @Body() body: Form): Promise<void> {
+    const c = await this.db.resultComment.findUnique({ where: { id: uuidParam(commentId) } });
+    if (!c || c.resultId !== uuidParam(id)) throw new NotFoundException();
+    if (c.onReport && !req.user!.roles.includes('approver')) throw new ForbiddenException('Only an approver can withdraw a comment from the printed report.');
+    await withdrawResultComment(this.db, c.id, req.user!.username, str(body, 'reason'));
+    res.redirect(303, `/results/${id}?notice=comment-withdrawn`);
   }
 
   @Post(':id/review')

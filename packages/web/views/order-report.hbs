@@ -30,6 +30,7 @@
         <td colspan="5" class="text-body-secondary">{{#if cancelled}}Cancelled{{else}}Pending{{/if}}</td>
         {{/if}}
       </tr>
+      {{#if comments}}<tr><td class="border-0"></td><td colspan="5" class="small pt-0">{{#each comments}}<div>Comment: {{this}}</div>{{/each}}</td></tr>{{/if}}
       {{/each}}
     </tbody>
   </table>

@@ -47,6 +47,7 @@ export class OrderReportController {
         critical: l.critical ?? '',
         corrected: l.corrected,
         referenceRange: l.labReference ? l.labReference.text : (l.referenceRange ?? ''),
+        comments: l.comments,
         rangeSource: l.labReference ? 'lab' : l.referenceRange ? 'instrument' : '',
         mark: l.labReference?.mark ? (REFERENCE_MARK[l.labReference.mark] ?? '') : '',
         approvedBy: l.approvedBy === AUTOVERIFY_ACTOR ? 'autoverified' : l.approvedBy ? (users.get(l.approvedBy) ?? l.approvedBy) : '',
