@@ -1,6 +1,6 @@
 import type { ResultValue } from '@lis/contracts';
 import { uuidv7, type Db, type JsonInput } from '@lis/db';
-import { evaluateQc, parseQcRange, qcSupports, type QcControl, type QcOutcomeKind, type QcRangeInput } from '@lis/domain';
+import { evaluateQc, evaluateWestgard, parseQcRange, qcSupports, westgardHistory, zScore, type QcControl, type QcOutcome, type QcOutcomeKind, type QcRangeInput, type WestgardRule } from '@lis/domain';
 import { appendAudit } from './audit.js';
 import { InvalidInput } from './instruments.js';
 import { WorkflowRejected } from './results.js';
@@ -9,7 +9,10 @@ import type { Tx } from './tx.js';
 /**
  * QC log (08 §12, A-21). Each QC observation is checked once, inside the
  * intake transaction, against the lab's active ranges for that instrument
- * and test, and the outcome is kept. Nothing here changes patient results.
+ * and test, and the outcome is kept. When the range has a target mean and
+ * SD, the z score is kept too, and the lab's chosen Westgard rules are
+ * checked against that control's earlier accepted results (A-23). Nothing
+ * here changes patient results.
  */
 export async function evaluateQcMessage(tx: Tx, normalizedMessageId: string): Promise<number> {
   const nm = await tx.normalizedMessage.findUniqueOrThrow({ where: { id: normalizedMessageId }, include: { observations: { orderBy: { seq: 'asc' } } } });
@@ -19,14 +22,31 @@ export async function evaluateQcMessage(tx: Tx, normalizedMessageId: string): Pr
   for (const o of nm.observations) {
     const ranges = o.localTestCode ? await tx.qcRange.findMany({ where: { instrumentId: nm.instrumentId, localTestCode: o.localTestCode, active: true } }) : [];
     const value = o.value as unknown as ResultValue;
-    const r = o.localTestCode
+    let r: QcOutcome = o.localTestCode
       ? evaluateQc(value, o.units, ranges, control)
       : { outcome: 'NO_RANGE' as const, rangeId: null, detail: `instrument test ${o.instrumentTestCode} is not mapped to a lab test` };
+    let z: number | null = null;
+    let reject: WestgardRule[] = [];
+    let warn: WestgardRule[] = [];
+    const range = ranges.find((x) => x.id === r.rangeId);
+    if (range?.targetMean && range.targetSd && value.kind === 'numeric' && (r.outcome === 'IN_RANGE' || r.outcome === 'OUT_OF_RANGE')) {
+      z = zScore(value.value, range.targetMean, range.targetSd);
+      const rules = range.westgardRules as WestgardRule[];
+      const need = westgardHistory(rules);
+      const earlier = need
+        ? await tx.qcEvaluation.findMany({ where: { rangeId: range.id, outcome: 'IN_RANGE', zScore: { not: null } }, orderBy: [{ at: 'desc' }, { id: 'desc' }], take: need, select: { zScore: true } })
+        : [];
+      ({ reject, warn } = evaluateWestgard(z, earlier.map((e) => e.zScore as number), rules));
+      const note = [reject.length ? `breaks ${reject.join(', ')}` : '', warn.length ? `warning ${warn.join(', ')}` : ''].filter(Boolean).join('; ');
+      const detail = `${r.detail}, z ${z.toFixed(2)}${note ? `; ${note}` : ''}`;
+      r = { ...r, outcome: r.outcome === 'IN_RANGE' && reject.length ? 'RULE_VIOLATION' : r.outcome, detail };
+    }
     await tx.qcEvaluation.create({
       data: {
         id: uuidv7(), observationId: o.id, instrumentId: nm.instrumentId, localTestCode: o.localTestCode,
         controlLot: control.lot ?? null, controlName: control.controlName ?? null, controlLevel: control.level ?? null,
         value: o.value as JsonInput, units: o.units, rangeId: r.rangeId, outcome: r.outcome, detail: r.detail,
+        zScore: z, westgardReject: reject, westgardWarn: warn,
       },
     });
     n++;
@@ -52,7 +72,7 @@ export interface FailingQc {
   at: Date;
 }
 
-/** Active ranges whose latest QC result is out of range or in other units, oldest first. */
+/** Active ranges whose latest QC result failed (out of range, a Westgard rejection, other units), oldest first. */
 export async function failingQc(db: Db | Tx): Promise<FailingQc[]> {
   return db.$queryRaw<FailingQc[]>`
     SELECT l."instrumentId", i.display_name AS "instrumentName", l."localTestCode", l."controlLot", l."controlName", l.outcome, l.detail, l.at
@@ -64,7 +84,7 @@ export async function failingQc(db: Db | Tx): Promise<FailingQc[]> {
          ORDER BY e.range_id, e.at DESC, e.id DESC
       ) l
       JOIN instrument i ON i.id = l."instrumentId"
-     WHERE l.outcome IN ('OUT_OF_RANGE', 'UNITS_DIFFER')
+     WHERE l.outcome IN ('OUT_OF_RANGE', 'RULE_VIOLATION', 'UNITS_DIFFER')
      ORDER BY l.at ASC`;
 }
 

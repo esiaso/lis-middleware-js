@@ -685,6 +685,10 @@ model QcRange {
   high          String
   units         String
   reference     String
+  /// Westgard (A-23): decimal text, both or neither. Rules need them.
+  targetMean    String?    @map("target_mean")
+  targetSd      String?    @map("target_sd")
+  westgardRules String[]   @default([]) @map("westgard_rules")
   active        Boolean    @default(true)
   createdBy     String     @map("created_by")
   createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz
@@ -709,13 +713,18 @@ model QcEvaluation {
   value         Json
   units         String?
   rangeId       String?     @map("range_id") @db.Uuid
-  /// IN_RANGE, OUT_OF_RANGE, UNITS_DIFFER, NO_RANGE, NOT_NUMERIC
+  /// IN_RANGE, OUT_OF_RANGE, RULE_VIOLATION, UNITS_DIFFER, NO_RANGE, NOT_NUMERIC
   outcome       String
   detail        String
+  /// Against the range's target mean and SD, when it has them.
+  zScore        Float?      @map("z_score")
+  westgardReject String[]   @default([]) @map("westgard_reject")
+  westgardWarn  String[]    @default([]) @map("westgard_warn")
   at            DateTime    @default(now()) @db.Timestamptz
   observation   Observation @relation(fields: [observationId], references: [id])
 
   @@index([instrumentId, localTestCode, at])
+  @@index([rangeId, at])
   @@index([at])
   @@map("qc_evaluation")
 }

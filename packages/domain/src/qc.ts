@@ -1,12 +1,15 @@
 import type { ResultValue } from '@lis/contracts';
 import { compareDecimal, isDecimal } from './critical-limits.js';
+import { parseWestgard, type WestgardRule } from './westgard.js';
 
 /**
  * QC log (08 §12, A-21). Instruments already send their QC results; the
  * middleware keeps them apart from patient results (T-16) and checks each
  * one against the acceptable range the lab enters for that instrument, test
- * and control. It ships with no ranges and applies no Westgard rules: a
- * value is in or out of the lab's range, nothing more.
+ * and control. It ships with no ranges. A range may also carry the
+ * control's target mean and SD and the Westgard rules the lab chose
+ * (westgard.ts, A-23); a value inside the range that breaks a rejection
+ * rule is RULE_VIOLATION.
  */
 export interface QcRange {
   id: string;
@@ -25,7 +28,7 @@ export interface QcControl {
   level?: string | undefined;
 }
 
-export type QcOutcomeKind = 'IN_RANGE' | 'OUT_OF_RANGE' | 'UNITS_DIFFER' | 'NO_RANGE' | 'NOT_NUMERIC';
+export type QcOutcomeKind = 'IN_RANGE' | 'OUT_OF_RANGE' | 'RULE_VIOLATION' | 'UNITS_DIFFER' | 'NO_RANGE' | 'NOT_NUMERIC';
 
 export interface QcOutcome {
   outcome: QcOutcomeKind;
@@ -51,7 +54,7 @@ export function evaluateQc(value: ResultValue, units: string | null | undefined,
 }
 
 /** Outcomes a person must act on. */
-export const QC_FAILED: readonly QcOutcomeKind[] = ['OUT_OF_RANGE', 'UNITS_DIFFER'];
+export const QC_FAILED: readonly QcOutcomeKind[] = ['OUT_OF_RANGE', 'RULE_VIOLATION', 'UNITS_DIFFER'];
 
 /**
  * Whether QC supports autoverifying a result now: within the window there is
@@ -68,7 +71,7 @@ export function qcSupports(evals: { rangeId: string | null; outcome: QcOutcomeKi
   }
   if (!latest.size) return { ok: false, detail: `no checked QC result in the last ${hours} h` };
   const bad = [...latest.values()].filter((e) => e.outcome !== 'IN_RANGE').length;
-  if (bad) return { ok: false, detail: `${bad} of ${latest.size} control${latest.size === 1 ? '' : 's'} out of range in the latest QC` };
+  if (bad) return { ok: false, detail: `${bad} of ${latest.size} control${latest.size === 1 ? '' : 's'} failed the latest QC` };
   return { ok: true, detail: `${latest.size} control${latest.size === 1 ? '' : 's'} in range in the last ${hours} h` };
 }
 
@@ -81,9 +84,28 @@ export interface QcRangeInput {
   high: string;
   units: string;
   reference: string;
+  /** Optional, both or neither: the control's target mean and SD. */
+  targetMean?: string | undefined;
+  targetSd?: string | undefined;
+  /** Westgard rules to apply; they need the mean and SD. */
+  westgardRules?: string[] | undefined;
 }
 
-export function parseQcRange(i: QcRangeInput): { ok: true; value: { instrumentId: string; localTestCode: string; controlLot: string | null; controlName: string | null; low: string; high: string; units: string; reference: string } } | { ok: false; issues: string[] } {
+export interface ParsedQcRange {
+  instrumentId: string;
+  localTestCode: string;
+  controlLot: string | null;
+  controlName: string | null;
+  low: string;
+  high: string;
+  units: string;
+  reference: string;
+  targetMean: string | null;
+  targetSd: string | null;
+  westgardRules: WestgardRule[];
+}
+
+export function parseQcRange(i: QcRangeInput): { ok: true; value: ParsedQcRange } | { ok: false; issues: string[] } {
   const issues: string[] = [];
   const low = i.low.trim();
   const high = i.high.trim();
@@ -98,6 +120,8 @@ export function parseQcRange(i: QcRangeInput): { ok: true; value: { instrumentId
   if (isDecimal(low) && isDecimal(high) && compareDecimal(low, high) > 0) issues.push('The lowest acceptable value must not be above the highest.');
   if (!i.units.trim() || i.units.trim().length > 20) issues.push('Units: 1 to 20 characters, exactly as the instrument reports them.');
   if (i.reference.trim().length < 5 || i.reference.trim().length > 200) issues.push('Source: 5 to 200 characters, for example the control insert or the lab\'s QC plan and its version.');
-  if (issues.length) return { ok: false, issues };
-  return { ok: true, value: { instrumentId: i.instrumentId.trim(), localTestCode: i.localTestCode.trim(), controlLot: lot || null, controlName: name || null, low, high, units: i.units.trim(), reference: i.reference.trim() } };
+  const w = parseWestgard(i.targetMean ?? '', i.targetSd ?? '', i.westgardRules ?? []);
+  if (!w.ok) issues.push(...w.issues);
+  if (issues.length || !w.ok) return { ok: false, issues };
+  return { ok: true, value: { instrumentId: i.instrumentId.trim(), localTestCode: i.localTestCode.trim(), controlLot: lot || null, controlName: name || null, low, high, units: i.units.trim(), reference: i.reference.trim(), ...w.value } };
 }

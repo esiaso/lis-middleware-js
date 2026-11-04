@@ -92,15 +92,15 @@ describe.skipIf(!url)('QC log over HTTP', () => {
 
     await qc([['K', '5.2']]);
     expect((await failingQc(db)).map((f) => f.detail)).toEqual(['5.2 outside 4.1 to 4.9 mmol/L']);
-    expect((await dr.get('/')).html).toContain('QC out of range: 1');
+    expect((await dr.get('/')).html).toContain('QC failed: 1');
     const log = await dr.get('/qc');
-    expect(log.html).toContain('Latest QC out of range');
+    expect(log.html).toContain('Latest QC failed');
     expect(log.html).toContain('out of range');
 
     // A rerun in range clears the warning; history stays.
     await qc([['K', '4.6']]);
     expect(await failingQc(db)).toEqual([]);
-    expect((await dr.get('/')).html).not.toContain('QC out of range');
+    expect((await dr.get('/')).html).not.toContain('QC failed');
     expect(await db.qcEvaluation.count()).toBe(4);
 
     const range = await db.qcRange.findFirstOrThrow();
@@ -132,5 +132,40 @@ describe.skipIf(!url)('QC log over HTTP', () => {
     testId = uuidv7();
     await db.orderedTest.create({ data: { id: testId, orderId: t.orderId, hmisLineId: '3', hmisTestCode: 'HMIS-K', localTestCode: 'K', status: 'collected', specimenId: t.specimenId } });
     expect((await db.result.findUniqueOrThrow({ where: { id: await arrive() } })).status).toBe('received');
+  });
+
+  it('applies the Westgard rules the lab chose, along one control\'s accepted results', async () => {
+    const dr = await as('dr.lab');
+    const csrf = await dr.csrf('/qc/ranges');
+    const noTarget = await dr.post('/qc/ranges', { ...rangeForm, _csrf: csrf, westgardRules: ['2-2s'] });
+    expect(noTarget.status).toBe(422);
+    expect(noTarget.html).toContain('Westgard rules need the target mean and SD');
+    // Mean 4.5, SD 0.1: the range 4.1 to 4.9 is ±4 SD, so the rules decide first.
+    expect((await dr.post('/qc/ranges', { ...rangeForm, _csrf: csrf, targetMean: '4.5', targetSd: '0.1', westgardRules: ['1-2s', '1-3s', '2-2s'] })).location).toBe('/qc/ranges?notice=qc-range-added');
+    const page = await dr.get('/qc/ranges');
+    expect(page.html).toContain('4.5 ± 0.1');
+    expect(page.html).toContain('1-2s, 1-3s, 2-2s');
+
+    await qc([['K', '4.73']]); // z 2.3: warning only
+    let e = await db.qcEvaluation.findFirstOrThrow({ orderBy: { at: 'desc' } });
+    expect([e.outcome, e.zScore, e.westgardWarn, e.westgardReject]).toEqual(['IN_RANGE', 2.3, ['1-2s'], []]);
+    expect((await dr.get('/qc')).html).toContain('1-2s warning');
+
+    await qc([['K', '4.72']]); // second beyond +2 SD in a row: 2-2s
+    e = await db.qcEvaluation.findFirstOrThrow({ orderBy: [{ at: 'desc' }, { id: 'desc' }] });
+    expect([e.outcome, e.westgardReject]).toEqual(['RULE_VIOLATION', ['2-2s']]);
+    expect(e.detail).toBe('4.72 within 4.1 to 4.9 mmol/L, z 2.20; breaks 2-2s; warning 1-2s');
+    expect((await failingQc(db)).length).toBe(1);
+    expect((await dr.get('/')).html).toContain('QC failed: 1');
+
+    // A rerun near the mean passes; the rejected result does not count again.
+    await qc([['K', '4.52']]);
+    expect(await failingQc(db)).toEqual([]);
+    await qc([['K', '4.75']]); // only one beyond +2 SD among accepted results since
+    e = await db.qcEvaluation.findFirstOrThrow({ orderBy: [{ at: 'desc' }, { id: 'desc' }] });
+    expect(e.outcome).toBe('IN_RANGE');
+    await qc([['K', '4.85']]); // z 3.5: 1-3s, inside the range
+    e = await db.qcEvaluation.findFirstOrThrow({ orderBy: [{ at: 'desc' }, { id: 'desc' }] });
+    expect(e.westgardReject).toEqual(['1-3s', '2-2s']);
   });
 });

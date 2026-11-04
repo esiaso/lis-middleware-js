@@ -265,8 +265,12 @@ hospital's email/SMS gateway or monitoring system.
   (`qc_range`, one active per instrument, test and control; audited and
   step-up confirmed) and the outcome is kept (`qc_evaluation`,
   append-only). The **QC** page lists recent results and every control whose
-  latest result is out of range; the dashboard warns until a later result is
-  in range. No multi-rule checks.
+  latest result failed; the dashboard warns until a later result passes.
+  **Westgard rules, built** (A-23): a range may carry the control's target
+  mean and SD and the lab's choice of 1-2s (warning), 1-3s, 2-2s, 4-1s and
+  10x, checked along that control's earlier accepted results; a rejection
+  inside the range is `RULE_VIOLATION`. The z score and the rules broken are
+  kept on `qc_evaluation`. No R-4s, no charts.
 * **Critical results**: a configurable critical range per test and patient
   group. When a version crosses it: flag in review, require the approver to
   record the communication (who was told, when, read-back confirmed), and

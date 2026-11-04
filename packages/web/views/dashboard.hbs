@@ -1,6 +1,6 @@
 <h1 class="h4 mb-3">Dashboard</h1>
 {{#if overdue}}<div class="alert alert-warning d-flex align-items-center gap-3" role="alert"><strong>{{overdue.n}} result{{#unless (eq overdue.n 1)}}s{{/unless}} past the turnaround target</strong> <span>most late by {{overdue.oldest}}</span> <a class="btn btn-outline-dark btn-sm ms-auto" href="/reports/overdue">Open</a></div>{{/if}}
-{{#if qcFailing}}<div class="alert alert-warning d-flex align-items-center gap-3" role="alert"><strong>QC out of range: {{qcFailing.n}}</strong> <span>{{qcFailing.list}}</span> <a class="btn btn-outline-dark btn-sm ms-auto" href="/qc">Open</a></div>{{/if}}
+{{#if qcFailing}}<div class="alert alert-warning d-flex align-items-center gap-3" role="alert"><strong>QC failed: {{qcFailing.n}}</strong> <span>{{qcFailing.list}}</span> <a class="btn btn-outline-dark btn-sm ms-auto" href="/qc">Open</a></div>{{/if}}
 {{#if critical}}<div class="alert alert-danger d-flex align-items-center gap-3" role="alert"><strong>&#9650; {{critical.n}}{{#if critical.more}}+{{/if}} critical result{{#unless (eq critical.n 1)}}s{{/unless}} not yet called</strong> <span>oldest waiting {{critical.oldest}}</span> <a class="btn btn-danger btn-sm ms-auto" href="/critical">Open</a></div>{{/if}}
 <div class="row g-3 mb-4">
   {{#each tiles}}
