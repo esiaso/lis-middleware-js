@@ -272,6 +272,19 @@ It holds results from this middleware only. A reconciled provisional record
 points to the HMIS patient its results moved to. The result and order pages
 link to it.
 
+## W-14 Printed result report
+
+**Order → Print result report**: an A4 page for the browser's print dialog,
+headed by `LIMS_REPORT_HEADER` (11), with the patient, the order, the
+specimens and one line per ordered test. Only approved results (by a person
+or by autoverification) carry a value, with units, abnormal and critical
+flags, "corrected" where it applies, the reference range text the
+instrument sent with the value (the middleware has no ranges of its own),
+and who approved it and when. Every other test prints as pending or
+cancelled, never with a value. Each view is recorded in the audit trail
+(`order.report-viewed`). For handing results out during HMIS downtime; the
+HMIS record stays the official result once it has it.
+
 ## W-10 Audit search and export
 
 ```

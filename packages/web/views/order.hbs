@@ -3,6 +3,7 @@
 {{#if o.downtime}}<div class="alert alert-warning" role="alert"><strong>Downtime order.</strong> {{#if o.reconciled}}Reconciled; its specimens and results moved to the HMIS order.{{else}}Results are held from the HMIS until this order is <a href="/downtime/{{o.id}}">reconciled</a>.{{/if}}</div>{{/if}}
 <p class="mb-1"><strong><a href="/patients/{{patient.id}}">{{patient.name}}</a></strong>{{#if o.provisional}} <span class="badge text-bg-warning">provisional</span>{{/if}} · MRN {{patient.mrn}}{{#if patient.sex}} · {{patient.sex}}{{/if}}{{#if patient.birthDate}} · born {{patient.birthDate}}{{/if}}</p>
 <p class="small text-body-secondary mb-3">Ordered {{o.orderedAt}}{{#if o.location}} · {{o.location}}{{/if}}{{#if o.clinician}} · {{o.clinician}}{{/if}}{{#if o.encounter}} · encounter {{o.encounter}}{{/if}}</p>
+<p><a class="btn btn-outline-secondary btn-sm" href="/orders/{{o.id}}/report">Print result report</a></p>
 
 <h2 class="h6">To collect</h2>
 {{#each groups}}
