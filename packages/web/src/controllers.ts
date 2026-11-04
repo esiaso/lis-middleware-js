@@ -3,10 +3,10 @@ import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, P
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
 import { migrationStatus, type Db } from '@lis/db';
 import { AUTOVERIFY_ACTOR, clinicalGateFor } from '@lis/domain';
-import { approve, confirmLink, decisionsFor, failingQc, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, waitingCriticals, withdrawLink } from '@lis/lab';
+import { approve, confirmLink, decisionsFor, failingQc, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, waitingCriticals, withdrawLink } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
 import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS } from './auth.js';
-import { displayTimeZone, elapsed, formatTime, formatValue, NOTICES, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
+import { displayTimeZone, elapsed, formatTime, formatValue, NOTICES, REFERENCE_MARK, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
 import { LOGIN_CSRF_COOKIE, OpenDuringPasswordChange, Public, Roles, SESSION_COOKIE, type WebRequest } from './security.js';
 import { CALLBACK_PATH, FLIGHT_MS, OIDC_COOKIE, OidcRefused, START_PATH, STEP_UP_PATH, type Oidc } from './oidc.js';
 import { DB, OIDC, WEB_OPTIONS, type WebOptions } from './tokens.js';
@@ -316,7 +316,12 @@ export class ResultsController {
       : ({ releasable: true } as const);
     const t = r.orderedTest;
     const decisions = await decisionsFor(this.db, r.id);
+    const p = t.order.patient;
+    const refs = await labReferences(this.db, r.versions.map((v) => ({ localTestCode: t.localTestCode, sex: p.sex, birthDate: p.birthDate, collectedAt: t.specimen?.collectedAt ?? null, storedAt: v.createdAt, value: v.value as unknown as ResultValue, units: v.units })));
+    const shownVersion = r.versions.find((v) => v.versionNo === r.selectedVersionNo) ?? r.versions[r.versions.length - 1];
+    const shownRef = shownVersion ? refs[r.versions.indexOf(shownVersion)] : null;
     page(req, res, 'result', {
+      reference: shownRef ? { lab: true, text: shownRef.text, who: shownRef.who, source: shownRef.source } : shownVersion ? { lab: false, text: (await instrumentReferenceText(this.db, shownVersion.observationId)) ?? '' } : null,
       title: `Result ${t.localTestCode ?? t.hmisTestCode}`,
       r: {
         id: r.id,
@@ -349,6 +354,10 @@ export class ResultsController {
         unitsDiffer: v.criticalFlag === 'UNITS_DIFFER' ? (v.criticalDetail ?? '') : '',
         delta: v.deltaFlag ? { exceeded: v.deltaFlag === 'EXCEEDED', detail: v.deltaDetail ?? '', previous: v.deltaPreviousResultId ? `/results/${v.deltaPreviousResultId}` : '' } : null,
         called: called.has(v.versionNo),
+        mark: (() => {
+          const m = refs[r.versions.indexOf(v)]?.mark;
+          return m ? (REFERENCE_MARK[m] ?? '') : '';
+        })(),
       })),
       critical: waiting.length
         ? waiting.map((v) => ({ no: v.versionNo, value: formatValue(v.value as unknown as ResultValue), units: v.units ?? '', flag: v.criticalFlag, detail: v.criticalDetail ?? '', waiting: elapsed(v.createdAt) }))

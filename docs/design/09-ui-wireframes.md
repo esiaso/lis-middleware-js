@@ -279,7 +279,7 @@ headed by `LIMS_REPORT_HEADER` (11), with the patient, the order, the
 specimens and one line per ordered test. Only approved results (by a person
 or by autoverification) carry a value, with units, abnormal and critical
 flags, "corrected" where it applies, the reference range text the
-instrument sent with the value (the middleware has no ranges of its own),
+instrument sent with the value, or the lab's own range when one applies (A-25, marked "lab", with "below range" or "above range"),
 and who approved it and when. Every other test prints as pending or
 cancelled, never with a value. Each view is recorded in the audit trail
 (`order.report-viewed`). For handing results out during HMIS downtime; the
@@ -311,6 +311,17 @@ shown beside the total, not added to it, because some are attached later
 and then counted as measurements. Counts only, no patient data. The CSV
 (day, instrument, test, measurements, repeats) is limited to approvers and
 auditors and each export is audited (`report.workload-export`).
+
+## W-17 Reference ranges
+
+**Results → Reference ranges** (also linked from Critical limits): the
+lab's ranges per test, for everyone or one sex, for all ages or an age band,
+inclusive, in exact units, with the source document. Approvers add and
+retire them (password confirmation, audited); none are shipped. The result
+page shows the range for its patient above the versions, and each version
+whose value is below or above it gets a badge; without a lab range it shows
+the text the instrument sent, if any. The printed report (W-14) does the
+same and names the source.
 
 ## W-10 Audit search and export
 

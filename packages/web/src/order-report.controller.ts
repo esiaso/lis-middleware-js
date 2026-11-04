@@ -4,7 +4,7 @@ import { AUTOVERIFY_ACTOR } from '@lis/domain';
 import { appendAudit, orderReport } from '@lis/lab';
 import type { Response } from 'express';
 import { page, uuidParam } from './controllers.js';
-import { formatTime, formatValue } from './format.js';
+import { formatTime, formatValue, REFERENCE_MARK } from './format.js';
 import type { WebRequest } from './security.js';
 import { DB, WEB_OPTIONS, type WebOptions } from './tokens.js';
 
@@ -46,7 +46,9 @@ export class OrderReportController {
         flags: l.abnormalFlags.join(' '),
         critical: l.critical ?? '',
         corrected: l.corrected,
-        referenceRange: l.referenceRange ?? '',
+        referenceRange: l.labReference ? l.labReference.text : (l.referenceRange ?? ''),
+        rangeSource: l.labReference ? 'lab' : l.referenceRange ? 'instrument' : '',
+        mark: l.labReference?.mark ? (REFERENCE_MARK[l.labReference.mark] ?? '') : '',
         approvedBy: l.approvedBy === AUTOVERIFY_ACTOR ? 'autoverified' : l.approvedBy ? (users.get(l.approvedBy) ?? l.approvedBy) : '',
         approvedAt: formatTime(l.approvedAt),
       })),

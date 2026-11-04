@@ -30,6 +30,9 @@ export function formatTime(d: Date | null | undefined): string {
   return formatZoned(d, zone);
 }
 
+/** How a value sits against the lab's reference range (A-25); within the range shows nothing. */
+export const REFERENCE_MARK: Record<string, string> = { BELOW: 'below range', ABOVE: 'above range', UNITS_DIFFER: 'units differ from the range' };
+
 /** A duration for reports: "under 1 min", "45 min", "2 h 05 min", "3 d 4 h". */
 export function formatDuration(seconds: number | null): string {
   if (seconds === null) return '';
@@ -99,6 +102,8 @@ export const NOTICES: Record<string, string> = {
   'autoverify-retired': 'Autoverification turned off for that test. Results already approved stay approved.',
   'delta-added': 'Delta rule saved. It applies to results that arrive from now on.',
   'delta-retired': 'Delta rule retired. Results already flagged keep their flag.',
+  'reference-range-added': 'Reference range saved. It applies to values stored from now on.',
+  'reference-range-retired': 'Reference range retired. Values stored while it was in force still show it.',
   'qc-range-added': 'QC range saved. It applies to QC results that arrive from now on.',
   'qc-range-retired': 'QC range retired. Earlier checks keep their outcome.',
   'target-added': 'Turnaround target saved. It applies to the report and the overdue list straight away.',

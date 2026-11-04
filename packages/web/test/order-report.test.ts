@@ -7,7 +7,7 @@ import { pino } from 'pino';
 import { Browser, PW } from './browser.js';
 
 const url = process.env['TEST_DATABASE_URL'];
-const TABLES = 'user_session, app_user, audit_event, result_event, result_version, result, observation, normalized_message, specimen, ordered_test, lab_order, patient';
+const TABLES = 'reference_range, user_session, app_user, audit_event, result_event, result_version, result, observation, normalized_message, specimen, ordered_test, lab_order, patient';
 
 describe.skipIf(!url)('printed result report', () => {
   let db: Db;
@@ -79,5 +79,45 @@ describe.skipIf(!url)('printed result report', () => {
     expect(r.html).toContain('Cancelled');
     expect(r.html).toContain('Printed');
     expect(await db.auditEvent.count({ where: { action: 'order.report-viewed', entityId: orderId } })).toBe(1);
+  });
+
+  it('shows the lab\'s reference range where one fits the patient, with a mark, and keeps it after retirement', async () => {
+    const dr = new Browser(base);
+    expect((await dr.signIn('dr.lab')).status).toBe(303);
+    const csrf = await dr.csrf('/reference-ranges');
+    // Ranges here are made up for the test, not from any insert.
+    const form = { localTestCode: 'K', sex: '', ageMin: '', ageMinUnit: 'years', ageMax: '', ageMaxUnit: 'years', low: '3.5', high: '5.1', units: 'mmol/L', reference: 'Lab ranges v1', password: PW, _csrf: csrf };
+    const bad = await dr.post('/reference-ranges', { ...form, low: '6', high: '5' });
+    expect(bad.status).toBe(422);
+    expect(bad.html).toContain('must not be above the upper limit');
+    expect((await dr.post('/reference-ranges', form)).location).toBe('/reference-ranges?notice=reference-range-added');
+    expect((await dr.post('/reference-ranges', form)).html).toContain('already has an active range');
+    // A female-only range does not apply to this male patient; an age band needs a birth date he does not have.
+    expect((await dr.post('/reference-ranges', { ...form, localTestCode: 'NA', sex: 'F', low: '135', high: '145' })).status).toBe(303);
+    expect((await dr.post('/reference-ranges', { ...form, localTestCode: 'CL', ageMin: '18', low: '98', high: '107' })).status).toBe(303);
+    const list = await dr.get('/reference-ranges');
+    expect(list.html).toContain('female, all ages');
+    expect(list.html).toContain('everyone, from 18 years');
+
+    await test('1', 'K', { status: 'sent', value: '5.6', approvedBy: 'dr.lab', range: '3.4-5.0' });
+    await test('2', 'NA', { status: 'sent', value: '150', approvedBy: 'dr.lab' });
+    await test('3', 'CL', { status: 'sent', value: '120', approvedBy: 'dr.lab' });
+
+    const r = await dr.get(`/orders/${orderId}/report`);
+    expect(r.html).toContain('3.5 to 5.1 mmol/L <span class="text-body-secondary">(lab)</span>'); // the lab's range wins over the instrument's 3.4-5.0
+    expect(r.html).not.toContain('3.4-5.0');
+    expect(r.html.match(/above range/g)?.length).toBe(1); // K only: no range applies to NA or CL
+    expect(r.html).not.toContain('135 to 145');
+
+    const k = await db.result.findFirstOrThrow({ where: { orderedTest: { localTestCode: 'K' } } });
+    const page = await dr.get(`/results/${k.id}`);
+    expect(page.html).toContain("(the lab's range for everyone, all ages; Lab ranges v1)");
+    expect(page.html).toContain('<span class="badge text-bg-info">above range</span>');
+
+    // Retiring the range leaves the stored value's report as it was.
+    const range = await db.referenceRange.findFirstOrThrow({ where: { localTestCode: 'K' } });
+    expect((await dr.post(`/reference-ranges/${range.id}/retire`, { _csrf: csrf, reason: 'new verification', password: PW })).location).toBe('/reference-ranges?notice=reference-range-retired');
+    expect((await dr.get(`/orders/${orderId}/report`)).html).toContain('3.5 to 5.1 mmol/L');
+    expect((await db.auditEvent.findMany({ where: { entityType: 'reference_range' } })).map((e) => e.action).sort()).toEqual(['reference-range.add', 'reference-range.add', 'reference-range.add', 'reference-range.retire']);
   });
 });
