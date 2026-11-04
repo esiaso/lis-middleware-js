@@ -1,5 +1,5 @@
 #!/bin/sh
-# Operations CLI from the release bundle: lims verify | status | db migrate | diag tcp <host> <port> | version
+# Operations CLI from the release bundle: lims verify | status | db migrate | config validate | secrets set <name> | diag tcp|bundle | version
 set -eu
 HERE=$(dirname "$(readlink -f "$0")")/..
 if [ -z "${DATABASE_URL:-}${DATABASE_URL_FILE:-}${CREDENTIALS_DIRECTORY:-}" ] && [ -r /etc/lims/secrets/database_url ]; then

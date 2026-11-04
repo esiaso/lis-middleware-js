@@ -157,10 +157,10 @@ export interface VerifyReport {
   text: string;
 }
 
-export async function runVerify(o: { db: Db | undefined; env?: NodeJS.ProcessEnv; bundleRoot?: string | undefined; now?: Date }): Promise<VerifyReport> {
+export async function runVerify(o: { db: Db | undefined; env?: NodeJS.ProcessEnv; bundleRoot?: string | undefined; now?: Date; settings?: Check }): Promise<VerifyReport> {
   const env = o.env ?? process.env;
   const manifest = o.bundleRoot ? readManifest(o.bundleRoot) : undefined;
-  const checks: Check[] = [checkRuntime(manifest), await checkSums(o.bundleRoot), await checkSerial(), checkSecrets(env)];
+  const checks: Check[] = [checkRuntime(manifest), await checkSums(o.bundleRoot), await checkSerial(), checkSecrets(env), ...(o.settings ? [o.settings] : [])];
   if (o.db) checks.push(...(await checkDatabase(o.db, manifest?.migrations)));
   else checks.push({ name: 'database', status: 'fail', detail: 'no database credential, so the database was not checked' });
   const ok = checks.every((c) => c.status !== 'fail');

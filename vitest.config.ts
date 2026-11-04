@@ -6,6 +6,8 @@ const pkg = (name: string) => fileURLToPath(new URL(`./packages/${name}/src/inde
 export default defineConfig({
   resolve: {
     alias: {
+      // Subpath entries first: an alias also matches longer names that start with it.
+      '@lis/web/oidc': fileURLToPath(new URL('./packages/web/src/oidc.ts', import.meta.url)),
       '@lis/contracts': pkg('contracts'),
       '@lis/protocol-astm': pkg('protocol-astm'),
       '@lis/protocol-hl7v2': pkg('protocol-hl7v2'),

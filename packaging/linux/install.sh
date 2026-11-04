@@ -53,8 +53,8 @@ ln -sfn "$PREFIX/current/bin/lims-web" /usr/local/bin/lims-web
 cat <<EOF
 
 Installed $VERSION. Nothing was started. Next (11 §3 steps 3 to 8):
-  1. Put the database URL in $ETC/secrets/database_url (mode 0600, root).
-  2. Review $ETC/lims.env.
+  1. lims secrets set database_url   (piped in, or typed unseen)
+  2. Review $ETC/lims.env, then: lims config validate
   3. lims db migrate
   4. lims-web create-user <username> "<display name>" admin < password-file   (first install only)
   5. lims verify --out /var/log/lims
