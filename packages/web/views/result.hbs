@@ -34,13 +34,14 @@
 
 <p>Status: <strong>{{r.status}}</strong>{{#if r.autoverified}} · <span class="badge text-bg-success">autoverified</span> approved by the lab's autoverification rule, waiting for a person to release{{else}}{{#if r.reviewedBy}} · reviewed by {{r.reviewedBy}}{{/if}}{{#if r.approvedBy}} · approved by {{r.approvedBy}}{{/if}}{{/if}}</p>
 
+{{#if reference}}{{#if reference.text}}<p class="small mb-2">Reference range: <strong class="font-monospace">{{reference.text}}</strong> {{#if reference.lab}}(the lab's range for {{reference.who}}; {{reference.source}}){{else}}(sent by the instrument){{/if}}</p>{{/if}}{{/if}}
 <h2 class="h6">Versions</h2>
 <table class="table table-sm">
   <thead><tr><th>#</th><th>Kind</th><th>Value</th><th>Flags</th><th>By</th><th>At</th><th>Reason</th></tr></thead>
   <tbody>
     {{#each versions}}
     <tr class="{{#if selected}}table-primary{{/if}}">
-      <td>{{no}}{{#if selected}} (selected){{/if}}</td><td>{{kind}}</td><td class="font-monospace">{{value}} {{units}}</td><td>{{flags}}{{#if critical}} <span class="badge text-bg-danger">critical {{critical}}</span>{{#if called}} <span class="badge text-bg-secondary">called</span>{{/if}}{{/if}}{{#if unitsDiffer}} <span class="badge text-bg-warning" title="{{unitsDiffer}}">limit not checked: units differ</span>{{/if}}{{#if delta}}<div class="small mt-1">{{#if delta.exceeded}}<span class="badge text-bg-warning">delta</span>{{else}}<span class="badge text-bg-secondary">delta not checked</span>{{/if}} {{delta.detail}}{{#if delta.previous}} · <a href="{{delta.previous}}">previous result</a>{{/if}}</div>{{/if}}</td><td>{{by}}</td><td class="small">{{at}}</td><td>{{reason}}</td>
+      <td>{{no}}{{#if selected}} (selected){{/if}}</td><td>{{kind}}</td><td class="font-monospace">{{value}} {{units}}</td><td>{{flags}}{{#if mark}} <span class="badge text-bg-info">{{mark}}</span>{{/if}}{{#if critical}} <span class="badge text-bg-danger">critical {{critical}}</span>{{#if called}} <span class="badge text-bg-secondary">called</span>{{/if}}{{/if}}{{#if unitsDiffer}} <span class="badge text-bg-warning" title="{{unitsDiffer}}">limit not checked: units differ</span>{{/if}}{{#if delta}}<div class="small mt-1">{{#if delta.exceeded}}<span class="badge text-bg-warning">delta</span>{{else}}<span class="badge text-bg-secondary">delta not checked</span>{{/if}} {{delta.detail}}{{#if delta.previous}} · <a href="{{delta.previous}}">previous result</a>{{/if}}</div>{{/if}}</td><td>{{by}}</td><td class="small">{{at}}</td><td>{{reason}}</td>
     </tr>
     {{/each}}
   </tbody>

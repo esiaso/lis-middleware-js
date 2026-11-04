@@ -589,6 +589,30 @@ model CriticalLimit {
   @@map("critical_limit")
 }
 
+/// Reference range entered by the lab (01 A-25); none shipped. Inclusive. Shown to people only.
+model ReferenceRange {
+  id            String    @id @db.Uuid
+  localTestCode String    @map("local_test_code")
+  /// F or M; null applies to everyone.
+  sex           String?
+  ageMinDays    Int?      @map("age_min_days")
+  ageMaxDays    Int?      @map("age_max_days")
+  /// Decimal text, compared exactly.
+  low           String?
+  high          String?
+  units         String
+  reference     String
+  active        Boolean   @default(true)
+  createdBy     String    @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  retiredBy     String?   @map("retired_by")
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz
+  retireReason  String?   @map("retire_reason")
+
+  @@index([localTestCode, active])
+  @@map("reference_range")
+}
+
 /// Who was told about a critical result, and that they read it back. Append-only.
 model CriticalCall {
   id         String   @id @db.Uuid

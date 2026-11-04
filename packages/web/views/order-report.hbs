@@ -19,13 +19,13 @@
   </table>
   {{/if}}
   <table class="table table-sm">
-    <thead><tr><th>Test</th><th>Result</th><th>Units</th><th>Flag</th><th>Reference range (from the instrument)</th><th>Approved</th></tr></thead>
+    <thead><tr><th>Test</th><th>Result</th><th>Units</th><th>Flag</th><th>Reference range</th><th>Approved</th></tr></thead>
     <tbody>
       {{#each lines}}
       <tr>
         <td>{{test}}{{#if hmisTestCode}} <span class="text-body-secondary small">({{hmisTestCode}})</span>{{/if}}</td>
         {{#if approved}}
-        <td class="font-monospace fw-semibold">{{value}}{{#if corrected}} <span class="small fw-normal">(corrected)</span>{{/if}}</td><td>{{units}}</td><td>{{flags}}{{#if critical}} <strong>CRITICAL {{critical}}</strong>{{/if}}</td><td class="small">{{referenceRange}}</td><td class="small">{{approvedBy}}<br>{{approvedAt}}</td>
+        <td class="font-monospace fw-semibold">{{value}}{{#if corrected}} <span class="small fw-normal">(corrected)</span>{{/if}}</td><td>{{units}}</td><td>{{flags}}{{#if mark}} {{mark}}{{/if}}{{#if critical}} <strong>CRITICAL {{critical}}</strong>{{/if}}</td><td class="small">{{referenceRange}}{{#if rangeSource}} <span class="text-body-secondary">({{rangeSource}})</span>{{/if}}</td><td class="small">{{approvedBy}}<br>{{approvedAt}}</td>
         {{else}}
         <td colspan="5" class="text-body-secondary">{{#if cancelled}}Cancelled{{else}}Pending{{/if}}</td>
         {{/if}}

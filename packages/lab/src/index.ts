@@ -14,5 +14,6 @@ export * from './delta.js';
 export * from './qc.js';
 export * from './tat.js';
 export * from './workload.js';
+export * from './reference-ranges.js';
 export * from './history.js';
 export * from './order-report.js';

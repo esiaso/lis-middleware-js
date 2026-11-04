@@ -23,6 +23,7 @@ import { DeltaController } from './delta.controller.js';
 import { OrderReportController } from './order-report.controller.js';
 import { PatientsController } from './patients.controller.js';
 import { QcController } from './qc.controller.js';
+import { ReferenceRangesController } from './reference-ranges.controller.js';
 import { ReportsController } from './reports.controller.js';
 import { CriticalCallController, CriticalController } from './critical.controller.js';
 import { AccountController, UsersController } from './users.controller.js';
@@ -39,7 +40,7 @@ class WebModule {
   static with(db: Db, opts: WebOptions, logger: Logger): DynamicModule {
     return {
       module: WebModule,
-      controllers: [AuthController, DashboardController, ResultsController, UnmatchedController, FailedController, InstrumentsController, OrdersController, DowntimeController, AuditController, CriticalController, CriticalCallController, AutoverificationController, DeltaController, QcController, PatientsController, OrderReportController, ReportsController, UsersController, AccountController, HealthController],
+      controllers: [AuthController, DashboardController, ResultsController, UnmatchedController, FailedController, InstrumentsController, OrdersController, DowntimeController, AuditController, CriticalController, CriticalCallController, AutoverificationController, DeltaController, QcController, ReferenceRangesController, PatientsController, OrderReportController, ReportsController, UsersController, AccountController, HealthController],
       providers: [
         { provide: DB, useValue: db },
         { provide: WEB_OPTIONS, useValue: opts },
