@@ -82,7 +82,8 @@ each approval-type action (A-17; tested against a stand-in IdP, not yet
 against the hospital's, D-19), and critical results (limits from the lab
 with their source, a flag on each version as it arrives, approval held
 until the call with read-back is recorded, and the waiting list with its
-timer on the dashboard; A-18, 08 §12).
+timer on the dashboard; A-18, 08 §12), and DPAPI encryption of secret files on Windows
+(10 §7; tested on the Windows CI runner, not yet on the hospital server).
 Not built yet: "add test to order" from an
 unmatched result (needs the HMIS, D-1 to D-6), assisted reconciliation when the HMIS returns (beyond the candidate list),
 LDAPS, and the real HMIS connector, which waits for D-1 to D-6.

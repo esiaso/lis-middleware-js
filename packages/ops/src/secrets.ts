@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { encodeSecret, type DpapiRunner } from '@lis/db';
 
 /**
  * `lims secrets set <name>` (11 §3 step 4, §4): store a credential in the
@@ -37,10 +38,11 @@ export interface SetResult {
 /**
  * Write atomically: a new file beside the old one, then a rename, so a
  * service never reads half a value. On Linux the file is root-only (0600;
- * systemd hands it to the service). On Windows it takes the folder's ACL,
- * which the installer limits to the services and administrators.
+ * systemd hands it to the service). On Windows the value is encrypted with
+ * DPAPI (machine scope) and the file takes the folder's ACL, which the
+ * installer limits to the services and administrators.
  */
-export function setSecret(name: string, raw: string, o: { dir?: string; platform?: NodeJS.Platform } = {}): SetResult {
+export function setSecret(name: string, raw: string, o: { dir?: string; platform?: NodeJS.Platform; dpapi?: DpapiRunner } = {}): SetResult {
   const spec = SECRETS[name];
   if (!spec) throw new Error(`unknown secret "${name}"; known: ${Object.keys(SECRETS).join(', ')}`);
   const value = raw.replace(/\r?\n$/, '');
@@ -52,9 +54,10 @@ export function setSecret(name: string, raw: string, o: { dir?: string; platform
   if (!existsSync(dir) || !statSync(dir).isDirectory()) throw new Error(`${dir} does not exist: run the installer first (it creates the folder with the right permissions)`);
   const path = join(dir, name);
   const replaced = existsSync(path);
+  const body = encodeSecret(name, value, { platform, ...(o.dpapi ? { dpapi: o.dpapi } : {}) });
   const tmp = join(dir, `.${name}.${randomBytes(6).toString('hex')}.tmp`);
   try {
-    writeFileSync(tmp, `${value}\n`, { mode: 0o600, flag: 'wx' });
+    writeFileSync(tmp, body, { mode: 0o600, flag: 'wx' });
     renameSync(tmp, path);
   } catch (e) {
     rmSync(tmp, { force: true });

@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { isIP } from 'node:net';
 import { join } from 'node:path';
+import { isProtected } from '@lis/db';
 import { oidcSettingsFromEnv } from '@lis/web/oidc';
 import type { Check } from './verify.js';
 
@@ -85,8 +86,9 @@ const LOOPBACK = (h: string) => h === 'localhost' || h === '::1' || /^127\./.tes
 const HOSTNAME = /^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
 
 /** Check one source. `exists` is replaceable for tests. */
-export function validateSource(src: ConfigSource, o: { exists?: (p: string) => boolean; read?: (p: string) => string } = {}): Check[] {
+export function validateSource(src: ConfigSource, o: { exists?: (p: string) => boolean; read?: (p: string) => string; platform?: NodeJS.Platform } = {}): Check[] {
   const exists = o.exists ?? existsSync;
+  const windows = (o.platform ?? process.platform) === 'win32';
   const read = o.read ?? ((p: string) => readFileSync(p, 'utf8'));
   const v = src.values;
   const issues: Check[] = [];
@@ -107,7 +109,20 @@ export function validateSource(src: ConfigSource, o: { exists?: (p: string) => b
   if (v.get('NODE_ENV') !== 'production') add('warn', 'NODE_ENV', `is ${v.has('NODE_ENV') ? `"${v.get('NODE_ENV')}"` : 'not set'}; set NODE_ENV=production on a server`);
   if (v.has('DATABASE_URL')) add('warn', 'DATABASE_URL', 'the database password is in the settings; move it to the credential file (lims secrets set database_url) and remove this line');
   const dbFile = v.get('DATABASE_URL_FILE');
+  // On Windows a secret file should hold a DPAPI blob (10 §7); one written before DPAPI still works but is readable by any administrator, and from a copy.
+  const plainSecret = (key: string, name: string, file: string | undefined): void => {
+    if (file === undefined || !exists(file) || !windows) return;
+    let text: string;
+    try {
+      text = read(file);
+    } catch (e) {
+      add('fail', key, `${file} cannot be read: ${(e as Error).message}`);
+      return;
+    }
+    if (!isProtected(text)) add('warn', key, `${file} is not encrypted; run lims secrets set ${name} again to store it with DPAPI`);
+  };
   if (dbFile !== undefined && !exists(dbFile)) add('fail', 'DATABASE_URL_FILE', `${dbFile} does not exist (lims secrets set database_url)`);
+  plainSecret('DATABASE_URL_FILE', 'database_url', dbFile);
   const ca = v.get('NODE_EXTRA_CA_CERTS');
   if (ca !== undefined) {
     if (!exists(ca)) add('fail', 'NODE_EXTRA_CA_CERTS', `${ca} does not exist`);
@@ -128,6 +143,8 @@ export function validateSource(src: ConfigSource, o: { exists?: (p: string) => b
     const anyOidc = OIDC_KEYS.some((k) => v.has(k));
     if (anyOidc && !v.has('LIMS_OIDC_ISSUER')) add('fail', 'LIMS_OIDC_ISSUER', 'other LIMS_OIDC_ settings are present but LIMS_OIDC_ISSUER is not, so hospital sign-in stays off');
     else if (v.has('LIMS_OIDC_ISSUER')) {
+      const secretFile = v.get('LIMS_OIDC_CLIENT_SECRET_FILE');
+      plainSecret('LIMS_OIDC_CLIENT_SECRET_FILE', 'oidc_client_secret', secretFile);
       if (v.has('LIMS_OIDC_CLIENT_SECRET')) add('warn', 'LIMS_OIDC_CLIENT_SECRET', 'the client secret is in the settings; store it with lims secrets set oidc_client_secret instead');
       try {
         // The same code the web service runs at start, with only these settings.

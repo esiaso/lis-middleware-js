@@ -2,6 +2,7 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as client from 'openid-client';
+import { readSecretFile } from '@lis/db';
 import { ROLES, type Role } from './auth.js';
 
 /**
@@ -58,7 +59,7 @@ function clientSecretFromEnv(env: NodeJS.ProcessEnv): string | undefined {
     }
   }
   const file = env['LIMS_OIDC_CLIENT_SECRET_FILE'];
-  if (file) return readFileSync(file, 'utf8').trim();
+  if (file) return readSecretFile('oidc_client_secret', file);
   return env['LIMS_OIDC_CLIENT_SECRET'] || undefined;
 }
 
