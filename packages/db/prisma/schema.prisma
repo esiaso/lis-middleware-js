@@ -390,6 +390,7 @@ model Result {
   events               ResultEvent[]
   criticalCalls        CriticalCall[]
   autoverifications    AutoverificationDecision[]
+  comments             ResultComment[]
 
   @@index([status])
   @@map("result")
@@ -611,6 +612,24 @@ model ReferenceRange {
 
   @@index([localTestCode, active])
   @@map("reference_range")
+}
+
+/// A note on a result (01 A-26). Never edited or deleted, only withdrawn (enforced by a trigger).
+model ResultComment {
+  id             String    @id @db.Uuid
+  resultId       String    @map("result_id") @db.Uuid
+  text           String
+  /// Printed on the result report under the value; otherwise for lab staff only.
+  onReport       Boolean   @map("on_report")
+  createdBy      String    @map("created_by")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  withdrawnBy    String?   @map("withdrawn_by")
+  withdrawnAt    DateTime? @map("withdrawn_at") @db.Timestamptz
+  withdrawReason String?   @map("withdraw_reason")
+  result         Result    @relation(fields: [resultId], references: [id])
+
+  @@index([resultId, createdAt])
+  @@map("result_comment")
 }
 
 /// Who was told about a critical result, and that they read it back. Append-only.

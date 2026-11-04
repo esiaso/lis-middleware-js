@@ -125,6 +125,36 @@
 </ul>
 {{/if}}
 
+<h2 class="h6">Comments</h2>
+<ul class="list-unstyled small">
+  {{#each comments}}
+  <li class="mb-2{{#if withdrawn}} text-body-secondary{{/if}}">
+    {{#if withdrawn}}<s>{{text}}</s>{{else}}{{text}}{{/if}}
+    {{#if onReport}}<span class="badge text-bg-primary">on the report</span>{{else}}<span class="badge text-bg-secondary">lab only</span>{{/if}}
+    <span class="text-body-secondary">· {{by}}, {{at}}</span>
+    {{#if withdrawn}}<div>Withdrawn by {{withdrawn.by}}, {{withdrawn.at}}: {{withdrawn.reason}}</div>{{else}}{{#if @root.can.review}}
+    <details class="d-inline-block ms-2"><summary>Withdraw</summary>
+      <form method="post" action="/results/{{@root.r.id}}/comments/{{id}}/withdraw" class="d-flex gap-2 mt-1">
+        <input type="hidden" name="_csrf" value="{{@root.csrf}}">
+        <input class="form-control form-control-sm" name="reason" minlength="5" required placeholder="Reason" aria-label="Reason">
+        <button class="btn btn-outline-danger btn-sm" type="submit">Withdraw</button>
+      </form>
+    </details>{{/if}}{{/if}}
+  </li>
+  {{else}}
+  <li class="text-body-secondary">No comments.</li>
+  {{/each}}
+</ul>
+{{#if can.review}}
+<form method="post" action="/results/{{r.id}}/comments" class="card card-body mb-4">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <label class="form-label" for="comment-text">Add a comment</label>
+  <textarea class="form-control mb-2" id="comment-text" name="text" rows="2" minlength="2" maxlength="500" required></textarea>
+  {{#if can.approve}}<div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="comment-report" name="onReport" value="yes"><label class="form-check-label" for="comment-report">Print it on the result report under the value</label></div>{{else}}<p class="small text-body-secondary">Comments you add are for the lab only; an approver can add one to the printed report.</p>{{/if}}
+  <div><button class="btn btn-outline-primary btn-sm" type="submit">Add comment</button></div>
+</form>
+{{/if}}
+
 <h2 class="h6">History</h2>
 <ul class="list-unstyled small">
   {{#each events}}<li>{{at}} · {{kind}}{{#if version}} v{{version}}{{/if}} · {{actor}}{{#if reason}} · {{reason}}{{/if}}</li>{{else}}<li class="text-body-secondary">No decisions yet.</li>{{/each}}
