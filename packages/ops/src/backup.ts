@@ -193,6 +193,17 @@ export function readBackup(path: string): { dump: string; m: BackupManifest } {
   return { dump: join(dirname(manifestPath), m.file), m };
 }
 
+/** Remove what the restore created: every table, view, sequence, function and type outside the system schemas. */
+const CLEAR_SCRATCH = `DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT format('DROP TABLE IF EXISTS %I.%I CASCADE', schemaname, tablename) AS q FROM pg_tables WHERE schemaname NOT IN ('pg_catalog', 'information_schema') LOOP EXECUTE r.q; END LOOP;
+  FOR r IN SELECT format('DROP VIEW IF EXISTS %I.%I CASCADE', schemaname, viewname) AS q FROM pg_views WHERE schemaname NOT IN ('pg_catalog', 'information_schema') LOOP EXECUTE r.q; END LOOP;
+  FOR r IN SELECT format('DROP SEQUENCE IF EXISTS %I.%I CASCADE', schemaname, sequencename) AS q FROM pg_sequences WHERE schemaname NOT IN ('pg_catalog', 'information_schema') LOOP EXECUTE r.q; END LOOP;
+  FOR r IN SELECT format('DROP FUNCTION IF EXISTS %s CASCADE', p.oid::regprocedure) AS q FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg_toast%' LOOP EXECUTE r.q; END LOOP;
+  FOR r IN SELECT format('DROP TYPE IF EXISTS %I.%I CASCADE', n.nspname, t.typname) AS q FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg_toast%' AND t.typtype IN ('e', 'd', 'c') AND (t.typtype <> 'c' OR NOT EXISTS (SELECT 1 FROM pg_class c WHERE c.oid = t.typrelid AND c.relkind <> 'c')) LOOP EXECUTE r.q; END LOOP;
+END $$`;
+
 const lastLine = (s: string) => s.trim().split('\n').filter(Boolean).pop() ?? '';
 
 /**
@@ -280,8 +291,10 @@ export async function verifyBackup(path: string, o: { restoreTo?: string; pgBin?
     checks.push(differ.length ? { name: 'row counts', status: 'fail', detail: differ.join('; ') } : { name: 'row counts', status: 'pass', detail: `${COUNTED.length} tables match the manifest` });
     if (!o.keep) {
       // It was empty before, so everything in it is what the restore made. It holds patient data: clear it.
-      await scratch.$executeRawUnsafe('DROP OWNED BY CURRENT_USER');
-      checks.push({ name: 'cleanup', status: 'pass', detail: 'scratch database emptied again (it held patient data); --keep leaves it' });
+      // Not DROP OWNED: when the role also owns system objects (a bootstrap superuser) that is refused.
+      await scratch.$executeRawUnsafe(CLEAR_SCRATCH);
+      const [left] = await scratch.$queryRaw<{ n: bigint }[]>`SELECT count(*)::bigint AS n FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema')`;
+      checks.push(Number(left!.n) === 0 ? { name: 'cleanup', status: 'pass', detail: 'scratch database emptied again (it held patient data); --keep leaves it' } : { name: 'cleanup', status: 'warn', detail: `${left!.n} table(s) could not be removed from the scratch database; drop it by hand (it holds patient data)` });
     } else checks.push({ name: 'cleanup', status: 'warn', detail: 'scratch database kept with the restored data, which includes patient data; drop it when done' });
     return done();
   } finally {
