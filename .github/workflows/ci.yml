@@ -27,6 +27,16 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  # Known advisories in what ships (10 §10): high or critical ones must be fixed or explained.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: node scripts/audit-check.mjs
+
   # Database tests against a real PostgreSQL, one file at a time (they share the database)
   # with the committed migrations applied. They are skipped in the job above.
   db:
