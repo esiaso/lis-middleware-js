@@ -12,7 +12,7 @@
 <div class="row g-3 mb-4">
   <div class="col-lg-6">
     {{#if u.sso}}
-    <div class="card card-body"><h2 class="h6">Roles</h2><p class="small mb-0">{{roleList}}. These come from the person's directory groups at each sign-in; change the groups, or the role map in the settings (LIMS_OIDC_ROLE_MAP).</p></div>
+    <div class="card card-body"><h2 class="h6">Roles</h2><p class="small mb-0">{{roleList}}. These come from the person's directory groups at each sign-in; change the groups, or the role map in the settings (LIMS_OIDC_ROLE_MAP or LIMS_LDAP_ROLE_MAP).</p></div>
     {{else}}
     <form method="post" action="/users/{{u.id}}/roles" class="card card-body">
       <input type="hidden" name="_csrf" value="{{csrf}}">

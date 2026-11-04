@@ -1,13 +1,15 @@
 import { createHash, randomBytes, scrypt as scryptCb, timingSafeEqual, type ScryptOptions } from 'node:crypto';
 import { uuidv7, type Db } from '@lis/db';
 import { appendAudit, InvalidInput } from '@lis/lab';
+import { directory, type Directory } from './ldap.js';
 
 /**
  * Local accounts (10 §3 fallback). Passwords are hashed with scrypt from
  * Node's standard library, so the offline install needs no native module.
  * ASSUMPTION A-WEB-1: scrypt replaces the argon2id named in 10 §3 for that
- * reason; both are memory-hard. Hospital sign-in through OIDC is in oidc.ts;
- * those accounts have no password here.
+ * reason; both are memory-hard. Hospital sign-in through OIDC is in oidc.ts
+ * and through the directory over LDAPS in ldap.ts; those accounts have no
+ * password here.
  */
 
 export const ROLES = ['admin', 'technologist', 'approver', 'operator', 'auditor'] as const;
@@ -21,8 +23,10 @@ export interface SessionUser {
   csrfToken: string;
   /** An administrator set a temporary password: only the change-password page is open until it is changed. */
   mustChangePassword: boolean;
-  /** Signs in through the hospital IdP: no password here, roles come from directory groups. */
+  /** Signs in through the hospital IdP (OIDC): confirms approvals there, not with a password here. */
   sso: boolean;
+  /** Signs in through the hospital (OIDC or the directory): no password here, roles come from directory groups. */
+  external: boolean;
   /** When this session last re-confirmed at the IdP for one approval-type action (unused yet). */
   stepUpAt: Date | null;
 }
@@ -98,7 +102,7 @@ type Tx = Parameters<Parameters<Db['$transaction']>[0]>[0];
 type UserRow = NonNullable<Awaited<ReturnType<Db['appUser']['findUnique']>>>;
 
 function toSessionUser(u: UserRow, csrfToken: string, stepUpAt: Date | null): SessionUser {
-  return { id: u.id, username: u.username, displayName: u.displayName, roles: u.roles as Role[], csrfToken, mustChangePassword: u.mustChangePassword, sso: u.authSource === 'oidc', stepUpAt };
+  return { id: u.id, username: u.username, displayName: u.displayName, roles: u.roles as Role[], csrfToken, mustChangePassword: u.mustChangePassword, sso: u.authSource === 'oidc', external: u.authSource !== 'local', stepUpAt };
 }
 
 async function openSession(tx: Tx, u: UserRow, policy: SessionPolicy, now: Date): Promise<{ token: string; user: SessionUser }> {
@@ -108,10 +112,13 @@ async function openSession(tx: Tx, u: UserRow, policy: SessionPolicy, now: Date)
   return { token, user: toSessionUser(u, csrfToken, null) };
 }
 
-export type LoginResult = { ok: true; token: string; user: SessionUser } | { ok: false; reason: 'invalid' | 'locked' };
+export type LoginResult = { ok: true; token: string; user: SessionUser } | { ok: false; reason: 'invalid' | 'locked' | 'unavailable' | ExternalRefusal };
 
 export async function login(db: Db, username: string, password: string, policy = DEFAULT_SESSION_POLICY, now = new Date()): Promise<LoginResult> {
   const user = await db.appUser.findUnique({ where: { username } });
+  // A local account always signs in here, so break-glass accounts work while the directory is down.
+  const dir = directory();
+  if (dir && (!user || user.authSource === 'ldap')) return directoryLogin(db, dir, username, password, user?.id, policy, now);
   // Hospital sign-in accounts have no password here; answer exactly as for an unknown name.
   if (!user || !user.active || user.authSource !== 'local') {
     dummyHash ??= hashPassword(randomBytes(16).toString('hex'));
@@ -145,7 +152,22 @@ export interface OidcIdentity {
   groups: string[];
 }
 
-export type OidcSignInResult = { ok: true; token: string; user: SessionUser } | { ok: false; reason: 'no-role' | 'disabled' | 'name-taken' | 'bad-name' };
+export type ExternalRefusal = 'no-role' | 'disabled' | 'name-taken' | 'bad-name';
+export type OidcSignInResult = { ok: true; token: string; user: SessionUser } | { ok: false; reason: ExternalRefusal };
+
+/** Directory sign-in (A-29): the directory checks the password; the account here is found by the entry's id. */
+async function directoryLogin(db: Db, dir: Directory, username: string, password: string, knownId: string | undefined, policy: SessionPolicy, now: Date): Promise<LoginResult> {
+  const r = await dir.authenticate(username, password);
+  if (!r.ok) {
+    const name = username.slice(0, 100);
+    await db.$transaction((tx) =>
+      appendAudit(tx, { actor: `ldap:${name}`, action: r.reason === 'unavailable' ? 'auth.ldap-unavailable' : 'auth.failed', entityType: 'app_user', entityId: knownId ?? name, reason: r.detail ? `${r.reason}: ${r.detail}` : r.reason }),
+    );
+    return { ok: false, reason: r.reason === 'unavailable' ? 'unavailable' : 'invalid' };
+  }
+  const p = r.person;
+  return externalSignIn(db, 'ldap', { issuer: dir.source, subject: p.id, username: p.username, displayName: p.displayName, roles: p.roles, groups: p.groups }, policy, now);
+}
 
 /** Usernames from the IdP may be e-mail style (Entra ID sends user@hospital.org). */
 const SSO_USERNAME = /^[a-z0-9][a-z0-9._@-]{1,99}$/;
@@ -156,13 +178,24 @@ const SSO_USERNAME = /^[a-z0-9][a-z0-9._@-]{1,99}$/;
  * entry with the same name. Roles follow the directory groups at every
  * sign-in; an administrator can still disable the account here.
  */
-export async function oidcSignIn(db: Db, id: OidcIdentity, policy = DEFAULT_SESSION_POLICY, now = new Date()): Promise<OidcSignInResult> {
-  const actor = `oidc:${id.username}`;
-  const refuse = async (reason: Exclude<OidcSignInResult, { ok: true }>['reason'], entityId: string) => {
-    await db.$transaction((tx) => appendAudit(tx, { actor, action: 'auth.oidc-refused', entityType: 'app_user', entityId, reason, after: { username: id.username, groups: id.groups } }));
+export function oidcSignIn(db: Db, id: OidcIdentity, policy = DEFAULT_SESSION_POLICY, now = new Date()): Promise<OidcSignInResult> {
+  return externalSignIn(db, 'oidc', id, policy, now);
+}
+
+/**
+ * Shared by OIDC and directory sign-in. The issuer and subject columns hold
+ * the IdP and its subject, or the directory server and the entry's id.
+ */
+async function externalSignIn(db: Db, source: 'oidc' | 'ldap', id: OidcIdentity, policy: SessionPolicy, now: Date): Promise<OidcSignInResult> {
+  const actor = `${source}:${id.username}`;
+  const refuse = async (reason: ExternalRefusal, entityId: string) => {
+    await db.$transaction((tx) => appendAudit(tx, { actor, action: `auth.${source}-refused`, entityType: 'app_user', entityId, reason, after: { username: id.username, groups: id.groups } }));
     return { ok: false as const, reason };
   };
-  const existing = await db.appUser.findUnique({ where: { oidcIssuer_oidcSubject: { oidcIssuer: id.issuer, oidcSubject: id.subject } } });
+  const found = await db.appUser.findUnique({ where: { oidcIssuer_oidcSubject: { oidcIssuer: id.issuer, oidcSubject: id.subject } } });
+  // The key is unique across both kinds, but an account only ever signs in the way it was made.
+  const existing = found && found.authSource === source ? found : null;
+  if (found && !existing) return refuse('name-taken', found.id);
   if (existing && !existing.active) return refuse('disabled', existing.id);
   if (!id.roles.length) return refuse('no-role', existing?.id ?? id.subject);
   if (!existing) {
@@ -177,13 +210,13 @@ export async function oidcSignIn(db: Db, id: OidcIdentity, policy = DEFAULT_SESS
       const before = [...(existing.roles as string[])].sort();
       if (before.join() !== roles.join() || existing.displayName !== id.displayName) {
         u = await tx.appUser.update({ where: { id: existing.id }, data: { roles, displayName: id.displayName } });
-        if (before.join() !== roles.join()) await appendAudit(tx, { actor: 'system:oidc', action: 'user.roles', entityType: 'app_user', entityId: u.id, reason: 'directory groups changed', before: { roles: before }, after: { roles, groups: id.groups } });
+        if (before.join() !== roles.join()) await appendAudit(tx, { actor: `system:${source}`, action: 'user.roles', entityType: 'app_user', entityId: u.id, reason: 'directory groups changed', before: { roles: before }, after: { roles, groups: id.groups } });
       }
     } else {
-      u = await tx.appUser.create({ data: { id: uuidv7(), username: id.username, displayName: id.displayName, passwordHash: NO_PASSWORD, roles, authSource: 'oidc', oidcIssuer: id.issuer, oidcSubject: id.subject } });
-      await appendAudit(tx, { actor: 'system:oidc', action: 'user.create', entityType: 'app_user', entityId: u.id, after: { username: u.username, roles, source: 'oidc', groups: id.groups } });
+      u = await tx.appUser.create({ data: { id: uuidv7(), username: id.username, displayName: id.displayName, passwordHash: NO_PASSWORD, roles, authSource: source, oidcIssuer: id.issuer, oidcSubject: id.subject } });
+      await appendAudit(tx, { actor: `system:${source}`, action: 'user.create', entityType: 'app_user', entityId: u.id, after: { username: u.username, roles, source, groups: id.groups } });
     }
-    await appendAudit(tx, { actor: u.username, action: 'auth.login', entityType: 'app_user', entityId: u.id, reason: 'oidc' });
+    await appendAudit(tx, { actor: u.username, action: 'auth.login', entityType: 'app_user', entityId: u.id, reason: source });
     return { ok: true as const, ...(await openSession(tx, u, policy, now)) };
   });
 }
@@ -212,10 +245,17 @@ export async function confirmIdentity(db: Db, user: SessionUser, token: string |
   return used.count === 1;
 }
 
-/** Re-check a signed-in person's password before approve or release (10 §3 step-up). */
+/** Re-check a signed-in person's password before approve or release (10 §3 step-up). Directory accounts are checked at the directory. */
 export async function confirmPassword(db: Db, userId: string, password: string): Promise<boolean> {
   const user = await db.appUser.findUnique({ where: { id: userId } });
-  return !!user && user.active && user.authSource === 'local' && (await verifyPassword(password, user.passwordHash));
+  if (!user || !user.active) return false;
+  if (user.authSource === 'ldap') {
+    const dir = directory();
+    if (!dir || user.oidcIssuer !== dir.source) return false;
+    const r = await dir.authenticate(user.username, password);
+    return r.ok && r.person.id === user.oidcSubject;
+  }
+  return user.authSource === 'local' && (await verifyPassword(password, user.passwordHash));
 }
 
 /** Resolve a session cookie. Slides the idle expiry forward, never past the absolute limit. */
@@ -274,7 +314,7 @@ export async function setUserRoles(db: Db, actor: SessionUser, userId: string, r
   const next = checkRoles(roles);
   await db.$transaction(async (tx) => {
     const u = await loadOther(tx, actor, userId);
-    if (u.authSource === 'oidc') throw new InvalidInput([SSO_MANAGED]);
+    if (u.authSource !== 'local') throw new InvalidInput([SSO_MANAGED]);
     if (u.roles.includes('admin') && !next.includes('admin') && u.active) await keepAnAdmin(tx, u.id);
     await tx.appUser.update({ where: { id: u.id }, data: { roles: next } });
     await appendAudit(tx, { actor: actor.username, action: 'user.roles', entityType: 'app_user', entityId: u.id, before: { roles: u.roles }, after: { roles: next } });
@@ -309,7 +349,7 @@ export async function resetUserPassword(db: Db, actor: SessionUser, userId: stri
   const passwordHash = await hashPassword(temporary);
   await db.$transaction(async (tx) => {
     const u = await loadOther(tx, actor, userId);
-    if (u.authSource === 'oidc') throw new InvalidInput([SSO_MANAGED]);
+    if (u.authSource !== 'local') throw new InvalidInput([SSO_MANAGED]);
     await tx.appUser.update({ where: { id: u.id }, data: { passwordHash, mustChangePassword: true, failedLogins: 0, lockedUntil: null } });
     await tx.userSession.deleteMany({ where: { userId: u.id } });
     // The password itself is never recorded.
@@ -320,7 +360,7 @@ export async function resetUserPassword(db: Db, actor: SessionUser, userId: stri
 /** The signed-in person chooses a new password. Their other sessions end; this one stays. */
 export async function changeOwnPassword(db: Db, user: SessionUser, current: string, next: string, keepToken: string | undefined): Promise<void> {
   const u = await db.appUser.findUnique({ where: { id: user.id } });
-  if (u?.authSource === 'oidc') throw new InvalidInput(['Your password is managed by the hospital sign-in. Change it there.']);
+  if (u && u.authSource !== 'local') throw new InvalidInput(['Your password is managed by the hospital sign-in. Change it there.']);
   if (!u || !(await verifyPassword(current, u.passwordHash))) throw new InvalidInput(['Your current password is not right.']);
   const problem = validatePassword(next);
   if (problem) throw new InvalidInput([`New ${problem}.`]);

@@ -23,6 +23,7 @@
       "@lis/lab": ["./packages/lab/src/index.ts"],
       "@lis/web": ["./packages/web/src/index.ts"],
       "@lis/web/oidc": ["./packages/web/src/oidc.ts"],
+      "@lis/web/ldap": ["./packages/web/src/ldap.ts"],
       "@lis/ops": ["./packages/ops/src/index.ts"],
       "@serialport/binding-mock": ["./node_modules/@serialport/binding-mock/dist/index.d.ts"]
     }

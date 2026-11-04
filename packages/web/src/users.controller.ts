@@ -47,7 +47,7 @@ export class UsersController {
         active: u.active,
         locked: Boolean(u.lockedUntil && u.lockedUntil > now),
         mustChange: u.mustChangePassword,
-        sso: u.authSource === 'oidc',
+        sso: u.authSource !== 'local',
       })),
     });
   }
@@ -105,7 +105,7 @@ export class UsersController {
         createdAt: formatTime(u.createdAt),
         sessions: u.sessions.filter((s) => s.expiresAt > now).length,
         self: u.id === req.user!.id,
-        sso: u.authSource === 'oidc',
+        sso: u.authSource !== 'local',
       },
       roleList: u.roles.join(', '),
       roles: ROLES.map((r) => ({ value: r, note: ROLE_NOTES[r], checked: u.roles.includes(r) })),
@@ -151,7 +151,7 @@ export class AccountController {
   @Get('password')
   @OpenDuringPasswordChange()
   form(@Req() req: WebRequest, @Res() res: Response): void {
-    if (req.user!.sso) throw new NotFoundException();
+    if (req.user!.external) throw new NotFoundException();
     page(req, res, 'account-password', { title: 'Change password', issues: [], forced: req.user!.mustChangePassword });
   }
 

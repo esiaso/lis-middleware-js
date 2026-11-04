@@ -34,15 +34,15 @@ export interface OidcSettings {
 }
 
 /** "Group A=admin;Group B=approver,technologist". Group names may hold spaces; the last "=" splits. */
-export function parseRoleMap(text: string): Map<string, Role[]> {
+export function parseRoleMap(text: string, setting = 'LIMS_OIDC_ROLE_MAP'): Map<string, Role[]> {
   const map = new Map<string, Role[]>();
   for (const entry of text.split(';').map((x) => x.trim()).filter(Boolean)) {
     const at = entry.lastIndexOf('=');
-    if (at <= 0) throw new Error(`LIMS_OIDC_ROLE_MAP: "${entry}" is not group=role[,role]`);
+    if (at <= 0) throw new Error(`${setting}: "${entry}" is not group=role[,role]`);
     const group = entry.slice(0, at).trim();
     const roles = entry.slice(at + 1).split(',').map((r) => r.trim()).filter(Boolean);
     const bad = roles.filter((r) => !ROLES.includes(r as Role));
-    if (!roles.length || bad.length) throw new Error(`LIMS_OIDC_ROLE_MAP: group "${group}" needs roles among ${ROLES.join(', ')}${bad.length ? ` (not ${bad.join(', ')})` : ''}`);
+    if (!roles.length || bad.length) throw new Error(`${setting}: group "${group}" needs roles among ${ROLES.join(', ')}${bad.length ? ` (not ${bad.join(', ')})` : ''}`);
     map.set(group, [...new Set([...(map.get(group) ?? []), ...(roles as Role[])])]);
   }
   return map;

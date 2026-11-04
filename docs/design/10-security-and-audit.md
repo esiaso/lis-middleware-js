@@ -62,7 +62,19 @@
   IdP (`prompt=login`, `max_age=0`, checked against `auth_time`) by the same
   subject; it allows one approval-type action within 5 minutes (A-17).
   Signing out ends the middleware session only, not the IdP session.
-  LDAPS is not built.
+* **Built (LDAPS, A-29):** the ordinary sign-in form, checked against the
+  directory: a service account finds exactly one entry with the lab's
+  search filter, then the middleware binds as that entry with the typed
+  password over `ldaps://` only, certificate always checked. An empty
+  password is refused before the directory is asked, since many directories
+  treat it as an anonymous success. Accounts are keyed on a never-changing
+  attribute of the entry (such as `objectGUID` or `entryUUID`), so a renamed
+  or reused login name does not inherit an account; roles follow the entry's
+  groups at every sign-in (changes audited as `system:ldap`). A local account
+  of the same name always signs in locally, so break-glass works while the
+  directory is down. Step-up for these accounts is the directory password,
+  checked at the directory again. Lockout is the directory's own policy;
+  failed attempts are audited here (`auth.failed`, `auth.ldap-unavailable`).
 
 ## 4. Browser sessions and web security
 

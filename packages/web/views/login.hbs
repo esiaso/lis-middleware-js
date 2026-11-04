@@ -2,7 +2,7 @@
   <div class="col-sm-8 col-md-5 col-lg-4">
     <h1 class="h4 my-4">Sign in to the lab middleware</h1>
     {{#if error}}<div class="alert alert-danger" role="alert">{{error}}</div>{{/if}}
-    {{#if sso}}<p class="small text-body-secondary">Use your {{sso.label}} below. The username and password here are for local accounts only.</p>{{/if}}
+    {{#if directory}}<p class="small text-body-secondary">Sign in with your {{directory.label}} username and password. Local accounts also sign in here.</p>{{else}}{{#if sso}}<p class="small text-body-secondary">Use your {{sso.label}} below. The username and password here are for local accounts only.</p>{{/if}}{{/if}}
     <form method="post" action="/login" autocomplete="off">
       <input type="hidden" name="_csrf" value="{{loginCsrf}}">
       <input type="hidden" name="next" value="{{next}}">

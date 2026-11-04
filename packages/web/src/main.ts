@@ -4,6 +4,7 @@ import { pino } from 'pino';
 import { createDb, databaseUrlFromEnv } from '@lis/db';
 import { createApp } from './app.js';
 import { createUser, ROLES, type Role } from './auth.js';
+import { LdapDirectory, ldapSettingsFromEnv } from './ldap.js';
 import { oidcSettingsFromEnv } from './oidc.js';
 
 async function readPassword(): Promise<string> {
@@ -32,9 +33,12 @@ async function main(): Promise<void> {
   }
   const oidc = oidcSettingsFromEnv();
   if (oidc) logger.info({ issuer: oidc.issuer.href, clientId: oidc.clientId, groups: [...oidc.roleMap.keys()] }, 'hospital sign-in configured');
+  const ldap = ldapSettingsFromEnv();
+  if (ldap) logger.info({ url: ldap.url.href, baseDn: ldap.baseDn, groups: [...ldap.roleMap.keys()] }, 'directory sign-in configured');
   const app = await createApp(db, {
     logger,
     ...(oidc ? { oidc } : {}),
+    ...(ldap ? { directory: new LdapDirectory(ldap) } : {}),
     twoPersonRule: process.env['LIMS_TWO_PERSON_RULE'] !== 'false',
     ...(process.env['LIMS_TIME_ZONE']?.trim() ? { timeZone: process.env['LIMS_TIME_ZONE'].trim() } : {}),
     ...(process.env['LIMS_REPORT_HEADER']?.trim() ? { reportHeader: process.env['LIMS_REPORT_HEADER'].trim().slice(0, 120) } : {}),

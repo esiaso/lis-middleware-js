@@ -74,6 +74,20 @@ describe('lims config validate', () => {
     expect(statuses('NODE_ENV=production\nDATABASE_URL_FILE=/gone', o)['DATABASE_URL_FILE']).toMatch(/^fail: \/gone does not exist/);
   });
 
+  it('runs the web service\'s own directory sign-in check', () => {
+    const base = 'NODE_ENV=production\nLIMS_LDAP_BIND_DN=cn=lims,dc=example,dc=test\nLIMS_LDAP_BASE_DN=dc=example,dc=test\nLIMS_LDAP_USER_FILTER=(uid={username})\nLIMS_LDAP_ID_ATTRIBUTE=entryUUID\nLIMS_LDAP_ROLE_MAP=cn=LIMS Lab,dc=example,dc=test=technologist\n';
+    expect(statuses(base)['LIMS_LDAP_URL']).toMatch(/^fail: other LIMS_LDAP_ settings are present/);
+    expect(statuses(`${base}LIMS_LDAP_URL=ldaps://dc1.example.test`)['directory sign-in']).toBe('pass: ldaps://dc1.example.test, base dc=example,dc=test, 1 mapped group(s), no service account password in these settings (the web service also reads the credential ldap_bind_password)');
+    expect(statuses(`${base}LIMS_LDAP_URL=ldap://dc1.example.test`)['directory sign-in']).toMatch(/^fail: LIMS_LDAP_URL must be an ldaps:\/\/ address/);
+    expect(statuses(`${base}LIMS_LDAP_URL=ldaps://dc1.example.test\nLIMS_LDAP_USER_FILTER=(uid=x)`)['directory sign-in']).toMatch(/must contain \{username\}/);
+    const leaked = statuses(`${base}LIMS_LDAP_URL=ldaps://dc1.example.test\nLIMS_LDAP_BIND_PASSWORD=hunter2-hunter2`);
+    expect(leaked['LIMS_LDAP_BIND_PASSWORD']).toMatch(/^warn/);
+    expect(JSON.stringify(leaked)).not.toContain('hunter2');
+    const o = { exists: (p: string) => p === '/ca.pem', read: () => 'not a cert' };
+    expect(statuses(`${base}LIMS_LDAP_URL=ldaps://dc1.example.test\nLIMS_LDAP_CA_FILE=/ca.pem`, o)['LIMS_LDAP_CA_FILE']).toMatch(/not a PEM certificate file/);
+    expect(statuses(`${base}LIMS_LDAP_URL=ldaps://dc1.example.test\nLIMS_LDAP_CA_FILE=/gone`, o)['LIMS_LDAP_CA_FILE']).toMatch(/does not exist/);
+  });
+
   it('finds the settings on each platform and says plainly when they are missing', () => {
     const dir = mkdtempSync(join(tmpdir(), 'lims-svc-'));
     try {
@@ -109,6 +123,8 @@ describe('lims secrets set', () => {
     expect(() => setSecret('database_url', 'postgresql://x', { dir: join(dir, 'missing') })).toThrow(/run the installer first/);
     expect(setSecret('oidc_client_secret', 's3cret-value', { dir, platform: 'linux' }).note).toMatch(/LoadCredential=oidc_client_secret/);
     expect(setSecret('oidc_client_secret', 's3cret-value', { dir, platform: 'win32', dpapi: (_op, _n, d) => d }).note).toMatch(/LIMS_OIDC_CLIENT_SECRET_FILE/);
+    expect(setSecret('ldap_bind_password', 'service pass 1', { dir, platform: 'linux' }).note).toMatch(/LoadCredential=ldap_bind_password/);
+    expect(() => setSecret('ldap_bind_password', 'short', { dir })).toThrow(/at least 8/);
   });
 });
 

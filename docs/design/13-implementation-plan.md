@@ -79,7 +79,7 @@ administrator's own password, nobody can change their own account, and the
 last active administrator cannot be removed), and hospital sign-in through
 OIDC with directory groups mapped to roles and a fresh IdP sign-in to confirm
 each approval-type action (A-17; tested against a stand-in IdP, not yet
-against the hospital's, D-19), and critical results (limits from the lab
+against the hospital's, D-19), directory sign-in over LDAPS with the same group mapping, confirmed with the directory password (A-29; tested against a stand-in directory over plain LDAP, not yet against the hospital's), and critical results (limits from the lab
 with their source, a flag on each version as it arrives, approval held
 until the call with read-back is recorded, and the waiting list with its
 timer on the dashboard; A-18, 08 §12), autoverification (off for
@@ -88,7 +88,7 @@ approves only, release stays with a person; A-19), delta checks (rules from the 
 (10 §7; tested on the Windows CI runner, not yet on the hospital server).
 Not built yet: "add test to order" from an
 unmatched result (needs the HMIS, D-1 to D-6), assisted reconciliation when the HMIS returns (beyond the candidate list),
-LDAPS, and the real HMIS connector, which waits for D-1 to D-6.
+and the real HMIS connector, which waits for D-1 to D-6.
 
 ## Phase 3: Instrument verification and parallel run (3 to 6 weeks, calendar-bound)
 

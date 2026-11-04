@@ -18,6 +18,15 @@
   <env name="LIMS_OIDC_REDIRECT_URI" value="https://lims.example/login/oidc/callback" />
   <env name="LIMS_OIDC_ROLE_MAP" value="LIMS-Admins=admin;LIMS-Approvers=approver" />
   -->
+  <!-- Directory sign-in over LDAPS (11 §11): uncomment and fill in. The password file is readable by NT SERVICE\lims-web only.
+  <env name="LIMS_LDAP_URL" value="ldaps://dc1.hospital.example:636" />
+  <env name="LIMS_LDAP_BIND_DN" value="CN=svc-lims,OU=Service Accounts,DC=hospital,DC=example" />
+  <env name="LIMS_LDAP_BIND_PASSWORD_FILE" value="C:\ProgramData\LIMS Middleware\secrets\ldap_bind_password" />
+  <env name="LIMS_LDAP_BASE_DN" value="OU=Staff,DC=hospital,DC=example" />
+  <env name="LIMS_LDAP_USER_FILTER" value="(&amp;(objectClass=user)(sAMAccountName={username}))" />
+  <env name="LIMS_LDAP_ID_ATTRIBUTE" value="objectGUID" />
+  <env name="LIMS_LDAP_ROLE_MAP" value="CN=LIMS Admins,OU=Groups,DC=hospital,DC=example=admin;CN=LIMS Approvers,OU=Groups,DC=hospital,DC=example=approver" />
+  -->
   <startmode>Automatic</startmode>
   <delayedAutoStart>true</delayedAutoStart>
   <onfailure action="restart" delay="5 sec" />

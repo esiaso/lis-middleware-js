@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { isIP } from 'node:net';
 import { join } from 'node:path';
 import { isProtected } from '@lis/db';
+import { ldapSettingsFromEnv } from '@lis/web/ldap';
 import { oidcSettingsFromEnv } from '@lis/web/oidc';
 import type { Check } from './verify.js';
 
@@ -79,7 +80,11 @@ function isTimeZone(tz: string): boolean {
   }
 }
 /** Every LIMS_* setting the services read. A LIMS_ key not listed here is a typo. */
-export const KNOWN_LIMS_KEYS = ['LIMS_TWO_PERSON_RULE', 'LIMS_INSECURE_COOKIES', 'LIMS_HOME', 'LIMS_REPORT_HEADER', 'LIMS_TIME_ZONE', ...OIDC_KEYS];
+const LDAP_KEYS = [
+  'LIMS_LDAP_URL', 'LIMS_LDAP_CA_FILE', 'LIMS_LDAP_BIND_DN', 'LIMS_LDAP_BIND_PASSWORD', 'LIMS_LDAP_BIND_PASSWORD_FILE', 'LIMS_LDAP_BASE_DN', 'LIMS_LDAP_USER_FILTER',
+  'LIMS_LDAP_ID_ATTRIBUTE', 'LIMS_LDAP_DISPLAY_NAME_ATTRIBUTE', 'LIMS_LDAP_GROUP_ATTRIBUTE', 'LIMS_LDAP_ROLE_MAP', 'LIMS_LDAP_LABEL', 'LIMS_LDAP_TIMEOUT_MS',
+];
+export const KNOWN_LIMS_KEYS = ['LIMS_TWO_PERSON_RULE', 'LIMS_INSECURE_COOKIES', 'LIMS_HOME', 'LIMS_REPORT_HEADER', 'LIMS_TIME_ZONE', ...OIDC_KEYS, ...LDAP_KEYS];
 /** Keys whose values are never shown. */
 export const SECRET_KEY = /SECRET|PASSWORD|TOKEN|PRIVATE|^DATABASE_URL$/i;
 
@@ -163,6 +168,33 @@ export function validateSource(src: ConfigSource, o: { exists?: (p: string) => b
         if (s) add('pass', 'hospital sign-in', `issuer ${s.issuer.href}, client ${s.clientId}, ${s.roleMap.size} mapped group(s)${s.clientSecret ? ', client secret found' : ', no client secret in these settings (the web service also reads the credential oidc_client_secret)'}`);
       } catch (e) {
         add('fail', 'hospital sign-in', (e as Error).message);
+      }
+    }
+    const anyLdap = LDAP_KEYS.some((k) => v.has(k));
+    if (anyLdap && !v.has('LIMS_LDAP_URL')) add('fail', 'LIMS_LDAP_URL', 'other LIMS_LDAP_ settings are present but LIMS_LDAP_URL is not, so directory sign-in stays off');
+    else if (v.has('LIMS_LDAP_URL')) {
+      const secretFile = v.get('LIMS_LDAP_BIND_PASSWORD_FILE');
+      plainSecret('LIMS_LDAP_BIND_PASSWORD_FILE', 'ldap_bind_password', secretFile);
+      if (v.has('LIMS_LDAP_BIND_PASSWORD')) add('warn', 'LIMS_LDAP_BIND_PASSWORD', 'the service account password is in the settings; store it with lims secrets set ldap_bind_password instead');
+      const caFile = v.get('LIMS_LDAP_CA_FILE');
+      if (caFile !== undefined && !exists(caFile)) add('fail', 'LIMS_LDAP_CA_FILE', `${caFile} does not exist`);
+      else if (caFile !== undefined && !read(caFile).includes('-----BEGIN CERTIFICATE-----')) add('fail', 'LIMS_LDAP_CA_FILE', `${caFile} is not a PEM certificate file`);
+      else {
+        // The web service's own check. On Linux the password comes as a systemd credential this check cannot see.
+        const hasPassword = v.has('LIMS_LDAP_BIND_PASSWORD') || secretFile !== undefined;
+        const env = Object.fromEntries(v);
+        if (!hasPassword) env['LIMS_LDAP_BIND_PASSWORD'] = 'checked-by-the-service';
+        if (secretFile !== undefined) {
+          delete env['LIMS_LDAP_BIND_PASSWORD_FILE'];
+          env['LIMS_LDAP_BIND_PASSWORD'] = 'checked-above';
+        }
+        delete env['LIMS_LDAP_CA_FILE'];
+        try {
+          const s = ldapSettingsFromEnv(env);
+          if (s) add('pass', 'directory sign-in', `${s.url.href}, base ${s.baseDn}, ${s.roleMap.size} mapped group(s)${caFile ? ', CA file found' : ''}${hasPassword ? '' : ', no service account password in these settings (the web service also reads the credential ldap_bind_password)'}`);
+        } catch (e) {
+          add('fail', 'directory sign-in', (e as Error).message);
+        }
       }
     }
   }

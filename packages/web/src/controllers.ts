@@ -5,7 +5,8 @@ import { migrationStatus, type Db } from '@lis/db';
 import { AUTOVERIFY_ACTOR, clinicalGateFor } from '@lis/domain';
 import { addResultComment, approve, confirmLink, decisionsFor, failingQc, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, standardCommentsFor, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
-import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS } from './auth.js';
+import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS, type LoginResult } from './auth.js';
+import { directory } from './ldap.js';
 import { displayTimeZone, elapsed, formatTime, formatValue, NOTICES, REFERENCE_MARK, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
 import { LOGIN_CSRF_COOKIE, OpenDuringPasswordChange, Public, Roles, SESSION_COOKIE, type WebRequest } from './security.js';
 import { CALLBACK_PATH, FLIGHT_MS, OIDC_COOKIE, OidcRefused, START_PATH, STEP_UP_PATH, type Oidc } from './oidc.js';
@@ -69,6 +70,16 @@ function patientName(p: { familyName: string | null; givenName: string | null; m
   return name ? `${name} (${p.mrn})` : p.mrn;
 }
 
+const LOGIN_REFUSED: Record<Exclude<LoginResult, { ok: true }>['reason'], string> = {
+  invalid: 'Wrong username or password.',
+  locked: 'This account is locked for 15 minutes after too many failed attempts.',
+  unavailable: 'The hospital directory cannot be reached, so directory accounts cannot sign in. Try again, or use a local account.',
+  'no-role': 'Your hospital account is not in any directory group that has access to the lab middleware. Ask IT or the lab manager.',
+  disabled: 'This account is disabled in the lab middleware. Ask an administrator.',
+  'name-taken': 'A local account already has your username, so the hospital sign-in cannot use it. Ask an administrator.',
+  'bad-name': 'Your hospital username cannot be used here. Ask IT.',
+};
+
 @Controller()
 export class AuthController {
   constructor(
@@ -92,6 +103,7 @@ export class AuthController {
       error,
       notice: typeof req.query['notice'] === 'string' ? NOTICES[req.query['notice']] : undefined,
       sso: this.oidc ? { label: this.oidc.settings.label, href: `${START_PATH}?next=${encodeURIComponent(next)}` } : undefined,
+      directory: directory() ? { label: directory()!.label } : undefined,
     });
   }
 
@@ -148,13 +160,7 @@ export class AuthController {
     const r = await oidcSignIn(this.db, profile, this.opts.session);
     if (!r.ok) {
       res.status(403);
-      const why = {
-        'no-role': 'Your hospital account is not in any directory group that has access to the lab middleware. Ask IT or the lab manager.',
-        disabled: 'This account is disabled in the lab middleware. Ask an administrator.',
-        'name-taken': 'A local account already has your username, so the hospital sign-in cannot use it. Ask an administrator.',
-        'bad-name': 'Your hospital username cannot be used here. Ask IT.',
-      }[r.reason];
-      return this.showLogin(req, res, next, why);
+      return this.showLogin(req, res, next, LOGIN_REFUSED[r.reason]);
     }
     res.cookie(SESSION_COOKIE, r.token, this.cookie({ sameSite: 'lax', path: '/', maxAge: this.opts.session.absoluteMs }));
     res.redirect(303, next);
@@ -178,8 +184,8 @@ export class AuthController {
     }
     const r = await login(this.db, str(body, 'username').trim(), str(body, 'password'), this.opts.session);
     if (!r.ok) {
-      res.status(401);
-      return this.showLogin(req, res, next, r.reason === 'locked' ? 'This account is locked for 15 minutes after too many failed attempts.' : 'Wrong username or password.');
+      res.status(r.reason === 'unavailable' ? 503 : r.reason === 'invalid' || r.reason === 'locked' ? 401 : 403);
+      return this.showLogin(req, res, next, LOGIN_REFUSED[r.reason]);
     }
     res.clearCookie(LOGIN_CSRF_COOKIE, { path: '/login' });
     res.cookie(SESSION_COOKIE, r.token, this.cookie({ sameSite: 'lax', path: '/', maxAge: this.opts.session.absoluteMs }));

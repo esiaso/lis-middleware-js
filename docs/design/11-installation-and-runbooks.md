@@ -93,7 +93,7 @@ WinSW XML), not `lims.yaml`.
   check. It warns on secrets kept in the settings, `NODE_ENV` not
   `production`, a non-loopback `BIND_HOST`, and `LIMS_TWO_PERSON_RULE=false`.
   Secret values are never printed. `lims verify` includes its summary.
-* `lims secrets set <name>` stores `database_url` or `oidc_client_secret` in
+* `lims secrets set <name>` stores `database_url`, `oidc_client_secret` or `ldap_bind_password` in
   the secrets folder the installer made (`/etc/lims/secrets`, root only,
   mode 0600; `C:\ProgramData\LIMS Middleware\secrets`, readable by the
   services and administrators). The value is piped in or typed without
@@ -346,6 +346,36 @@ add the secret with `systemctl edit lims-web` and a line
 (the shipped unit does not name it, because systemd refuses to start a unit
 whose credential file is missing). Keep at least one local administrator
 for break-glass use when the IdP is down.
+
+Hospital sign-in through the directory over LDAPS (10 §3, 01 A-29). Leave
+`LIMS_LDAP_URL` unset for none. It can be used with or without OIDC; people
+type their directory username and password on the ordinary sign-in form.
+Once it is set, the service refuses to start until the other required
+settings are valid.
+
+| Setting | Default | Notes |
+|---|---|---|
+| `LIMS_LDAP_URL` | unset | the directory server, `ldaps://` only, such as `ldaps://dc1.hospital.example:636`; no path |
+| `LIMS_LDAP_CA_FILE` | Node's bundled CAs | PEM file of the CA that issued the directory's certificate (usually the hospital CA). The certificate and host name are always checked |
+| `LIMS_LDAP_BIND_DN` | required | the read-only service account that searches for people |
+| service account password | required | systemd credential `ldap_bind_password` (Linux), the file in `LIMS_LDAP_BIND_PASSWORD_FILE` (Windows), or `LIMS_LDAP_BIND_PASSWORD` (development); store it with `lims secrets set ldap_bind_password` |
+| `LIMS_LDAP_BASE_DN` | required | where to search, such as `OU=Staff,DC=hospital,DC=example` |
+| `LIMS_LDAP_USER_FILTER` | required | an LDAP filter with `{username}`, such as `(&(objectClass=user)(sAMAccountName={username}))`. It must match exactly one entry |
+| `LIMS_LDAP_ID_ATTRIBUTE` | required | an attribute that never changes for a person, such as `objectGUID` (Active Directory) or `entryUUID` (OpenLDAP); accounts here are keyed on it |
+| `LIMS_LDAP_ROLE_MAP` | required | `Group=role[,role];Group=role`, with groups as the directory writes them in the group attribute (usually full DNs; compared ignoring case). Someone with no mapped group cannot sign in |
+| `LIMS_LDAP_GROUP_ATTRIBUTE` | `memberOf` | attribute of the person's entry holding their groups |
+| `LIMS_LDAP_DISPLAY_NAME_ATTRIBUTE` | `displayName` | |
+| `LIMS_LDAP_LABEL` | `hospital account` | text on the sign-in page |
+| `LIMS_LDAP_TIMEOUT_MS` | `5000` | for each connection and operation, 500 to 60000 |
+
+What to ask hospital IT for (D-19): a read-only service account; the
+directory's LDAPS address and the CA certificate that issued it; the search
+base and filter; the identifying attribute; and the groups to map. On Linux,
+add the password with `systemctl edit lims-web` and a line
+`LoadCredential=ldap_bind_password:/etc/lims/secrets/ldap_bind_password`.
+Approve, release, correct and account changes are confirmed with the
+person's directory password. Keep at least one local administrator: a local
+account always signs in locally, also while the directory is down.
 
 First administrator, before the hospital IdP is connected (password on
 standard input, at least 12 characters, never on the command line):

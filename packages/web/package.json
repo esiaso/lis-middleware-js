@@ -16,6 +16,10 @@
     "./oidc": {
       "types": "./dist/oidc.d.ts",
       "default": "./dist/oidc.js"
+    },
+    "./ldap": {
+      "types": "./dist/ldap.d.ts",
+      "default": "./dist/ldap.js"
     }
   },
   "files": [
@@ -35,6 +39,7 @@
     "bwip-js": "4.11.4",
     "cookie-parser": "1.4.7",
     "hbs": "4.4.0",
+    "ldapts": "9.2.0",
     "openid-client": "6.8.8",
     "pino": "10.4.0",
     "reflect-metadata": "0.2.2",
