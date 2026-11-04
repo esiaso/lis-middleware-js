@@ -7,7 +7,7 @@ import type { Tx } from './tx.js';
  *
  * - A **measurement** is an instrument value stored on a patient result (a
  *   result version that came from an instrument observation), counted on
- *   the UTC day the instrument's message arrived. Values typed or corrected
+ *   day the instrument's message arrived, in the lab's time zone (A-24). Values typed or corrected
  *   by a person are not measurements.
  * - A **repeat** is any measurement after the first on the same result.
  * - **QC** counts QC observations kept in the QC log.
@@ -40,10 +40,10 @@ export interface Workload {
   total: { measurements: number; repeats: number; qc: number; quarantined: number };
 }
 
-/** Measurements per UTC day, instrument and test, in [from, to). */
-export async function workloadCells(db: Db | Tx, from: Date, to: Date): Promise<WorkloadCell[]> {
+/** Measurements per day (in the given time zone), instrument and test, in [from, to). */
+export async function workloadCells(db: Db | Tx, from: Date, to: Date, timeZone = 'UTC'): Promise<WorkloadCell[]> {
   const rows = await db.$queryRaw<{ day: string; instrumentId: string; test: string; measurements: bigint; repeats: bigint }[]>`
-    SELECT to_char(nm.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day, nm.instrument_id AS "instrumentId",
+    SELECT to_char(nm.created_at AT TIME ZONE ${timeZone}, 'YYYY-MM-DD') AS day, nm.instrument_id AS "instrumentId",
            COALESCE(t.local_test_code, t.hmis_test_code) AS test,
            count(*) AS measurements,
            count(*) FILTER (WHERE EXISTS (
@@ -60,11 +60,11 @@ export async function workloadCells(db: Db | Tx, from: Date, to: Date): Promise<
   return rows.map((r) => ({ ...r, measurements: Number(r.measurements), repeats: Number(r.repeats) }));
 }
 
-export async function workload(db: Db | Tx, from: Date, to: Date): Promise<Workload> {
+export async function workload(db: Db | Tx, from: Date, to: Date, timeZone = 'UTC'): Promise<Workload> {
   const [cells, qc, quarantined, names] = await Promise.all([
-    workloadCells(db, from, to),
+    workloadCells(db, from, to, timeZone),
     db.$queryRaw<{ day: string; instrumentId: string; n: bigint }[]>`
-      SELECT to_char(at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day, instrument_id AS "instrumentId", count(*) AS n
+      SELECT to_char(at AT TIME ZONE ${timeZone}, 'YYYY-MM-DD') AS day, instrument_id AS "instrumentId", count(*) AS n
         FROM qc_evaluation WHERE at >= ${from} AND at < ${to} GROUP BY 1, 2`,
     db.$queryRaw<{ instrumentId: string; n: bigint }[]>`
       SELECT instrument_id AS "instrumentId", count(*) AS n

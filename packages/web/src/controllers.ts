@@ -6,7 +6,7 @@ import { AUTOVERIFY_ACTOR, clinicalGateFor } from '@lis/domain';
 import { approve, confirmLink, decisionsFor, failingQc, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, waitingCriticals, withdrawLink } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
 import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS } from './auth.js';
-import { elapsed, formatTime, formatValue, NOTICES, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
+import { displayTimeZone, elapsed, formatTime, formatValue, NOTICES, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
 import { LOGIN_CSRF_COOKIE, OpenDuringPasswordChange, Public, Roles, SESSION_COOKIE, type WebRequest } from './security.js';
 import { CALLBACK_PATH, FLIGHT_MS, OIDC_COOKIE, OidcRefused, START_PATH, STEP_UP_PATH, type Oidc } from './oidc.js';
 import { DB, OIDC, WEB_OPTIONS, type WebOptions } from './tokens.js';
@@ -38,6 +38,7 @@ export function page(req: WebRequest, res: Response, view: string, data: Record<
     user: req.user,
     csrf: req.user?.csrfToken,
     notice,
+    timeZone: displayTimeZone(),
     // For hospital sign-in accounts, forms that need re-confirmation show a link back to this page.
     stepUp: req.user?.sso
       ? {

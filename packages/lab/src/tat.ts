@@ -1,5 +1,5 @@
 import { uuidv7, type Db } from '@lis/db';
-import { parseTatTarget, targetFor, type TatTarget, type TatTargetInput } from '@lis/domain';
+import { fromZonedLocal, parseTatTarget, targetFor, zonedDay, type TatTarget, type TatTargetInput } from '@lis/domain';
 import { appendAudit } from './audit.js';
 import { WorkflowRejected } from './results.js';
 import { InvalidInput } from './instruments.js';
@@ -29,6 +29,9 @@ export interface TatFilter {
   /** Exclusive. */
   to: Date;
   priority: string | null;
+  /** The days as entered, in the lab's time zone, both included. */
+  fromDay: string;
+  toDay: string;
 }
 
 export interface TatStep {
@@ -69,20 +72,25 @@ export interface TatResultTimes {
   accepted: Date | null;
 }
 
-/** Parse the report's date range: YYYY-MM-DD in UTC, both days included, at most 366 days. */
-export function parseTatFilter(q: { from?: string | undefined; to?: string | undefined; priority?: string | undefined }, now = new Date()): TatFilter {
-  const day = (s: string | undefined, fallback: Date) => {
-    if (!s) return fallback;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || Number.isNaN(Date.parse(`${s}T00:00:00Z`))) throw new InvalidInput([`"${s.slice(0, 20)}" is not a date such as 2026-11-04.`]);
-    return new Date(`${s}T00:00:00Z`);
+/** Calendar arithmetic on "YYYY-MM-DD", independent of any time zone. */
+const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * Parse the report's date range: YYYY-MM-DD days in the lab's time zone
+ * (A-24), both included, at most 366 days. The default is the last 7 days.
+ */
+export function parseTatFilter(q: { from?: string | undefined; to?: string | undefined; priority?: string | undefined }, now = new Date(), timeZone = 'UTC'): TatFilter {
+  const check = (s: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || !fromZonedLocal(s, timeZone)) throw new InvalidInput([`"${s.slice(0, 20)}" is not a date such as 2026-11-04.`]);
+    return s;
   };
-  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const from = day(q.from, new Date(today.getTime() - 6 * 86_400_000));
-  const to = new Date(day(q.to, today).getTime() + 86_400_000);
-  if (from >= to) throw new InvalidInput(['The first day must not be after the last day.']);
-  if (to.getTime() - from.getTime() > 366 * 86_400_000) throw new InvalidInput(['Choose at most 366 days.']);
+  const today = zonedDay(now, timeZone);
+  const toDay = q.to ? check(q.to) : today;
+  const fromDay = q.from ? check(q.from) : addDays(today, -6);
+  if (fromDay > toDay) throw new InvalidInput(['The first day must not be after the last day.']);
+  if (fromDay < addDays(toDay, -365)) throw new InvalidInput(['Choose at most 366 days.']);
   const priority = q.priority && ['routine', 'urgent', 'stat'].includes(q.priority) ? q.priority : null;
-  return { from, to, priority };
+  return { from: fromZonedLocal(fromDay, timeZone) as Date, to: fromZonedLocal(addDays(toDay, 1), timeZone) as Date, priority, fromDay, toDay };
 }
 
 /** One row per result whose specimen was collected (or, without a collection time, ordered) in the range. */

@@ -5,7 +5,8 @@ import { accessionSpecimen, InvalidInput, receiveSpecimen, recordLabelPrint, rej
 import bwipjs from 'bwip-js';
 import type { Response } from 'express';
 import { page, str, uuidParam, type Form } from './controllers.js';
-import { formatTime, formatValue, STATUS_LABELS } from './format.js';
+import { fromZonedLocal, zonedLocal } from '@lis/domain';
+import { displayTimeZone, formatTime, formatValue, STATUS_LABELS } from './format.js';
 import { Roles, type WebRequest } from './security.js';
 import { DB } from './tokens.js';
 
@@ -117,7 +118,7 @@ export class OrdersController {
         rejection: s.rejectionReason ?? '',
       })),
       reasons: Object.entries(REJECTION_REASONS).map(([value, label]) => ({ value, label })),
-      now: new Date().toISOString().slice(0, 16),
+      now: zonedLocal(new Date(), displayTimeZone()),
     });
   }
 
@@ -128,7 +129,8 @@ export class OrdersController {
     const raw = body['testIds'];
     const ids = (Array.isArray(raw) ? raw : typeof raw === 'string' ? [raw] : []).filter((x): x is string => typeof x === 'string').map(uuidParam);
     const at = str(body, 'collectedAt');
-    const collectedAt = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(at) ? new Date(`${at}:00Z`) : undefined;
+    // Typed on the lab's clock (A-24).
+    const collectedAt = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(at) ? (fromZonedLocal(at, displayTimeZone()) ?? undefined) : undefined;
     if (collectedAt && collectedAt.getTime() > Date.now() + 5 * 60_000) throw new InvalidInput(['Collection time is in the future.']);
     const r = await accessionSpecimen(this.db, { orderId: uuidParam(id), orderedTestIds: ids, user: req.user!.username, ...(collectedAt ? { collectedAt } : {}) });
     res.redirect(303, `/specimens/${r.specimenId}/label`);

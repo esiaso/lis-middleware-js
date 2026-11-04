@@ -312,6 +312,7 @@ Web service (`lims-web`):
 | `DATABASE_URL` or `$CREDENTIALS_DIRECTORY/database_url` | required | same as the other services |
 | `BIND_HOST`, `PORT` | `127.0.0.1`, `3000` | the reverse proxy (§4) terminates TLS and forwards here |
 | `LIMS_TWO_PERSON_RULE` | `true` | reviewer and approver must differ (10 §2) |
+| `LIMS_TIME_ZONE` | `UTC` | the lab's time zone as an IANA name, for example `Africa/Nairobi`: pages show times on this clock, typed collection times are read on it, and report and audit-search days start at its midnight. Times are stored in UTC either way (01 A-24). An unknown name stops the web service |
 | `LIMS_REPORT_HEADER` | `Laboratory report` | first line of a printed result report, for example the lab's name and address; at most 120 characters (W-14) |
 | `LIMS_INSECURE_COOKIES` | `false` | `true` drops the cookie `Secure` flag and HSTS; only for a loopback-only test setup |
 

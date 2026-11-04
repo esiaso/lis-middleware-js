@@ -42,10 +42,13 @@ describe('summarizeTat with targets', () => {
 describe('parseTatFilter', () => {
   const now = new Date('2026-11-04T15:00:00Z');
   it('defaults to the last 7 days including today, in UTC', () => {
-    expect(parseTatFilter({}, now)).toEqual({ from: new Date('2026-10-29T00:00:00Z'), to: new Date('2026-11-05T00:00:00Z'), priority: null });
+    expect(parseTatFilter({}, now)).toEqual({ from: new Date('2026-10-29T00:00:00Z'), to: new Date('2026-11-05T00:00:00Z'), priority: null, fromDay: '2026-10-29', toDay: '2026-11-04' });
   });
   it('includes both days, and checks the input', () => {
-    expect(parseTatFilter({ from: '2026-11-01', to: '2026-11-01', priority: 'stat' }, now)).toEqual({ from: new Date('2026-11-01T00:00:00Z'), to: new Date('2026-11-02T00:00:00Z'), priority: 'stat' });
+    expect(parseTatFilter({ from: '2026-11-01', to: '2026-11-01', priority: 'stat' }, now)).toEqual({ from: new Date('2026-11-01T00:00:00Z'), to: new Date('2026-11-02T00:00:00Z'), priority: 'stat', fromDay: '2026-11-01', toDay: '2026-11-01' });
+    // In the lab's time zone, a day starts at its local midnight.
+    expect(parseTatFilter({ from: '2026-11-01', to: '2026-11-01' }, now, 'Africa/Nairobi')).toMatchObject({ from: new Date('2026-10-31T21:00:00Z'), to: new Date('2026-11-01T21:00:00Z') });
+    expect(parseTatFilter({ from: '2025-11-02', to: '2026-11-02' }, now).fromDay).toBe('2025-11-02');
     expect(parseTatFilter({ priority: 'anything' }, now).priority).toBeNull();
     expect(() => parseTatFilter({ from: '1/11/2026' }, now)).toThrow();
     expect(() => parseTatFilter({ from: '2026-11-03', to: '2026-11-01' }, now)).toThrow();

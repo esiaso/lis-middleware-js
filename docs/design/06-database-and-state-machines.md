@@ -3,8 +3,8 @@
 ## 1. Conventions
 
 * All timestamps are `timestamptz` and stored in UTC. The UI renders them in
-  the hospital's configured IANA time zone (`config.site.timeZone`, e.g.
-  `Africa/Nairobi`). Instrument timestamps without zone (ASTM `YYYYMMDDHHMMSS`,
+  the hospital's configured IANA time zone (`LIMS_TIME_ZONE`, e.g.
+  `Africa/Nairobi`; 01 A-24). Instrument timestamps without zone (ASTM `YYYYMMDDHHMMSS`,
   HL7 TS without offset) are interpreted in the **instrument's configured
   zone** and the original text is kept alongside.
 * Clinical numeric values use `NUMERIC` (Prisma `Decimal`). The original

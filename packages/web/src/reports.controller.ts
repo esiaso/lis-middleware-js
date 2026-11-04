@@ -4,11 +4,10 @@ import { parseTatTarget, TAT_PRIORITIES } from '@lis/domain';
 import { addTatTarget, appendAudit, downtimeTestCatalogue, InvalidInput, overdueResults, parseTatFilter, retireTatTarget, summarizeTat, TAT_STEPS, tatTimes, workload, workloadCells, type TatFilter, type TatRow } from '@lis/lab';
 import type { Response } from 'express';
 import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
-import { elapsed, formatDuration, formatTime, STATUS_LABELS } from './format.js';
+import { displayTimeZone, elapsed, formatDuration, formatTime, STATUS_LABELS } from './format.js';
 import { Roles, type WebRequest } from './security.js';
 import { DB } from './tokens.js';
 
-const day = (d: Date) => d.toISOString().slice(0, 10);
 type Q = { from?: string | undefined; to?: string | undefined; priority?: string | undefined };
 const q = (v: unknown) => (typeof v === 'string' ? v : undefined);
 
@@ -30,11 +29,11 @@ export class ReportsController {
     let f: TatFilter;
     let issues: string[] = [];
     try {
-      f = parseTatFilter(input);
+      f = parseTatFilter(input, new Date(), displayTimeZone());
     } catch (e) {
       if (!(e instanceof InvalidInput)) throw e;
       issues = e.issues;
-      f = parseTatFilter({});
+      f = parseTatFilter({}, new Date(), displayTimeZone());
     }
     const [rows, targets] = await Promise.all([tatTimes(this.db, f), this.db.tatTarget.findMany({ where: { active: true } })]);
     const s = summarizeTat(rows, targets);
@@ -47,11 +46,11 @@ export class ReportsController {
         return { n: x.n, median: formatDuration(x.median), p90: formatDuration(x.p90), negative: x.negative };
       }),
     });
-    const toDay = day(new Date(f.to.getTime() - 86_400_000));
+    const toDay = f.toDay;
     page(req, res, 'turnaround', {
       title: 'Turnaround times',
       issues,
-      from: day(f.from),
+      from: f.fromDay,
       to: toDay,
       priorities: TAT_PRIORITIES.map((p) => ({ value: p, selected: p === f.priority })),
       steps: TAT_STEPS.map((st) => ({ label: st.label })),
@@ -59,7 +58,7 @@ export class ReportsController {
       tests: s.tests.map(view),
       empty: rows.length === 0,
       hasTargets: targets.length > 0,
-      csv: `/reports/turnaround.csv?from=${day(f.from)}&to=${toDay}${f.priority ? `&priority=${f.priority}` : ''}`,
+      csv: `/reports/turnaround.csv?from=${f.fromDay}&to=${toDay}${f.priority ? `&priority=${f.priority}` : ''}`,
     });
   }
 
@@ -153,39 +152,39 @@ export class ReportsController {
     let f: TatFilter;
     let issues: string[] = [];
     try {
-      f = parseTatFilter({ from: q(query['from']), to: q(query['to']) });
+      f = parseTatFilter({ from: q(query['from']), to: q(query['to']) }, new Date(), displayTimeZone());
     } catch (e) {
       if (!(e instanceof InvalidInput)) throw e;
       issues = e.issues;
-      f = parseTatFilter({});
+      f = parseTatFilter({}, new Date(), displayTimeZone());
     }
-    const w = await workload(this.db, f.from, f.to);
-    const toDay = day(new Date(f.to.getTime() - 86_400_000));
+    const w = await workload(this.db, f.from, f.to, displayTimeZone());
+    const toDay = f.toDay;
     const columns = w.instruments.filter((i) => i.measurements > 0);
     page(req, res, 'workload', {
       title: 'Workload',
       issues,
-      from: day(f.from),
+      from: f.fromDay,
       to: toDay,
       w,
       empty: w.total.measurements === 0 && w.total.qc === 0 && w.total.quarantined === 0,
       testColumns: columns.map((i) => ({ id: i.instrumentId, name: i.name })),
       tests: w.tests.map((t) => ({ ...t, cells: columns.map((i) => t.byInstrument[i.instrumentId] ?? 0) })),
-      csv: `/reports/workload.csv?from=${day(f.from)}&to=${toDay}`,
+      csv: `/reports/workload.csv?from=${f.fromDay}&to=${toDay}`,
     });
   }
 
   @Get('workload.csv')
   @Roles('approver', 'auditor')
   async workloadCsv(@Req() req: WebRequest, @Res() res: Response, @Query() query: Record<string, unknown>): Promise<void> {
-    const f = parseTatFilter({ from: q(query['from']), to: q(query['to']) });
-    const cells = await workloadCells(this.db, f.from, f.to);
+    const f = parseTatFilter({ from: q(query['from']), to: q(query['to']) }, new Date(), displayTimeZone());
+    const cells = await workloadCells(this.db, f.from, f.to, displayTimeZone());
     const names = new Map((await this.db.instrument.findMany({ select: { id: true, displayName: true } })).map((i) => [i.id, i.displayName]));
     const head = ['day', 'instrument_id', 'instrument', 'test', 'measurements', 'repeats'];
     const lines = cells.map((c) => [c.day, cell(c.instrumentId), cell(names.get(c.instrumentId) ?? ''), cell(c.test), c.measurements, c.repeats].join(','));
     await this.db.$transaction((tx) => appendAudit(tx, { actor: req.user!.username, action: 'report.workload-export', entityType: 'report', entityId: 'workload', after: { from: f.from.toISOString(), to: f.to.toISOString(), rows: cells.length } }));
     res.setHeader('content-type', 'text/csv; charset=utf-8');
-    res.setHeader('content-disposition', `attachment; filename="workload-${day(f.from)}-to-${day(new Date(f.to.getTime() - 86_400_000))}.csv"`);
+    res.setHeader('content-disposition', `attachment; filename="workload-${f.fromDay}-to-${f.toDay}.csv"`);
     res.setHeader('cache-control', 'no-store');
     res.send([head.join(','), ...lines].join('\r\n') + '\r\n');
   }
@@ -193,14 +192,14 @@ export class ReportsController {
   @Get('turnaround.csv')
   @Roles('approver', 'auditor')
   async csv(@Req() req: WebRequest, @Res() res: Response, @Query() query: Record<string, unknown>): Promise<void> {
-    const f = parseTatFilter({ from: q(query['from']), to: q(query['to']), priority: q(query['priority']) });
+    const f = parseTatFilter({ from: q(query['from']), to: q(query['to']), priority: q(query['priority']) }, new Date(), displayTimeZone());
     const rows = await tatTimes(this.db, f);
     const iso = (d: Date | null) => (d ? d.toISOString() : '');
     const head = ['accession_no', 'test', 'priority', 'ordered', 'collected', 'received', 'first_value', 'approved', 'approved_by', 'released', 'accepted_by_hmis'];
     const lines = rows.map((r) => [cell(r.accessionNo), cell(r.test), cell(r.priority), iso(r.ordered), iso(r.collected), iso(r.received), iso(r.first_value), iso(r.approved), cell(r.approvedBy), iso(r.released), iso(r.accepted)].join(','));
     await this.db.$transaction((tx) => appendAudit(tx, { actor: req.user!.username, action: 'report.turnaround-export', entityType: 'report', entityId: 'turnaround', after: { from: f.from.toISOString(), to: f.to.toISOString(), priority: f.priority, rows: rows.length } }));
     res.setHeader('content-type', 'text/csv; charset=utf-8');
-    res.setHeader('content-disposition', `attachment; filename="turnaround-${day(f.from)}-to-${day(new Date(f.to.getTime() - 86_400_000))}.csv"`);
+    res.setHeader('content-disposition', `attachment; filename="turnaround-${f.fromDay}-to-${f.toDay}.csv"`);
     res.setHeader('cache-control', 'no-store');
     res.send([head.join(','), ...lines].join('\r\n') + '\r\n');
   }

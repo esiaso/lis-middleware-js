@@ -1,5 +1,5 @@
 <div class="d-flex align-items-baseline gap-3"><h1 class="h4">Workload</h1><a href="/reports/turnaround">Turnaround times</a></div>
-<p class="text-body-secondary">What the instruments measured, counted from the values they sent, by the day their message arrived (UTC). A measurement is an instrument value stored on a patient result; values typed or corrected by a person are not counted. A repeat is any measurement after the first on the same result. QC counts the QC results in the QC log. Quarantined counts patient values that arrived with no matching order; any attached to an order later are also in the measurements, so it is not added to the total.</p>
+<p class="text-body-secondary">What the instruments measured, counted from the values they sent, by the day their message arrived ({{timeZone}}). A measurement is an instrument value stored on a patient result; values typed or corrected by a person are not counted. A repeat is any measurement after the first on the same result. QC counts the QC results in the QC log. Quarantined counts patient values that arrived with no matching order; any attached to an order later are also in the measurements, so it is not added to the total.</p>
 {{> issues}}
 <form method="get" action="/reports/workload" class="row g-2 align-items-end mb-3">
   <div class="col-auto"><label class="form-label small" for="from">From</label><input class="form-control form-control-sm" type="date" id="from" name="from" value="{{from}}"></div>
@@ -34,7 +34,7 @@
 
 <h2 class="h6 mt-4">By day</h2>
 <table class="table table-sm align-middle">
-  <thead><tr><th>Day (UTC)</th><th class="text-end">Measurements</th><th class="text-end">Repeats</th><th class="text-end">QC</th></tr></thead>
+  <thead><tr><th>Day ({{timeZone}})</th><th class="text-end">Measurements</th><th class="text-end">Repeats</th><th class="text-end">QC</th></tr></thead>
   <tbody>
     {{#each w.days}}<tr><td>{{day}}</td><td class="text-end">{{measurements}}</td><td class="text-end">{{repeats}}</td><td class="text-end">{{qc}}</td></tr>{{/each}}
   </tbody>

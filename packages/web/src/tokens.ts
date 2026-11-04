@@ -17,4 +17,6 @@ export interface WebOptions {
   oidc?: OidcSettings;
   /** First line of a printed result report, such as the lab's name and address (LIMS_REPORT_HEADER). */
   reportHeader?: string;
+  /** IANA time zone for showing and entering times (LIMS_TIME_ZONE, A-24). Default UTC. */
+  timeZone?: string;
 }
