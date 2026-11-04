@@ -173,6 +173,10 @@ export async function release(db: Db, resultId: string, user: { username: string
           verifiedSoftwareVersion: inst.verifiedSoftwareVersion,
         })
       : ({ releasable: true } as const); // manual entry: no instrument involved
+    // 06 §5.2: a downtime order's results wait until the order is reconciled to an HMIS order.
+    if (row.orderedTest.order.source === 'MANUAL_DOWNTIME') {
+      throw new WorkflowRejected({ code: 'NOT_RELEASABLE', detail: `${row.orderedTest.order.hmisOrderId} is a downtime order; reconcile it to the HMIS order before release` });
+    }
     const r = unwrap(releaseResult(before.aggregate, gate));
     const version = r.aggregate.versions.find((v) => v.versionNo === r.aggregate.selectedVersionNo) as ResultVersion;
     const t = row.orderedTest;

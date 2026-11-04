@@ -1,0 +1,29 @@
+<p><a href="/downtime">&larr; Downtime orders</a></p>
+<h1 class="h4">Downtime registration</h1>
+<div class="alert alert-warning" role="alert">Use this only while the HMIS cannot be reached. The patient and order are provisional. Results can be reviewed and approved, but they are held from the HMIS until the order is reconciled to the real HMIS order.</div>
+{{> issues}}
+<form method="post" action="/downtime" class="row g-3">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <div class="col-md-4"><label class="form-label" for="familyName">Family name</label><input class="form-control" id="familyName" name="familyName" value="{{v.familyName}}" required maxlength="80"></div>
+  <div class="col-md-4"><label class="form-label" for="givenName">Given name</label><input class="form-control" id="givenName" name="givenName" value="{{v.givenName}}" maxlength="80"></div>
+  <div class="col-md-2"><label class="form-label" for="birthDate">Birth date</label><input class="form-control" type="date" id="birthDate" name="birthDate" value="{{v.birthDate}}"></div>
+  <div class="col-md-2"><label class="form-label" for="sex">Sex</label>
+    <select class="form-select" id="sex" name="sex"><option value="">Not known</option><option value="F" {{#if (eq v.sex "F")}}selected{{/if}}>F</option><option value="M" {{#if (eq v.sex "M")}}selected{{/if}}>M</option><option value="U" {{#if (eq v.sex "U")}}selected{{/if}}>U</option></select></div>
+  <div class="col-md-4"><label class="form-label" for="claimedMrn">MRN on the request form, if any</label><input class="form-control font-monospace" id="claimedMrn" name="claimedMrn" value="{{v.claimedMrn}}" maxlength="40"><div class="form-text">Only used to find the HMIS order later. It is not checked now.</div></div>
+  <div class="col-md-4"><label class="form-label" for="location">Ward or clinic</label><input class="form-control" id="location" name="location" value="{{v.location}}" maxlength="80"></div>
+  <div class="col-md-4"><label class="form-label" for="clinician">Requesting clinician</label><input class="form-control" id="clinician" name="clinician" value="{{v.clinician}}" maxlength="80"></div>
+  <div class="col-md-4"><label class="form-label" for="specimenType">Specimen type</label><input class="form-control" id="specimenType" name="specimenType" value="{{v.specimenType}}" maxlength="40" placeholder="for example serum"></div>
+  <div class="col-md-4"><span class="form-label d-block">Priority</span>
+    <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="priority" id="p-routine" value="routine" {{#unless (eq v.priority "stat")}}checked{{/unless}}><label class="form-check-label" for="p-routine">Routine</label></div>
+    <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="priority" id="p-stat" value="stat" {{#if (eq v.priority "stat")}}checked{{/if}}><label class="form-check-label" for="p-stat">STAT</label></div>
+  </div>
+  <fieldset class="col-12">
+    <legend class="form-label fs-6">Tests</legend>
+    {{#each tests}}
+    <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="tests" value="{{code}}" id="t-{{code}}" {{#if checked}}checked{{/if}}><label class="form-check-label font-monospace" for="t-{{code}}">{{code}}</label></div>
+    {{else}}
+    <p class="text-body-secondary">No tests are known yet. Load the HMIS code map or approve an instrument mapping first.</p>
+    {{/each}}
+  </fieldset>
+  <div class="col-12"><button class="btn btn-primary" type="submit">Register downtime order</button></div>
+</form>

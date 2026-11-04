@@ -220,6 +220,7 @@ export class ResultsController {
       specimen: t.specimen ? { accessionNo: t.specimen.accessionNo, collectedAt: formatTime(t.specimen.collectedAt) } : null,
       instrument: inst ? { name: inst.displayName, model: `${inst.manufacturer} ${inst.model}` } : null,
       notClinical: gate.releasable ? null : gate.detail,
+      downtime: t.order.source === 'MANUAL_DOWNTIME' ? { orderId: t.order.id, id: t.order.hmisOrderId } : null,
       versions: r.versions.map((v) => ({
         no: v.versionNo,
         kind: v.kind,
@@ -235,7 +236,7 @@ export class ResultsController {
       actions: {
         review: r.status === 'received' || r.status === 'reviewed',
         approve: r.status === 'reviewed',
-        release: r.status === 'approved' && gate.releasable,
+        release: r.status === 'approved' && gate.releasable && t.order.source !== 'MANUAL_DOWNTIME',
         replay: r.status === 'failed',
         correct: r.status === 'sent' || r.status === 'hmis_confirmed',
       },

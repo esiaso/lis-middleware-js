@@ -273,6 +273,10 @@ model Patient {
   birthDate  DateTime?  @map("birth_date") @db.Date
   sex        String?
   updatedAt  DateTime   @default(now()) @map("updated_at") @db.Timestamptz
+  /// Registered by hand during HMIS downtime (06 §5.2); never the HMIS's record.
+  provisional Boolean   @default(false)
+  /// The HMIS patient this provisional record was reconciled to. Never deleted.
+  mergedIntoId String?  @map("merged_into_id") @db.Uuid
   orders     LabOrder[]
 
   @@map("patient")
@@ -290,6 +294,12 @@ model LabOrder {
   status            String
   /// The canonical order as received, for traceability.
   sourceJson        Json          @map("source_json")
+  /// "HMIS", or "MANUAL_DOWNTIME" for an order registered by hand (06 §5.2).
+  source            String        @default("HMIS")
+  /// For a downtime order: the HMIS order its specimens and results were moved to.
+  reconciledToId    String?       @map("reconciled_to_id") @db.Uuid
+  reconciledAt      DateTime?     @map("reconciled_at") @db.Timestamptz
+  reconciledBy      String?       @map("reconciled_by")
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
   patient           Patient       @relation(fields: [patientId], references: [id])
   tests             OrderedTest[]

@@ -1,0 +1,49 @@
+<p><a href="/downtime">&larr; Downtime orders</a> · <a href="/orders/{{o.id}}">Order {{o.downtimeId}}</a></p>
+<h1 class="h4">Reconcile {{o.downtimeId}}</h1>
+<p class="mb-1"><strong>{{patient.name}}</strong> <span class="badge text-bg-warning">provisional</span>{{#if patient.birthDate}} · born {{patient.birthDate}}{{/if}}{{#if patient.sex}} · {{patient.sex}}{{/if}}{{#if patient.claimedMrn}} · MRN on form {{patient.claimedMrn}}{{/if}}</p>
+<p class="small text-body-secondary">Registered {{o.at}} by {{o.by}}. Tests: {{#each tests}}<span class="font-monospace">{{code}}</span> ({{state}}){{#unless @last}}, {{/unless}}{{/each}}</p>
+
+{{#if o.reconciledAt}}
+<div class="alert alert-secondary" role="status">Reconciled {{o.reconciledAt}} by {{o.reconciledBy}} to HMIS order {{#if o.to}}<a href="/orders/{{o.to.id}}">{{o.to.hmisOrderId}}</a>{{/if}}.</div>
+{{else}}
+<p>Specimens and results move to the HMIS order you choose; accession numbers and labels stay the same. Check the patient carefully: this cannot be undone from this screen.</p>
+<h2 class="h6">Possible HMIS orders</h2>
+<table class="table table-sm align-middle">
+  <thead><tr><th>HMIS order</th><th>HMIS patient</th><th>Ordered</th><th>Matches on</th><th></th></tr></thead>
+  <tbody>
+    {{#each candidates}}
+    <tr>
+      <td class="font-monospace">{{hmisOrderId}}</td>
+      <td><strong>{{patient}}</strong></td>
+      <td class="small">{{at}}</td>
+      <td class="small">{{why}}</td>
+      <td>
+        {{#if missing}}
+        <span class="small text-danger">Not ordered in the HMIS: {{missing}}</span>
+        {{else}}{{#if ../can.reject}}
+        <form method="post" action="/downtime/{{../o.id}}/reconcile" class="d-flex gap-2">
+          <input type="hidden" name="_csrf" value="{{../csrf}}">
+          <input type="hidden" name="hmisOrderId" value="{{orderId}}">
+          <input class="form-control form-control-sm" type="password" name="password" placeholder="Your password" aria-label="Your password" required>
+          <button class="btn btn-primary btn-sm text-nowrap" type="submit">Same patient: reconcile</button>
+        </form>
+        {{/if}}{{/if}}
+      </td>
+    </tr>
+    {{else}}
+    <tr><td colspan="5" class="text-body-secondary">No HMIS order matches yet. It appears here once the HMIS sends it.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+{{#if can.reject}}
+<form method="post" action="/downtime/{{o.id}}/reconcile" class="card card-body">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <h2 class="h6">Or enter the HMIS order number</h2>
+  <div class="row g-2 align-items-end">
+    <div class="col-auto"><label class="form-label small" for="hmisOrderNo">HMIS order number</label><input class="form-control form-control-sm font-monospace" id="hmisOrderNo" name="hmisOrderNo" required></div>
+    <div class="col-auto"><label class="form-label small" for="rec-password">Your password</label><input class="form-control form-control-sm" id="rec-password" name="password" type="password" required></div>
+    <div class="col-auto"><button class="btn btn-outline-primary btn-sm" type="submit">Reconcile</button></div>
+  </div>
+</form>
+{{/if}}
+{{/if}}

@@ -76,6 +76,8 @@ export class OrdersController {
         pending: o.tests.filter((t) => !t.specimenId && t.status === 'active').length,
         orderedAt: formatTime(o.orderedAt),
         cancelled: o.status === 'cancelled',
+        downtime: o.source === 'MANUAL_DOWNTIME',
+        reconciled: o.status === 'reconciled',
       })),
     });
   }
@@ -95,7 +97,7 @@ export class OrdersController {
     }
     page(req, res, 'order', {
       title: `Order ${o.hmisOrderId}`,
-      o: { id: o.id, hmisOrderId: o.hmisOrderId, priority: o.priority, stat: o.priority === 'stat', status: o.status, encounter: o.hmisEncounterId ?? '', location: o.location ?? '', clinician: o.orderingClinician ?? '', orderedAt: formatTime(o.orderedAt) },
+      o: { id: o.id, downtime: o.source === 'MANUAL_DOWNTIME', reconciled: o.status === 'reconciled', provisional: o.patient.provisional, hmisOrderId: o.hmisOrderId, priority: o.priority, stat: o.priority === 'stat', status: o.status, encounter: o.hmisEncounterId ?? '', location: o.location ?? '', clinician: o.orderingClinician ?? '', orderedAt: formatTime(o.orderedAt) },
       patient: patientLine(o.patient),
       groups: [...groups].map(([type, tests]) => ({
         type,
@@ -182,7 +184,7 @@ export class OrdersController {
     type Entry = { at: Date; text: string; href?: string };
     const entries: Entry[] = [];
     if (orderAudit) entries.push({ at: orderAudit.at, text: `Order received from the HMIS (${s.order.hmisOrderId})` });
-    const words: Record<string, string> = { 'specimen.collected': 'Collected, label printed', 'specimen.label-reprint': 'Label reprinted', 'specimen.received': 'Received in the lab', 'specimen.rejected': 'Rejected', 'specimen.result-linked': 'Unmatched result linked' };
+    const words: Record<string, string> = { 'specimen.collected': 'Collected, label printed', 'specimen.label-reprint': 'Label reprinted', 'specimen.received': 'Received in the lab', 'specimen.rejected': 'Rejected', 'specimen.result-linked': 'Unmatched result linked', 'specimen.reconciled': 'Downtime order reconciled' };
     for (const a of audit) entries.push({ at: a.at, text: `${words[a.action] ?? a.action} by ${a.actor}${a.reason ? `: ${a.reason}` : ''}` });
     for (const t of s.tests) {
       const r = t.result;

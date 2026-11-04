@@ -53,6 +53,8 @@ export const NOTICES: Record<string, string> = {
   received: 'Specimen received in the lab.',
   rejected: 'Specimen rejected. Tests without a result are back on the collection list if recollection was chosen.',
   reprinted: 'Reprint recorded.',
+  'downtime-registered': 'Downtime order registered. Collect and label as usual; results are held from the HMIS until it is reconciled.',
+  reconciled: 'Downtime order reconciled. Its specimens and results are now on this HMIS order.',
   'link-proposed': 'Link proposed. A different person must check the patient and confirm it.',
   'link-withdrawn': 'Proposal withdrawn.',
   linked: 'Unmatched result linked. It now needs review and approval like any other result.',

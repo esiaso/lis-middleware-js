@@ -21,7 +21,7 @@
     <tr class="{{#if cancelled}}text-body-secondary{{/if}}">
       <td>{{#if stat}}<span class="badge text-bg-danger">STAT</span>{{else}}{{priority}}{{/if}}</td>
       <td><strong>{{patient.name}}</strong> <span class="small">MRN {{patient.mrn}}</span></td>
-      <td><a href="/orders/{{id}}">{{hmisOrderId}}</a>{{#if cancelled}} (cancelled){{/if}}</td>
+      <td><a href="/orders/{{id}}">{{hmisOrderId}}</a>{{#if cancelled}} (cancelled){{/if}}{{#if downtime}} <span class="badge text-bg-warning">downtime</span>{{/if}}{{#if reconciled}} (reconciled){{/if}}</td>
       <td class="font-monospace small">{{tests}}</td>
       <td>{{pending}}</td>
       <td class="small">{{orderedAt}}</td>
