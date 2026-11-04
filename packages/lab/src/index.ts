@@ -19,3 +19,4 @@ export * from './comments.js';
 export * from './history.js';
 export * from './order-report.js';
 export * from './qc-summary.js';
+export * from './hmis-status.js';

@@ -348,6 +348,10 @@ environment yet.
   `LIMS_HMIS_ORDER_LINE_SYSTEM`, `LIMS_HMIS_TEST_SYSTEM`, and
   `LIMS_HMIS_LIMS_SYSTEM_PREFIX` (default `urn:lims-middleware:`). The
   client secret is the credential `hmis_client_secret` (11 §11).
+* **Health.** Each poll's outcome is kept in `hmis_poll_status` (time,
+  orders received, failures in a row, last error) and shown with the
+  outbox on the HMIS link page (09 W-21), which also raises a dashboard
+  warning.
 * **Delivery worker.** A send left in progress by a stopped worker is
   picked up again when its two-minute lease runs out. A failed read-back
   after an accepted send leaves the result "sent".

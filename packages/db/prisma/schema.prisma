@@ -343,6 +343,20 @@ model HmisCursor {
   @@map("hmis_cursor")
 }
 
+/// How the jobs worker's last HMIS polls went (07 §6.6).
+model HmisPollStatus {
+  name            String    @id
+  profile         String
+  lastAttemptAt   DateTime  @map("last_attempt_at") @db.Timestamptz
+  lastSuccessAt   DateTime? @map("last_success_at") @db.Timestamptz
+  lastReceived    Int       @default(0) @map("last_received")
+  failuresInARow  Int       @default(0) @map("failures_in_a_row")
+  lastError       String?   @map("last_error")
+  lastErrorAt     DateTime? @map("last_error_at") @db.Timestamptz
+
+  @@map("hmis_poll_status")
+}
+
 model Specimen {
   id          String        @id @db.Uuid
   orderId     String        @map("order_id") @db.Uuid

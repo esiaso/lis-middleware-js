@@ -352,6 +352,26 @@ Levey-Jennings chart (W-15). A retired range is marked. Approvers and
 auditors can download the same as CSV; each download is audited as
 `report.qc-summary-export`.
 
+## W-21 HMIS link
+
+**HMIS link** (top menu; any signed-in user; refreshes every minute): how
+the jobs worker's link to the HMIS is going (07 §6.6).
+
+* **Order feed**: the connector, the last poll and whether it worked (or
+  how many times in a row it failed), the last poll that worked and how many
+  orders it brought, when the feed position last moved, and the last error
+  with its time. With no poll recorded the page says the link is not
+  configured.
+* **Results on their way**: released results not yet delivered, oldest
+  first, with their submission key (linked to the result), state (waiting
+  for a first try, being sent, will try again), tries, next try and last
+  error, and how many were given up on (linked to Failed deliveries).
+* **Latest delivery attempts**: the last 20, with outcome and detail.
+
+The dashboard shows an HMIS warning, linking here, when the last three or
+more polls failed, when no poll was attempted for two hours, or when a
+released result has waited more than 15 minutes.
+
 ## W-10 Audit search and export
 
 ```

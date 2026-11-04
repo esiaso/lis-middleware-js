@@ -96,3 +96,24 @@ export async function pullOrders(db: Db, hmis: HmisConnector, maxPages = 20): Pr
   }
   return { received, created };
 }
+
+/** One poll as the jobs worker runs it: pull, then record how it went for the HMIS link page (07 §6.6). The error is rethrown. */
+export async function pollOrders(db: Db, hmis: HmisConnector, maxPages = 20): Promise<{ received: number; created: number }> {
+  const at = new Date();
+  try {
+    const r = await pullOrders(db, hmis, maxPages);
+    const ok = { profile: hmis.profile, lastAttemptAt: at, lastSuccessAt: new Date(), lastReceived: r.received, failuresInARow: 0 };
+    await db.hmisPollStatus.upsert({ where: { name: 'orders' }, create: { name: 'orders', ...ok }, update: ok });
+    return r;
+  } catch (e) {
+    const error = ((e as Error).message || String(e)).slice(0, 2000);
+    await db.hmisPollStatus
+      .upsert({
+        where: { name: 'orders' },
+        create: { name: 'orders', profile: hmis.profile, lastAttemptAt: at, failuresInARow: 1, lastError: error, lastErrorAt: new Date() },
+        update: { profile: hmis.profile, lastAttemptAt: at, failuresInARow: { increment: 1 }, lastError: error, lastErrorAt: new Date() },
+      })
+      .catch(() => undefined); // the database may be what failed; the poll's own error matters more
+    throw e;
+  }
+}

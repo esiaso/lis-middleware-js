@@ -3,7 +3,7 @@ import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, P
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
 import { migrationStatus, type Db } from '@lis/db';
 import { AUTOVERIFY_ACTOR, clinicalGateFor } from '@lis/domain';
-import { addResultComment, approve, confirmLink, decisionsFor, failingQc, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, standardCommentsFor, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
+import { addResultComment, approve, confirmLink, decisionsFor, failingQc, hmisLinkStatus, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, standardCommentsFor, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
 import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS, type LoginResult } from './auth.js';
 import { directory } from './ldap.js';
@@ -208,7 +208,7 @@ export class DashboardController {
   @Get()
   async dashboard(@Req() req: WebRequest, @Res() res: Response): Promise<void> {
     const now = new Date();
-    const [instruments, byStatus, unmatched, failedOutbox, needsConfirmation, criticals, qcFailing, overdue] = await Promise.all([
+    const [instruments, byStatus, unmatched, failedOutbox, needsConfirmation, criticals, qcFailing, overdue, hmis] = await Promise.all([
       this.db.instrument.findMany({ orderBy: { displayName: 'asc' }, include: { lease: true } }),
       this.db.result.groupBy({ by: ['status'], _count: { _all: true } }),
       this.db.unmatchedResult.count({ where: { resolvedAt: null } }),
@@ -217,11 +217,13 @@ export class DashboardController {
       waitingCriticals(this.db),
       failingQc(this.db),
       overdueResults(this.db, now),
+      hmisLinkStatus(this.db, now),
     ]);
     const counts = Object.fromEntries(byStatus.map((g) => [g.status, g._count._all]));
     page(req, res, 'dashboard', {
       title: 'Dashboard',
       refresh: 60,
+      hmis: hmis.warnings.length ? hmis.warnings.map((w) => w.text).join('; ') : null,
       overdue: overdue.length ? { n: overdue.length, oldest: elapsed(overdue[0]!.due, now) } : null,
       qcFailing: qcFailing.length ? { n: qcFailing.length, list: qcFailing.slice(0, 5).map((f) => `${f.instrumentName} ${f.localTestCode}`).join(', ') } : null,
       critical: criticals.length ? { n: criticals.length, oldest: elapsed(criticals[0]!.arrivedAt, now), more: criticals.length >= 100 } : null,

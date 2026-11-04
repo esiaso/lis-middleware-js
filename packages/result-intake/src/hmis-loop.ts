@@ -1,6 +1,6 @@
 import type { Db } from '@lis/db';
 import type { HmisConnector } from '@lis/hmis';
-import { deliverOutbox, pullOrders, type DeliveryReport } from '@lis/lab';
+import { deliverOutbox, pollOrders, type DeliveryReport } from '@lis/lab';
 
 export interface HmisLoopOptions {
   db: Db;
@@ -30,7 +30,7 @@ export async function runHmisLoop(o: HmisLoopOptions): Promise<void> {
     const now = Date.now();
     if (now >= nextPull) {
       try {
-        const r = await pullOrders(o.db, o.hmis);
+        const r = await pollOrders(o.db, o.hmis);
         if (r.received > 0) o.onPull?.(r);
       } catch (e) {
         o.onError?.('orders', e as Error);
