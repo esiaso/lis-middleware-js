@@ -12,3 +12,4 @@ export * from './critical.js';
 export * from './autoverification.js';
 export * from './delta.js';
 export * from './qc.js';
+export * from './tat.js';

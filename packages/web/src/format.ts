@@ -22,6 +22,17 @@ export function formatTime(d: Date | null | undefined): string {
   return d.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
 }
 
+/** A duration for reports: "under 1 min", "45 min", "2 h 05 min", "3 d 4 h". */
+export function formatDuration(seconds: number | null): string {
+  if (seconds === null) return '';
+  const m = Math.floor(seconds / 60);
+  if (m < 1) return 'under 1 min';
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `${h} h ${String(m % 60).padStart(2, '0')} min`;
+  return `${Math.floor(h / 24)} d ${h % 24} h`;
+}
+
 /** "0:07" or "2:15": hours and minutes since a moment. */
 export function elapsed(since: Date, now = new Date()): string {
   const m = Math.max(0, Math.floor((now.getTime() - since.getTime()) / 60_000));
