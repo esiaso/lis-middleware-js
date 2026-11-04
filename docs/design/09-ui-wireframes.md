@@ -298,6 +298,20 @@ triangle at the edge, never dropped. Each dot's tooltip and the table below
 give the value, z score and rules broken. Results in other units are not
 plotted. The x axis is result order, not time.
 
+## W-16 Workload
+
+**Reports → Workload** (linked from Turnaround times): what the instruments
+measured over a date range (UTC days, at most 366), by instrument, by test
+(with a column per instrument) and by day. A measurement is an instrument
+value stored on a patient result, counted on the day its message arrived;
+values typed or corrected by a person are not counted. A repeat is any
+measurement after the first on the same result. QC counts the QC log;
+quarantined counts patient values that arrived with no matching order and is
+shown beside the total, not added to it, because some are attached later
+and then counted as measurements. Counts only, no patient data. The CSV
+(day, instrument, test, measurements, repeats) is limited to approvers and
+auditors and each export is audited (`report.workload-export`).
+
 ## W-10 Audit search and export
 
 ```

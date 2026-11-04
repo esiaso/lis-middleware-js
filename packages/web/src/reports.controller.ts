@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Inject, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { Db } from '@lis/db';
 import { parseTatTarget, TAT_PRIORITIES } from '@lis/domain';
-import { addTatTarget, appendAudit, downtimeTestCatalogue, InvalidInput, overdueResults, parseTatFilter, retireTatTarget, summarizeTat, TAT_STEPS, tatTimes, type TatFilter, type TatRow } from '@lis/lab';
+import { addTatTarget, appendAudit, downtimeTestCatalogue, InvalidInput, overdueResults, parseTatFilter, retireTatTarget, summarizeTat, TAT_STEPS, tatTimes, workload, workloadCells, type TatFilter, type TatRow } from '@lis/lab';
 import type { Response } from 'express';
 import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
 import { elapsed, formatDuration, formatTime, STATUS_LABELS } from './format.js';
@@ -19,7 +19,7 @@ const cell = (v: string | null | undefined) => {
   return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 };
 
-/** Turnaround times (09, A-22). */
+/** Turnaround times (09, A-22) and workload (W-16). */
 @Controller('reports')
 export class ReportsController {
   constructor(@Inject(DB) private readonly db: Db) {}
@@ -147,6 +147,49 @@ export class ReportsController {
   }
 
   /** One row per result, with accession number and times but no patient name or MRN. */
+  /** What the instruments measured (W-16). Counts only, no patient data. */
+  @Get('workload')
+  async workload(@Req() req: WebRequest, @Res() res: Response, @Query() query: Record<string, unknown>): Promise<void> {
+    let f: TatFilter;
+    let issues: string[] = [];
+    try {
+      f = parseTatFilter({ from: q(query['from']), to: q(query['to']) });
+    } catch (e) {
+      if (!(e instanceof InvalidInput)) throw e;
+      issues = e.issues;
+      f = parseTatFilter({});
+    }
+    const w = await workload(this.db, f.from, f.to);
+    const toDay = day(new Date(f.to.getTime() - 86_400_000));
+    const columns = w.instruments.filter((i) => i.measurements > 0);
+    page(req, res, 'workload', {
+      title: 'Workload',
+      issues,
+      from: day(f.from),
+      to: toDay,
+      w,
+      empty: w.total.measurements === 0 && w.total.qc === 0 && w.total.quarantined === 0,
+      testColumns: columns.map((i) => ({ id: i.instrumentId, name: i.name })),
+      tests: w.tests.map((t) => ({ ...t, cells: columns.map((i) => t.byInstrument[i.instrumentId] ?? 0) })),
+      csv: `/reports/workload.csv?from=${day(f.from)}&to=${toDay}`,
+    });
+  }
+
+  @Get('workload.csv')
+  @Roles('approver', 'auditor')
+  async workloadCsv(@Req() req: WebRequest, @Res() res: Response, @Query() query: Record<string, unknown>): Promise<void> {
+    const f = parseTatFilter({ from: q(query['from']), to: q(query['to']) });
+    const cells = await workloadCells(this.db, f.from, f.to);
+    const names = new Map((await this.db.instrument.findMany({ select: { id: true, displayName: true } })).map((i) => [i.id, i.displayName]));
+    const head = ['day', 'instrument_id', 'instrument', 'test', 'measurements', 'repeats'];
+    const lines = cells.map((c) => [c.day, cell(c.instrumentId), cell(names.get(c.instrumentId) ?? ''), cell(c.test), c.measurements, c.repeats].join(','));
+    await this.db.$transaction((tx) => appendAudit(tx, { actor: req.user!.username, action: 'report.workload-export', entityType: 'report', entityId: 'workload', after: { from: f.from.toISOString(), to: f.to.toISOString(), rows: cells.length } }));
+    res.setHeader('content-type', 'text/csv; charset=utf-8');
+    res.setHeader('content-disposition', `attachment; filename="workload-${day(f.from)}-to-${day(new Date(f.to.getTime() - 86_400_000))}.csv"`);
+    res.setHeader('cache-control', 'no-store');
+    res.send([head.join(','), ...lines].join('\r\n') + '\r\n');
+  }
+
   @Get('turnaround.csv')
   @Roles('approver', 'auditor')
   async csv(@Req() req: WebRequest, @Res() res: Response, @Query() query: Record<string, unknown>): Promise<void> {
