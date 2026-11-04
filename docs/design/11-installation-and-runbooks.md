@@ -98,7 +98,10 @@ WinSW XML), not `lims.yaml`.
   mode 0600; `C:\ProgramData\LIMS Middleware\secrets`, readable by the
   services and administrators). The value is piped in or typed without
   being shown, never given on the command line; the file is replaced whole.
-  Restart the services that read it afterwards.
+  On Windows the file holds a DPAPI blob (machine scope, 10 §7), not the
+  value. Restart the services that read it afterwards. A Windows secret file
+  written before DPAPI still works; `lims config validate` warns about it,
+  and running `lims secrets set` again encrypts it.
 
 ## 3. Installation (Windows)
 
@@ -235,7 +238,9 @@ validation file.
 * PostgreSQL: nightly `pg_basebackup` + continuous WAL archiving (point-in-time
   recovery), or the hospital's backup agent if it supports PostgreSQL
   consistently. Encrypted. Retain per D-21.
-* Also back up: `config/`, `secrets/` (encrypted, separate key custody),
+* Also back up: `config/`, `secrets/` (encrypted, separate key custody;
+  Windows secret files are DPAPI blobs bound to this server, so after a
+  rebuild or a move to new hardware set them again with `lims secrets set`),
   installer version in use, and audit export files.
 * **The middleware's own backup (built):** `lims backup create --out <dir>`
   writes `lims-backup-<time>.dump` (PostgreSQL custom format, no owners or

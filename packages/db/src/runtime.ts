@@ -1,20 +1,21 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { decodeSecret, readSecretFile } from './secret-file.js';
 import type { Db } from './client.js';
 
 /**
  * Where the database URL comes from, in order (11 §3, §4):
  * 1. systemd `LoadCredential=database_url:` ($CREDENTIALS_DIRECTORY/database_url);
- * 2. `DATABASE_URL_FILE`, a file readable only by the service account (Windows);
+ * 2. `DATABASE_URL_FILE`, a file readable only by the service accounts, DPAPI-encrypted on Windows;
  * 3. `DATABASE_URL` (development and tests).
  * The value itself is never logged; `source` names where it came from.
  */
 export function databaseUrlFromEnv(env: NodeJS.ProcessEnv = process.env): { url: string; source: string } {
   const dir = env['CREDENTIALS_DIRECTORY'];
-  if (dir) return { url: readFileSync(join(dir, 'database_url'), 'utf8').trim(), source: 'systemd credential database_url' };
+  if (dir) return { url: decodeSecret('database_url', readFileSync(join(dir, 'database_url'), 'utf8')), source: 'systemd credential database_url' };
   const file = env['DATABASE_URL_FILE'];
-  if (file) return { url: readFileSync(file, 'utf8').trim(), source: `file ${file}` };
+  if (file) return { url: readSecretFile('database_url', file), source: `file ${file}` };
   const url = env['DATABASE_URL'];
   if (url) return { url, source: 'DATABASE_URL environment variable' };
   throw new Error('no database URL: set DATABASE_URL_FILE (Windows), LoadCredential=database_url (Linux), or DATABASE_URL');

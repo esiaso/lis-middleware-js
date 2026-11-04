@@ -106,7 +106,7 @@ describe('lims secrets set', () => {
     expect(() => setSecret('hmis_token', 'x', { dir })).toThrow(/unknown secret/);
     expect(() => setSecret('database_url', 'postgresql://x', { dir: join(dir, 'missing') })).toThrow(/run the installer first/);
     expect(setSecret('oidc_client_secret', 's3cret-value', { dir, platform: 'linux' }).note).toMatch(/LoadCredential=oidc_client_secret/);
-    expect(setSecret('oidc_client_secret', 's3cret-value', { dir, platform: 'win32' }).note).toMatch(/LIMS_OIDC_CLIENT_SECRET_FILE/);
+    expect(setSecret('oidc_client_secret', 's3cret-value', { dir, platform: 'win32', dpapi: (_op, _n, d) => d }).note).toMatch(/LIMS_OIDC_CLIENT_SECRET_FILE/);
   });
 });
 

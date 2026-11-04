@@ -120,10 +120,19 @@ rule for the specific adapter).
   unit); optionally `systemd-creds` encryption bound to the TPM.
 * **Built:** `lims secrets set database_url | oidc_client_secret` writes the
   file atomically from standard input. Linux: root-owned, mode 0600, handed
-  to the unit with `LoadCredential=`. Windows: a plain file in the secrets
-  folder, whose ACL the installer limits to the service accounts, SYSTEM and
-  administrators; **DPAPI is not used yet**, so an administrator on the
-  server can read it.
+  to the unit with `LoadCredential=`. Windows: the value is encrypted with
+  **DPAPI in machine scope** (with the secret's name as extra entropy) and
+  written to the secrets folder, whose ACL the installer limits to the
+  service accounts, SYSTEM and administrators. Windows PowerShell 5.1 makes
+  the DPAPI call, with the value on its standard input, so no native module
+  ships. What this protects: a copy of the file taken off the server (a
+  backup, a disk image) cannot be decrypted elsewhere. What it does not: an
+  administrator on the server, or any process the ACL lets read the file,
+  can still decrypt it, because machine scope is not tied to one account
+  (the services run as separate virtual accounts, which user-scope DPAPI
+  would need one blob each for). The ACL remains the control on the server.
+  Files written before DPAPI are still read, and `lims config validate`
+  warns about them.
 * Rotation: HMIS credentials are read at use time; DB passwords rotate with a
   two-step procedure (add new password, restart services, remove old);
   webhook secrets support two active values during rotation.
