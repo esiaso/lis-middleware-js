@@ -1,0 +1,60 @@
+<p><a href="/users">&larr; Users</a></p>
+<h1 class="h4">{{u.displayName}} <span class="small text-body-secondary font-monospace">{{u.username}}</span></h1>
+<p>
+  {{#if u.active}}Active{{else}}<strong>Disabled</strong>{{/if}}{{#if u.locked}} · <span class="badge text-bg-warning">locked until {{u.lockedUntil}}</span>{{/if}}{{#if u.mustChange}} · temporary password, must be changed at next sign-in{{/if}}
+  · created {{u.createdAt}}{{#if u.passwordChangedAt}} · password last changed {{u.passwordChangedAt}}{{/if}} · {{u.sessions}} open session(s)
+</p>
+
+{{#if u.self}}
+<div class="alert alert-info" role="status">This is your own account. Another administrator must change its roles or state. You can <a href="/account/password">change your password</a>.</div>
+{{else}}
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <form method="post" action="/users/{{u.id}}/roles" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <h2 class="h6">Roles</h2>
+      {{> role-boxes}}
+      <label class="form-label small" for="pw-roles">Your password</label>
+      <input class="form-control form-control-sm mb-2" id="pw-roles" name="adminPassword" type="password" required>
+      <button class="btn btn-primary btn-sm" type="submit">Save roles</button>
+    </form>
+  </div>
+  <div class="col-lg-6">
+    <form method="post" action="/users/{{u.id}}/active" class="card card-body mb-3">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <input type="hidden" name="active" value="{{#if u.active}}no{{else}}yes{{/if}}">
+      <h2 class="h6">{{#if u.active}}Disable account{{else}}Enable account{{/if}}</h2>
+      {{#if u.active}}<p class="small text-body-secondary">Ends every session at once. The account and its history are kept.</p>{{/if}}
+      <label class="form-label small" for="active-reason">Reason</label>
+      <input class="form-control form-control-sm mb-2" id="active-reason" name="reason" minlength="5" required>
+      <label class="form-label small" for="pw-active">Your password</label>
+      <input class="form-control form-control-sm mb-2" id="pw-active" name="adminPassword" type="password" required>
+      <button class="btn {{#if u.active}}btn-outline-danger{{else}}btn-outline-success{{/if}} btn-sm" type="submit">{{#if u.active}}Disable{{else}}Enable{{/if}}</button>
+    </form>
+    <form method="post" action="/users/{{u.id}}/password" class="card card-body mb-3">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <h2 class="h6">Set a temporary password</h2>
+      <p class="small text-body-secondary">Ends their sessions. They must choose their own password at next sign-in.</p>
+      <label class="form-label small" for="temp">Temporary password (at least 12 characters)</label>
+      <input class="form-control form-control-sm mb-2" id="temp" name="password" type="password" minlength="12" required autocomplete="new-password">
+      <label class="form-label small" for="pw-reset">Your password</label>
+      <input class="form-control form-control-sm mb-2" id="pw-reset" name="adminPassword" type="password" required>
+      <button class="btn btn-outline-warning btn-sm" type="submit">Set temporary password</button>
+    </form>
+    {{#if u.locked}}
+    <form method="post" action="/users/{{u.id}}/unlock" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <h2 class="h6">Unlock now</h2>
+      <label class="form-label small" for="pw-unlock">Your password</label>
+      <input class="form-control form-control-sm mb-2" id="pw-unlock" name="adminPassword" type="password" required>
+      <button class="btn btn-outline-secondary btn-sm" type="submit">Unlock</button>
+    </form>
+    {{/if}}
+  </div>
+</div>
+{{/if}}
+
+<h2 class="h6">Account history</h2>
+<ul class="list-unstyled small">
+  {{#each history}}<li>{{at}} · {{action}} by {{actor}}{{#if reason}} · {{reason}}{{/if}}{{#if after}} · <span class="font-monospace">{{after}}</span>{{/if}}</li>{{else}}<li class="text-body-secondary">Nothing recorded.</li>{{/each}}
+</ul>

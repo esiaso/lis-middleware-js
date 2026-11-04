@@ -519,6 +519,9 @@ model AppUser {
   /// Consecutive failed sign-ins; 5 locks the account for 15 minutes (10 §3).
   failedLogins Int           @default(0) @map("failed_logins")
   lockedUntil  DateTime?     @map("locked_until") @db.Timestamptz
+  /// Set when an administrator sets a temporary password; cleared when the person chooses their own.
+  mustChangePassword Boolean @default(false) @map("must_change_password")
+  passwordChangedAt DateTime? @map("password_changed_at") @db.Timestamptz
   createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
   sessions     UserSession[]
 

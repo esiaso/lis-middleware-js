@@ -1,0 +1,17 @@
+<p><a href="/users">&larr; Users</a></p>
+<h1 class="h4">New user</h1>
+{{> issues}}
+<form method="post" action="/users" class="card card-body">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <div class="row g-3">
+    <div class="col-md-4"><label class="form-label" for="username">Username</label><input class="form-control" id="username" name="username" value="{{v.username}}" required maxlength="40" autocomplete="off"></div>
+    <div class="col-md-4"><label class="form-label" for="displayName">Display name</label><input class="form-control" id="displayName" name="displayName" value="{{v.displayName}}" required maxlength="80"></div>
+    <div class="col-md-4"><label class="form-label" for="password">Temporary password (at least 12 characters)</label><input class="form-control" id="password" name="password" type="password" required minlength="12" autocomplete="new-password"><div class="form-text">Give it to the person in private. They must choose their own at first sign-in.</div></div>
+  </div>
+  {{> role-boxes}}
+  <p class="small text-body-secondary">An administrator cannot approve results unless also given the approver role. Give each person only the roles their job needs.</p>
+  <div class="row g-2 align-items-end">
+    <div class="col-auto"><label class="form-label" for="adminPassword">Your password</label><input class="form-control" id="adminPassword" name="adminPassword" type="password" required autocomplete="current-password"></div>
+    <div class="col-auto"><button class="btn btn-primary" type="submit">Create user</button></div>
+  </div>
+</form>

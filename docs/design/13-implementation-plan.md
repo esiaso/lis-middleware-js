@@ -72,7 +72,11 @@ specimens are refused), and downtime registration with results held until
 the order is reconciled to the HMIS order (A-15), and W-10 audit search,
 export (A-16) and on-demand chain verification for auditors, and the W-9
 row-by-row mapping editor (the approver sees what a draft changes against
-the active set).
+the active set), and account management for administrators (create with a
+temporary password that must be replaced at first sign-in, change roles,
+disable and re-enable, unlock, reset password; each change needs the
+administrator's own password, nobody can change their own account, and the
+last active administrator cannot be removed).
 Not built yet: "add test to order" from an
 unmatched result (needs the HMIS, D-1 to D-6), assisted reconciliation when the HMIS returns (beyond the candidate list),
 OIDC/LDAPS, and the real HMIS connector, which waits for D-1 to D-6.
