@@ -86,7 +86,7 @@ foreach ($svc in $services) {
 Write-Host @"
 
 Installed $version. Nothing was started. Next (11 §3 steps 3 to 8):
-  1. Put the database URL in $Data\secrets\database_url
+  1. $current\bin\lims.cmd secrets set database_url   (then check the service XMLs: $current\bin\lims.cmd config validate)
   2. $current\bin\lims.cmd db migrate
   3. $current\bin\lims-web.cmd create-user <username> "<display name>" admin < password-file   (first install only)
   4. $current\bin\lims.cmd verify --out "$Data\logs"

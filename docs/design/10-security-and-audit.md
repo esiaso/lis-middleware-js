@@ -118,6 +118,12 @@ rule for the specific adapter).
 * Linux: files under `/etc/lims/secrets/` owned by root, group `lims-svc`,
   mode `0640`, or systemd `LoadCredential=` (credentials exposed only to the
   unit); optionally `systemd-creds` encryption bound to the TPM.
+* **Built:** `lims secrets set database_url | oidc_client_secret` writes the
+  file atomically from standard input. Linux: root-owned, mode 0600, handed
+  to the unit with `LoadCredential=`. Windows: a plain file in the secrets
+  folder, whose ACL the installer limits to the service accounts, SYSTEM and
+  administrators; **DPAPI is not used yet**, so an administrator on the
+  server can read it.
 * Rotation: HMIS credentials are read at use time; DB passwords rotate with a
   two-step procedure (add new password, restart services, remove old);
   webhook secrets support two active values during rotation.

@@ -78,9 +78,27 @@ read from the systemd credential `database_url` (Linux), from the file in
 or from `DATABASE_URL` (development only; `lims verify` warns).
 
 `lims` commands built: `verify [--out <dir>]`, `status`, `db migrate`,
-`diag tcp <host> <port>`, `version`. Not built yet: `config validate`,
-`secrets set`, `diag bundle`, `backup verify`. Settings are environment
-variables (`/etc/lims/lims.env`, or the WinSW XML), not `lims.yaml`.
+`config validate`, `secrets set <name>`, `diag tcp <host> <port>`,
+`diag bundle`, `version`. Not built yet: `backup verify`. Settings are
+environment variables (`/etc/lims/lims.env`, or the `<env>` entries of each
+WinSW XML), not `lims.yaml`.
+
+* `lims config validate [--env-file <file> | --service-dir <dir>]` reads the
+  settings each service will start with (by default `/etc/lims/lims.env`, or
+  every `service\lims-*.xml` of the installed version on Windows). It fails
+  on unknown `LIMS_` keys (with the likely intended name), on values the
+  services would misread (`True` instead of `true`, a bad port), on
+  `LIMS_INSECURE_COOKIES=true` with a non-loopback address, on a missing
+  credential or CA file, and runs the web service's own hospital sign-in
+  check. It warns on secrets kept in the settings, `NODE_ENV` not
+  `production`, a non-loopback `BIND_HOST`, and `LIMS_TWO_PERSON_RULE=false`.
+  Secret values are never printed. `lims verify` includes its summary.
+* `lims secrets set <name>` stores `database_url` or `oidc_client_secret` in
+  the secrets folder the installer made (`/etc/lims/secrets`, root only,
+  mode 0600; `C:\ProgramData\LIMS Middleware\secrets`, readable by the
+  services and administrators). The value is piped in or typed without
+  being shown, never given on the command line; the file is replaced whole.
+  Restart the services that read it afterwards.
 
 ## 3. Installation (Windows)
 
@@ -99,9 +117,10 @@ variables (`/etc/lims/lims.env`, or the WinSW XML), not `lims.yaml`.
    (signed, offline) or (b) provide connection details for an existing
    instance. Run `scripts\db-bootstrap.ps1` to create roles and the database
    (needs a DBA credential once).
-4. Store secrets: `lims secrets set DATABASE_URL_APP`, `HMIS_CLIENT_SECRET`, …
-5. Edit `config\lims.yaml`; run `lims config validate` (exits non-zero with
-   paths of invalid keys).
+4. Store secrets: `lims secrets set database_url` (and
+   `oidc_client_secret` if hospital sign-in uses a confidential client).
+5. Edit the `<env>` entries in `service\lims-*.xml`; run
+   `lims config validate` (exits non-zero and names each problem).
 6. `lims db migrate` (uses `lims_owner` once, then the credential is removed).
 7. Install the HTTPS certificate (PFX from the hospital CA) and set its path
    or thumbprint in config.
@@ -193,14 +212,23 @@ validation file.
 
 * `GET /api/v1/health/live`: process is up.
 * `GET /api/v1/health/ready`: DB reachable and every migration this build
-  ships is applied (built; config validation is not part of it yet).
+  ships is applied (built; settings are checked by `lims config validate`
+  and `lims verify`, not by this endpoint).
 * `GET /health`: database answers (built, for simple monitors).
 * Workers expose readiness to the health table (`health_snapshot`) every
   10 s; the web health page and `lims status` read it.
-* `lims diag bundle` collects logs (redacted), config (secrets removed),
-  versions, health snapshot, last 1,000 link events, and `verify` output into
-  a zip for support. It never includes raw messages unless `--with-raw` is
-  given by an admin (audited).
+* `lims diag bundle [--out <dir>] [--log-dir <dir>]` (built) writes one
+  `.tar.gz` (Windows 10 and later open it with `tar -xzf`) holding the
+  `verify` and `status` reports, the settings with secret values removed,
+  and recent logs (the last 48 h of the `lims-*` units from journald on
+  Linux; the newest 20 log files in `C:\ProgramData\LIMS Middleware\logs`,
+  last 5 MB each, on Windows), with URL passwords, bearer tokens and
+  secret-named JSON fields removed. A README inside lists what was included
+  and what could not be collected. It never includes raw instrument
+  messages. Logs can still hold specimen or patient identifiers from error
+  messages, so the file is mode 0600 and goes only to support under the
+  hospital's data agreement. Not built: health snapshot and link-event
+  extracts, `--with-raw`.
 
 ## 8. Backup and restore
 
