@@ -30,7 +30,8 @@ jobs:
   # Database tests against a real PostgreSQL, one file at a time (they share the database)
   # with the committed migrations applied. They are skipped in the job above.
   db:
-    runs-on: ubuntu-latest
+    # Pinned: Ubuntu 24.04 packages the PostgreSQL 16 client tools that match the service below (lims backup needs them).
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -56,7 +57,7 @@ jobs:
       - run: npm ci
       - run: npm run generate
       - run: npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
-      # lims backup needs pg_dump/pg_restore of the server's major version (16 here); the runner's default may be newer.
+      # lims backup needs pg_dump/pg_restore of the server's major version (16 here); the runner's default is newer.
       - run: sudo apt-get update -q && sudo apt-get install -y --no-install-recommends postgresql-client-16 && /usr/lib/postgresql/16/bin/pg_dump --version
       - name: Database tests (must not be skipped here)
         run: npx vitest run packages/db packages/analyzer-worker packages/result-intake packages/lab packages/web packages/ops --no-file-parallelism --reporter=verbose 2>&1 | tee db-test.log; test "${PIPESTATUS[0]}" -eq 0 && ! grep -q "skipped" db-test.log
