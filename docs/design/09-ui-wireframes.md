@@ -331,6 +331,16 @@ approvers add comments; only an approver can tick "Print it on the result
 report" or withdraw such a comment. Withdrawing needs a reason; the comment
 stays, struck through, with who withdrew it and why.
 
+## W-19 Standard comments
+
+**Results → Standard comments** (also linked from a result's Comments): the
+lab's active standard comments by code, with their text, the test they are
+offered on (or every test), and who added them. Approvers add one with
+their password, and retire one with a reason and their password; retired
+comments are listed below with who retired them and why. On a result page
+the comment form gains a "Standard comment" list of the active ones for that
+test, beside the free-text box; staff pick one or type, not both.
+
 ## W-10 Audit search and export
 
 ```

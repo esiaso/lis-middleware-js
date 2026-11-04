@@ -106,6 +106,8 @@ export const NOTICES: Record<string, string> = {
   'comment-withdrawn': 'Comment withdrawn. It stays in the history.',
   'reference-range-added': 'Reference range saved. It applies to values stored from now on.',
   'reference-range-retired': 'Reference range retired. Values stored while it was in force still show it.',
+  'standard-comment-added': 'Standard comment saved. It is offered on result pages from now on.',
+  'standard-comment-retired': 'Standard comment retired. Comments already made with it are unchanged.',
   'qc-range-added': 'QC range saved. It applies to QC results that arrive from now on.',
   'qc-range-retired': 'QC range retired. Earlier checks keep their outcome.',
   'target-added': 'Turnaround target saved. It applies to the report and the overdue list straight away.',

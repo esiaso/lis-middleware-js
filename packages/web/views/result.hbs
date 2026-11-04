@@ -125,7 +125,7 @@
 </ul>
 {{/if}}
 
-<h2 class="h6">Comments</h2>
+<div class="d-flex align-items-baseline gap-3"><h2 class="h6">Comments</h2><a class="small" href="/standard-comments">Standard comments</a></div>
 <ul class="list-unstyled small">
   {{#each comments}}
   <li class="mb-2{{#if withdrawn}} text-body-secondary{{/if}}">
@@ -148,8 +148,15 @@
 {{#if can.review}}
 <form method="post" action="/results/{{r.id}}/comments" class="card card-body mb-4">
   <input type="hidden" name="_csrf" value="{{csrf}}">
+  {{#if standardComments}}
+  <label class="form-label" for="comment-standard">Standard comment</label>
+  <select class="form-select mb-2" id="comment-standard" name="standard"><option value="">None, I'll type one</option>{{#each standardComments}}<option value="{{id}}">{{code}}: {{text}}</option>{{/each}}</select>
+  <label class="form-label" for="comment-text">Or type a comment</label>
+  <textarea class="form-control mb-2" id="comment-text" name="text" rows="2" maxlength="500"></textarea>
+  {{else}}
   <label class="form-label" for="comment-text">Add a comment</label>
   <textarea class="form-control mb-2" id="comment-text" name="text" rows="2" minlength="2" maxlength="500" required></textarea>
+  {{/if}}
   {{#if can.approve}}<div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="comment-report" name="onReport" value="yes"><label class="form-check-label" for="comment-report">Print it on the result report under the value</label></div>{{else}}<p class="small text-body-secondary">Comments you add are for the lab only; an approver can add one to the printed report.</p>{{/if}}
   <div><button class="btn btn-outline-primary btn-sm" type="submit">Add comment</button></div>
 </form>
