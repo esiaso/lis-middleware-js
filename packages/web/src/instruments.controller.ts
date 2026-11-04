@@ -7,8 +7,7 @@ import {
   registerInstrumentRecord, saveMappingDraft, setInstrumentEnabled,
 } from '@lis/lab';
 import type { Response } from 'express';
-import { confirmPassword } from './auth.js';
-import { page, str, type Form } from './controllers.js';
+import { page, requireStepUp, str, type Form } from './controllers.js';
 import { formatTime } from './format.js';
 import { formOptions, formToRegistration, GENERIC_ASTM_EXAMPLE, GENERIC_HL7_EXAMPLE, pickForm, registrationToForm, type InstrumentForm } from './instrument-form.js';
 import { issueForRows, MAX_ROWS, rowsFromForm, rowsFromMappings, type MappingRow } from './mapping-form.js';
@@ -41,7 +40,7 @@ export class InstrumentsController {
   }
 
   private async stepUp(req: WebRequest, body: Form): Promise<void> {
-    if (!(await confirmPassword(this.db, req.user!.id, str(body, 'password')))) throw new ForbiddenException('Password not confirmed. Nothing was changed.');
+    await requireStepUp(this.db, req, str(body, 'password'));
   }
 
   @Get()

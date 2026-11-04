@@ -76,10 +76,13 @@ the active set), and account management for administrators (create with a
 temporary password that must be replaced at first sign-in, change roles,
 disable and re-enable, unlock, reset password; each change needs the
 administrator's own password, nobody can change their own account, and the
-last active administrator cannot be removed).
+last active administrator cannot be removed), and hospital sign-in through
+OIDC with directory groups mapped to roles and a fresh IdP sign-in to confirm
+each approval-type action (A-17; tested against a stand-in IdP, not yet
+against the hospital's, D-19).
 Not built yet: "add test to order" from an
 unmatched result (needs the HMIS, D-1 to D-6), assisted reconciliation when the HMIS returns (beyond the candidate list),
-OIDC/LDAPS, and the real HMIS connector, which waits for D-1 to D-6.
+LDAPS, and the real HMIS connector, which waits for D-1 to D-6.
 
 ## Phase 3: Instrument verification and parallel run (3 to 6 weeks, calendar-bound)
 

@@ -29,8 +29,7 @@
     <form method="post" action="/unmatched/{{u.id}}/confirm" class="d-flex gap-2 align-items-end">
       <input type="hidden" name="_csrf" value="{{csrf}}">
       <div>
-        <label class="form-label small" for="confirm-password">I checked the specimen and the patient. Your password</label>
-        <input class="form-control form-control-sm" id="confirm-password" name="password" type="password" required>
+        {{> confirm id="confirm-password" label="I checked the specimen and the patient. Your password" labelClass="form-label small" inputClass="form-control form-control-sm"}}
       </div>
       <button class="btn btn-primary btn-sm" type="submit">Confirm link</button>
     </form>

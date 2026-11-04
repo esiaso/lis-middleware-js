@@ -4,6 +4,7 @@ import { pino } from 'pino';
 import { createDb, databaseUrlFromEnv } from '@lis/db';
 import { createApp } from './app.js';
 import { createUser, ROLES, type Role } from './auth.js';
+import { oidcSettingsFromEnv } from './oidc.js';
 
 async function readPassword(): Promise<string> {
   const rl = createInterface({ input: process.stdin });
@@ -29,8 +30,11 @@ async function main(): Promise<void> {
     logger.info({ username, roles: list }, 'user created');
     return;
   }
+  const oidc = oidcSettingsFromEnv();
+  if (oidc) logger.info({ issuer: oidc.issuer.href, clientId: oidc.clientId, groups: [...oidc.roleMap.keys()] }, 'hospital sign-in configured');
   const app = await createApp(db, {
     logger,
+    ...(oidc ? { oidc } : {}),
     twoPersonRule: process.env['LIMS_TWO_PERSON_RULE'] !== 'false',
     // TLS terminates at the reverse proxy (11 §4); only a loopback-only test setup turns this off.
     secureCookies: process.env['LIMS_INSECURE_COOKIES'] !== 'true',

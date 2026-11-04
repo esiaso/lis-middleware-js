@@ -18,7 +18,8 @@ import { DowntimeController } from './downtime.controller.js';
 import { AuditController } from './audit.controller.js';
 import { AccountController, UsersController } from './users.controller.js';
 import { PageErrorFilter, SecurityGuard, securityHeaders, sessionMiddleware } from './security.js';
-import { DB, LOGGER, WEB_OPTIONS, type WebOptions } from './tokens.js';
+import { Oidc } from './oidc.js';
+import { DB, LOGGER, OIDC, WEB_OPTIONS, type WebOptions } from './tokens.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 /** `views` and `public` sit next to `src` and `dist`. */
@@ -34,6 +35,7 @@ class WebModule {
         { provide: DB, useValue: db },
         { provide: WEB_OPTIONS, useValue: opts },
         { provide: LOGGER, useValue: logger },
+        { provide: OIDC, useValue: opts.oidc ? new Oidc(opts.oidc) : null },
         { provide: APP_GUARD, useClass: SecurityGuard },
       ],
     };
@@ -58,7 +60,7 @@ export interface CreateAppOptions extends Partial<WebOptions> {
  * the internet at runtime.
  */
 export async function createApp(db: Db, o: CreateAppOptions = {}): Promise<NestExpressApplication> {
-  const opts: WebOptions = { twoPersonRule: o.twoPersonRule ?? true, secureCookies: o.secureCookies ?? true, session: o.session ?? DEFAULT_SESSION_POLICY };
+  const opts: WebOptions = { twoPersonRule: o.twoPersonRule ?? true, secureCookies: o.secureCookies ?? true, session: o.session ?? DEFAULT_SESSION_POLICY, ...(o.oidc ? { oidc: o.oidc } : {}) };
   const logger = o.logger ?? pino({ base: { svc: 'web' } });
   const app = await NestFactory.create<NestExpressApplication>(WebModule.with(db, opts, logger), { logger: false, bodyParser: true });
   const express = app.getHttpAdapter().getInstance() as { disable(name: string): void; set(name: string, v: unknown): void };
