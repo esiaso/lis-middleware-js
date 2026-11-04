@@ -1,0 +1,81 @@
+<p><a href="/orders">&larr; Orders</a></p>
+<h1 class="h4">{{#if o.stat}}<span class="badge text-bg-danger">STAT</span> {{/if}}Order {{o.hmisOrderId}}{{#if (eq o.status "cancelled")}} <span class="badge text-bg-secondary">cancelled</span>{{/if}}</h1>
+<p class="mb-1"><strong>{{patient.name}}</strong> · MRN {{patient.mrn}}{{#if patient.sex}} · {{patient.sex}}{{/if}}{{#if patient.birthDate}} · born {{patient.birthDate}}{{/if}}</p>
+<p class="small text-body-secondary mb-3">Ordered {{o.orderedAt}}{{#if o.location}} · {{o.location}}{{/if}}{{#if o.clinician}} · {{o.clinician}}{{/if}}{{#if o.encounter}} · encounter {{o.encounter}}{{/if}}</p>
+
+<h2 class="h6">To collect</h2>
+{{#each groups}}
+<form method="post" action="/orders/{{../o.id}}/collect" class="card card-body mb-3">
+  <input type="hidden" name="_csrf" value="{{../csrf}}">
+  <p class="mb-2"><strong>{{type}}</strong></p>
+  {{#each tests}}
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" name="testIds" value="{{id}}" id="t-{{id}}" {{#if cancelled}}disabled{{else}}checked{{/if}}>
+    <label class="form-check-label font-monospace" for="t-{{id}}">{{code}}{{#if unmapped}} <span class="badge text-bg-warning">not mapped</span>{{/if}}{{#if cancelled}} (cancelled){{/if}}</label>
+  </div>
+  {{/each}}
+  {{#if collectable}}{{#if ../can.collect}}
+  <div class="row g-2 mt-1 align-items-end">
+    <div class="col-auto">
+      <label class="form-label small" for="at-{{@index}}">Collected at (UTC, leave as now if just drawn)</label>
+      <input class="form-control form-control-sm" type="datetime-local" id="at-{{@index}}" name="collectedAt" value="{{../now}}">
+    </div>
+    <div class="col-auto"><button class="btn btn-primary btn-sm" type="submit">Collect and print label</button></div>
+  </div>
+  {{/if}}{{/if}}
+</form>
+{{else}}
+<p class="text-body-secondary">Nothing left to collect.</p>
+{{/each}}
+
+<h2 class="h6">Specimens</h2>
+<table class="table table-sm align-middle">
+  <thead><tr><th>Accession</th><th>Tests</th><th>Status</th><th>Collected</th><th>Received</th><th>Labels</th><th></th></tr></thead>
+  <tbody>
+    {{#each specimens}}
+    <tr>
+      <td><a class="font-monospace" href="/specimens/{{id}}">{{accessionNo}}</a></td>
+      <td class="font-monospace small">{{tests}}</td>
+      <td>{{status}}{{#if rejection}} <span class="small">({{rejection}})</span>{{/if}}</td>
+      <td class="small">{{collectedAt}}</td>
+      <td class="small">{{receivedAt}}</td>
+      <td>{{prints}} <a class="small" href="/specimens/{{id}}/label">label</a></td>
+      <td class="text-nowrap">
+        {{#if collected}}{{#if ../can.collect}}
+        <form method="post" action="/specimens/{{id}}/receive" class="d-inline">
+          <input type="hidden" name="_csrf" value="{{../csrf}}">
+          <button class="btn btn-outline-success btn-sm" type="submit">Receive</button>
+        </form>
+        {{/if}}{{/if}}
+      </td>
+    </tr>
+    {{#if open}}{{#if ../can.reject}}
+    <tr><td colspan="7">
+      <details>
+        <summary class="small">Reject {{accessionNo}}</summary>
+        <form method="post" action="/specimens/{{id}}/reject" class="row g-2 mt-1 align-items-end">
+          <input type="hidden" name="_csrf" value="{{../csrf}}">
+          <div class="col-auto">
+            <label class="form-label small" for="code-{{id}}">Reason</label>
+            <select class="form-select form-select-sm" id="code-{{id}}" name="code" required>
+              {{#each ../reasons}}<option value="{{value}}">{{label}}</option>{{/each}}
+            </select>
+          </div>
+          <div class="col-auto">
+            <label class="form-label small" for="text-{{id}}">What was wrong (at least 5 characters)</label>
+            <input class="form-control form-control-sm" id="text-{{id}}" name="text" minlength="5" maxlength="200" required>
+          </div>
+          <div class="col-auto form-check ms-2">
+            <input class="form-check-input" type="checkbox" id="re-{{id}}" name="recollect" value="yes" checked>
+            <label class="form-check-label small" for="re-{{id}}">Recollect: return tests without a result to the collection list</label>
+          </div>
+          <div class="col-auto"><button class="btn btn-outline-danger btn-sm" type="submit">Reject specimen</button></div>
+        </form>
+      </details>
+    </td></tr>
+    {{/if}}{{/if}}
+    {{else}}
+    <tr><td colspan="7" class="text-body-secondary">No specimens collected yet.</td></tr>
+    {{/each}}
+  </tbody>
+</table>

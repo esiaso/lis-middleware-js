@@ -57,6 +57,8 @@ export abstract class SupervisedStreamTransport extends EventEmitter<TransportEv
   #paused = false;
   #attempt = 0;
   #timer: NodeJS.Timeout | null = null;
+  /** True while connectOnce() is in flight; close() then lets that attempt settle before it resolves. */
+  #connecting = false;
   #closed: Promise<void> = Promise.resolve();
   #resolveClosed: (() => void) | null = null;
 
@@ -86,7 +88,8 @@ export abstract class SupervisedStreamTransport extends EventEmitter<TransportEv
     this.#timer = null;
     const s = this.#stream;
     if (s && !s.destroyed) s.destroy();
-    else this.#finishClose(reason);
+    else if (!this.#connecting) this.#finishClose(reason);
+    // else: the attempt in flight sees #running is false and finishes the close itself, without reporting its error.
     return this.#closed;
   }
 
@@ -118,13 +121,20 @@ export abstract class SupervisedStreamTransport extends EventEmitter<TransportEv
     if (!this.#running) return;
     this.#setState('connecting');
     let stream: Duplex;
+    this.#connecting = true;
     try {
       stream = await this.connectOnce();
     } catch (e) {
+      this.#connecting = false;
+      if (!this.#running) {
+        this.#finishClose('closed while connecting');
+        return;
+      }
       this.#emitError(e);
       this.#scheduleReconnect();
       return;
     }
+    this.#connecting = false;
     if (!this.#running) {
       stream.destroy();
       this.#finishClose('closed while connecting');

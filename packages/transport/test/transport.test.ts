@@ -1,8 +1,9 @@
 import net from 'node:net';
+import type { Duplex } from 'node:stream';
 import { once } from 'node:events';
 import { afterEach, describe, expect, it } from 'vitest';
 import { MockBinding } from '@serialport/binding-mock';
-import { createTransport, backoffDelay, SerialTransport, TcpClientTransport, TcpServerTransport, TransportNotOpenError, type Transport, type TransportState } from '@lis/transport';
+import { createTransport, backoffDelay, SerialTransport, SupervisedStreamTransport, TcpClientTransport, TcpServerTransport, TransportNotOpenError, type Transport, type TransportState } from '@lis/transport';
 
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
@@ -69,6 +70,26 @@ describe('TcpClientTransport', () => {
     await waitState(t, 'backoff');
     await waitState(t, 'open');
     expect(sockets).toHaveLength(2);
+  });
+
+  it('when closed mid-connect, waits for that attempt and reports nothing after', async () => {
+    // A connect that fails only after close() was called (a slow refusal, as on Windows).
+    class SlowRefusal extends SupervisedStreamTransport {
+      readonly kind = 'tcp-client' as const;
+      protected connectOnce(): Promise<Duplex> {
+        return new Promise((_, reject) => setTimeout(() => reject(new Error('ECONNREFUSED')), 50));
+      }
+    }
+    const t = new SlowRefusal({ reconnectMinMs: 10, reconnectMaxMs: 20 });
+    const errors: Error[] = [];
+    t.on('error', (e) => errors.push(e));
+    await t.open();
+    await waitState(t, 'connecting');
+    await t.close('done');
+    expect(t.state).toBe('closed');
+    await new Promise((r) => setTimeout(r, 100));
+    expect(errors).toHaveLength(0);
+    expect(t.state).toBe('closed');
   });
 
   it('keeps retrying while nothing listens, and stops when closed', async () => {

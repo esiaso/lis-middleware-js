@@ -5,7 +5,7 @@ export class Browser {
   cookies = new Map<string, string>();
   constructor(private readonly base: string) {}
 
-  async request(method: string, path: string, form?: Record<string, string>): Promise<{ status: number; location: string | null; html: string; headers: Headers }> {
+  async request(method: string, path: string, form?: Record<string, string | string[]>): Promise<{ status: number; location: string | null; html: string; headers: Headers }> {
     const res = await fetch(this.base + path, {
       method,
       redirect: 'manual',
@@ -13,7 +13,7 @@ export class Browser {
         cookie: [...this.cookies].map(([k, v]) => `${k}=${v}`).join('; '),
         ...(form ? { 'content-type': 'application/x-www-form-urlencoded' } : {}),
       },
-      ...(form ? { body: new URLSearchParams(form).toString() } : {}),
+      ...(form ? { body: new URLSearchParams(Object.entries(form).flatMap(([k, v]) => (Array.isArray(v) ? v : [v]).map((x): [string, string] => [k, x]))).toString() } : {}),
     });
     for (const c of res.headers.getSetCookie()) {
       const [pair] = c.split(';');
@@ -25,7 +25,7 @@ export class Browser {
     return { status: res.status, location: res.headers.get('location'), html: await res.text(), headers: res.headers };
   }
   get = (path: string) => this.request('GET', path);
-  post = (path: string, form: Record<string, string>) => this.request('POST', path, form);
+  post = (path: string, form: Record<string, string | string[]>) => this.request('POST', path, form);
 
   /** The session CSRF token, read from any signed-in page. */
   async csrf(path = '/'): Promise<string> {

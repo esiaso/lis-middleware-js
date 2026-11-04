@@ -340,6 +340,12 @@ model Specimen {
   barcodeActive Boolean     @default(true) @map("barcode_active")
   status      String
   collectedAt DateTime?     @map("collected_at") @db.Timestamptz
+  receivedAt  DateTime?     @map("received_at") @db.Timestamptz
+  receivedBy  String?       @map("received_by")
+  /// Times a label was printed for this specimen (W-2 shows the reprint count).
+  labelPrints Int           @default(0) @map("label_prints")
+  /// Coded reason, then free text (W-2).
+  rejectionReason String?   @map("rejection_reason")
   createdBy   String        @map("created_by")
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
   order       LabOrder      @relation(fields: [orderId], references: [id])

@@ -1,0 +1,14 @@
+<p><a href="/orders/{{s.orderId}}">&larr; Order {{s.hmisOrderId}}</a></p>
+<h1 class="h4">Specimen <span class="font-monospace">{{s.accessionNo}}</span></h1>
+<p class="mb-1"><strong>{{patient.name}}</strong> · MRN {{patient.mrn}}</p>
+<p>Status: <strong>{{s.status}}</strong>{{#if s.rejection}} · {{s.rejection}}{{/if}}</p>
+
+<h2 class="h6">Results</h2>
+<ul class="list-unstyled">
+  {{#each results}}<li><span class="font-monospace">{{test}}</span>: {{#if href}}<a href="{{href}}">{{status}}</a>{{else}}{{status}}{{/if}}</li>{{else}}<li class="text-body-secondary">No tests on this specimen.</li>{{/each}}
+</ul>
+
+<h2 class="h6">History</h2>
+<ol class="list-unstyled small">
+  {{#each entries}}<li>{{at}} · {{#if href}}<a href="{{href}}">{{text}}</a>{{else}}{{text}}{{/if}}</li>{{else}}<li class="text-body-secondary">Nothing recorded.</li>{{/each}}
+</ol>
