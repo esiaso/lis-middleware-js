@@ -3,7 +3,7 @@ import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, P
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
 import { migrationStatus, type Db } from '@lis/db';
 import { AUTOVERIFY_ACTOR, clinicalGateFor } from '@lis/domain';
-import { addResultComment, approve, confirmLink, decisionsFor, failingQc, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
+import { addResultComment, approve, confirmLink, decisionsFor, failingQc, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, standardCommentsFor, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
 import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS } from './auth.js';
 import { displayTimeZone, elapsed, formatTime, formatValue, NOTICES, REFERENCE_MARK, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
@@ -365,6 +365,7 @@ export class ResultsController {
         : null,
       calls: r.criticalCalls.map((c) => ({ version: c.versionNo, notified: c.notified, role: c.notifiedRole, at: formatTime(c.calledAt), by: c.recordedBy, recordedAt: formatTime(c.recordedAt), note: c.note ?? '' })),
       autoverify: decisions.map((d) => ({ version: d.versionNo, passed: d.passed, at: formatTime(d.at), reference: d.reference, failed: d.checks.filter((c) => !c.ok), checks: d.checks })),
+      standardComments: (await standardCommentsFor(this.db, t.localTestCode)).map((c) => ({ id: c.id, code: c.code, text: c.text })),
       comments: r.comments.map((c) => ({ id: c.id, text: c.text, onReport: c.onReport, by: c.createdBy, at: formatTime(c.createdAt), withdrawn: c.withdrawnAt ? { by: c.withdrawnBy, at: formatTime(c.withdrawnAt), reason: c.withdrawReason } : null })),
       events: r.events.map((e) => ({ kind: e.kind, version: e.versionNo, actor: e.actor, reason: e.reason, at: formatTime(e.at) })),
       actions: {
@@ -384,7 +385,8 @@ export class ResultsController {
   async comment(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Body() body: Form): Promise<void> {
     const onReport = str(body, 'onReport') === 'yes';
     if (onReport && !req.user!.roles.includes('approver')) throw new ForbiddenException('Only an approver can add a comment to the printed report.');
-    await addResultComment(this.db, uuidParam(id), req.user!.username, { text: str(body, 'text'), onReport });
+    const standard = str(body, 'standard');
+    await addResultComment(this.db, uuidParam(id), req.user!.username, { text: str(body, 'text'), onReport, ...(standard ? { standardId: uuidParam(standard) } : {}) });
     res.redirect(303, `/results/${id}?notice=comment-added`);
   }
 

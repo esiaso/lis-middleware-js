@@ -7,7 +7,7 @@ import { pino } from 'pino';
 import { Browser, PW } from './browser.js';
 
 const url = process.env['TEST_DATABASE_URL'];
-const TABLES = 'result_comment, reference_range, user_session, app_user, audit_event, result_event, result_version, result, observation, normalized_message, specimen, ordered_test, lab_order, patient';
+const TABLES = 'result_comment, standard_comment, reference_range, user_session, app_user, audit_event, result_event, result_version, result, observation, normalized_message, specimen, ordered_test, lab_order, patient';
 
 describe.skipIf(!url)('printed result report', () => {
   let db: Db;
@@ -161,5 +161,48 @@ describe.skipIf(!url)('printed result report', () => {
     await expect(db.$executeRawUnsafe(`UPDATE result_comment SET text = 'changed' WHERE id = '${reportComment.id}'`)).rejects.toThrow();
     await expect(db.$executeRawUnsafe(`DELETE FROM result_comment WHERE id = '${reportComment.id}'`)).rejects.toThrow();
     expect((await db.auditEvent.findMany({ where: { action: { startsWith: 'result.comment' } } })).map((e) => e.action).sort()).toEqual(['result.comment', 'result.comment', 'result.comment', 'result.comment-withdrawn']);
+  });
+
+  it('offers the lab\'s standard comments on a result and copies the text in', async () => {
+    await test('1', 'K', { status: 'reviewed', value: '5.6' });
+    await test('2', 'NA', { status: 'reviewed', value: '140' });
+    const k = await db.result.findFirstOrThrow({ where: { orderedTest: { localTestCode: 'K' } } });
+    const na = await db.result.findFirstOrThrow({ where: { orderedTest: { localTestCode: 'NA' } } });
+    const tech = new Browser(base);
+    expect((await tech.signIn('tech')).status).toBe(303);
+    const dr = new Browser(base);
+    expect((await dr.signIn('dr.lab')).status).toBe(303);
+
+    let csrf = await tech.csrf('/standard-comments');
+    expect((await tech.post('/standard-comments', { _csrf: csrf, code: 'HAEM', text: 'Sample haemolysed.', localTestCode: '', password: PW })).status).toBe(403);
+    const drCsrf = await dr.csrf('/standard-comments');
+    expect((await dr.post('/standard-comments', { _csrf: drCsrf, code: 'h', text: 'x', localTestCode: '', password: PW })).status).toBe(422);
+    expect((await dr.post('/standard-comments', { _csrf: drCsrf, code: 'haem', text: 'Sample  haemolysed; potassium may read high.', localTestCode: '', password: PW })).location).toBe('/standard-comments?notice=standard-comment-added');
+    expect((await dr.post('/standard-comments', { _csrf: drCsrf, code: 'HAEM', text: 'Again', localTestCode: '', password: PW })).html).toContain('already in use');
+    expect((await dr.post('/standard-comments', { _csrf: drCsrf, code: 'NA-LIP', text: 'Lipaemic: sodium by indirect ISE may read low.', localTestCode: 'NA', password: PW })).status).toBe(303);
+    const haem = await db.standardComment.findFirstOrThrow({ where: { code: 'HAEM' } });
+    const naLip = await db.standardComment.findFirstOrThrow({ where: { code: 'NA-LIP' } });
+    expect(haem.text).toBe('Sample haemolysed; potassium may read high.');
+
+    // Offered on every test, or on its own test only.
+    const kPage = (await tech.get(`/results/${k.id}`)).html;
+    expect(kPage).toContain('HAEM: Sample haemolysed');
+    expect(kPage).not.toContain('NA-LIP');
+    expect((await tech.get(`/results/${na.id}`)).html).toContain('NA-LIP: Lipaemic');
+
+    csrf = await tech.csrf(`/results/${k.id}`);
+    expect((await tech.post(`/results/${k.id}/comments`, { _csrf: csrf, standard: naLip.id, text: '' })).status).toBe(422);
+    expect((await tech.post(`/results/${k.id}/comments`, { _csrf: csrf, standard: haem.id, text: 'and more' })).status).toBe(422);
+    expect((await tech.post(`/results/${k.id}/comments`, { _csrf: csrf, standard: haem.id, text: '' })).location).toBe(`/results/${k.id}?notice=comment-added`);
+
+    // Retiring it stops it being offered and leaves the comment made with it unchanged.
+    expect((await dr.post(`/standard-comments/${haem.id}/retire`, { _csrf: drCsrf, reason: 'reworded', password: PW })).location).toBe('/standard-comments?notice=standard-comment-retired');
+    expect((await tech.post(`/results/${k.id}/comments`, { _csrf: csrf, standard: haem.id, text: '' })).status).toBe(422);
+    const after = (await tech.get(`/results/${k.id}`)).html;
+    expect(after).not.toContain('HAEM: Sample');
+    expect(after).toContain('Sample haemolysed; potassium may read high.');
+    const audit = await db.auditEvent.findFirstOrThrow({ where: { action: 'result.comment' } });
+    expect(audit.after).toMatchObject({ standardCode: 'HAEM', text: 'Sample haemolysed; potassium may read high.' });
+    expect((await db.auditEvent.findMany({ where: { entityType: 'standard_comment' } })).map((e) => e.action).sort()).toEqual(['standard-comment.add', 'standard-comment.add', 'standard-comment.retire']);
   });
 });

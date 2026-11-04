@@ -632,6 +632,24 @@ model ResultComment {
   @@map("result_comment")
 }
 
+/// A comment the lab keeps ready to pick on a result (01 A-27); none shipped. Copied into the result comment when used.
+model StandardComment {
+  id            String    @id @db.Uuid
+  /// Short code staff know it by, such as HAEM.
+  code          String
+  text          String
+  /// Offered only on this test's results; null offers it on every test.
+  localTestCode String?   @map("local_test_code")
+  active        Boolean   @default(true)
+  createdBy     String    @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  retiredBy     String?   @map("retired_by")
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz
+  retireReason  String?   @map("retire_reason")
+
+  @@map("standard_comment")
+}
+
 /// Who was told about a critical result, and that they read it back. Append-only.
 model CriticalCall {
   id         String   @id @db.Uuid

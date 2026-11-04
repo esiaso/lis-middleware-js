@@ -1,0 +1,50 @@
+<div class="d-flex align-items-baseline gap-3"><h1 class="h4">Standard comments</h1><a href="/results">Results</a></div>
+<p class="text-body-secondary">Comments the lab uses often, ready to pick on a result page instead of typing them. The middleware comes with none: every comment here was entered by the lab. Picking one copies its text into the result's comment, so retiring or rewording a standard comment later never changes a comment already made. Whether a picked comment is for the lab only or printed on the report is chosen on the result page, as for a typed one. A comment can be offered on every test or on one test only.</p>
+
+<table class="table table-sm align-middle">
+  <thead><tr><th>Code</th><th>Text</th><th>Offered on</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
+  <tbody>
+    {{#each comments}}
+    <tr>
+      <td class="font-monospace">{{code}}</td><td>{{text}}</td><td>{{#if test}}<span class="font-monospace">{{test}}</span>{{else}}Every test{{/if}}</td><td class="small">{{by}}, {{at}}</td>
+      {{#if @root.can.approve}}
+      <td>
+        <details><summary class="small">Retire</summary>
+          <form method="post" action="/standard-comments/{{id}}/retire" class="mt-2">
+            <input type="hidden" name="_csrf" value="{{@root.csrf}}">
+            <input class="form-control form-control-sm mb-1" name="reason" minlength="5" required placeholder="Reason" aria-label="Reason">
+            {{> confirm inputClass="form-control form-control-sm mb-1"}}
+            <button class="btn btn-outline-danger btn-sm" type="submit">Retire comment</button>
+          </form>
+        </details>
+      </td>
+      {{/if}}
+    </tr>
+    {{else}}
+    <tr><td colspan="5" class="text-body-secondary">No standard comments yet, so comments are typed on the result page.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+
+{{#if can.approve}}
+<h2 class="h5 mt-4">Add a standard comment</h2>
+<p class="small text-body-secondary">To reword one, retire it and add the new wording. Both stay in the history.</p>
+{{> issues}}
+<form method="post" action="/standard-comments" class="row g-3">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <div class="col-md-2"><label class="form-label" for="code">Code</label><input class="form-control font-monospace text-uppercase" id="code" name="code" value="{{v.code}}" required maxlength="12"><div class="form-text">Such as HAEM.</div></div>
+  <div class="col-md-3"><label class="form-label" for="localTestCode">Offered on</label>
+    <select class="form-select" id="localTestCode" name="localTestCode"><option value="">Every test</option>{{#each tests}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{code}}</option>{{/each}}</select></div>
+  <div class="col-md-7"><label class="form-label" for="text">Text</label><input class="form-control" id="text" name="text" value="{{v.text}}" required minlength="2" maxlength="500"></div>
+  <div class="col-md-4">{{> confirm id="standard-password" label="Your password" labelClass="form-label" inputClass="form-control"}}</div>
+  <div class="col-12"><button class="btn btn-primary" type="submit">Save comment</button></div>
+</form>
+{{/if}}
+
+{{#if retired}}
+<h2 class="h6 mt-4">Retired comments</h2>
+<table class="table table-sm small text-body-secondary">
+  <thead><tr><th>Code</th><th>Text</th><th>Offered on</th><th>Retired</th><th>Reason</th></tr></thead>
+  <tbody>{{#each retired}}<tr><td class="font-monospace">{{code}}</td><td>{{text}}</td><td>{{#if test}}{{test}}{{else}}Every test{{/if}}</td><td>{{retiredBy}}, {{retiredAt}}</td><td>{{retireReason}}</td></tr>{{/each}}</tbody>
+</table>
+{{/if}}

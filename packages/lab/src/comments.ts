@@ -18,15 +18,83 @@ export function parseComment(text: string): string {
   return t;
 }
 
-export async function addResultComment(db: Db, resultId: string, actor: string, input: { text: string; onReport: boolean }): Promise<string> {
-  const text = parseComment(input.text);
+/**
+ * Adds a comment, typed or picked from the lab's standard comments (A-27).
+ * A standard comment's text is copied in, so retiring or replacing it later
+ * never changes a comment already made; the audit records its code.
+ */
+export async function addResultComment(db: Db, resultId: string, actor: string, input: { text: string; onReport: boolean; standardId?: string }): Promise<string> {
+  const typed = input.text.trim();
+  if (input.standardId && typed) throw new InvalidInput(['Pick a standard comment or type one, not both.']);
   const id = uuidv7();
   await db.$transaction(async (tx) => {
-    if (!(await tx.result.findUnique({ where: { id: resultId }, select: { id: true } }))) throw new WorkflowRejected({ code: 'INVALID_STATE', detail: 'no such result' });
+    const r = await tx.result.findUnique({ where: { id: resultId }, select: { id: true, orderedTest: { select: { localTestCode: true } } } });
+    if (!r) throw new WorkflowRejected({ code: 'INVALID_STATE', detail: 'no such result' });
+    let text: string;
+    let standardCode: string | null = null;
+    if (input.standardId) {
+      const sc = await tx.standardComment.findUnique({ where: { id: input.standardId } });
+      if (!sc || !sc.active || (sc.localTestCode !== null && sc.localTestCode !== r.orderedTest.localTestCode)) throw new InvalidInput(['That standard comment is not offered for this test any more.']);
+      text = sc.text;
+      standardCode = sc.code;
+    } else {
+      text = parseComment(input.text);
+    }
     await tx.resultComment.create({ data: { id, resultId, text, onReport: input.onReport, createdBy: actor } });
-    await appendAudit(tx, { actor, action: 'result.comment', entityType: 'result', entityId: resultId, after: { commentId: id, text, onReport: input.onReport } });
+    await appendAudit(tx, { actor, action: 'result.comment', entityType: 'result', entityId: resultId, after: { commentId: id, text, onReport: input.onReport, ...(standardCode ? { standardCode } : {}) } });
   });
   return id;
+}
+
+export interface StandardCommentInput {
+  code: string;
+  text: string;
+  /** Empty for every test. */
+  localTestCode: string;
+}
+
+export function parseStandardComment(input: StandardCommentInput): { ok: true; value: { code: string; text: string; localTestCode: string | null } } | { ok: false; issues: string[] } {
+  const code = input.code.trim().toUpperCase();
+  const issues: string[] = [];
+  if (!/^[A-Z0-9][A-Z0-9-]{1,11}$/.test(code)) issues.push('The code is 2 to 12 letters, digits or hyphens, such as HAEM.');
+  let text = '';
+  try {
+    text = parseComment(input.text);
+  } catch (e) {
+    if (e instanceof InvalidInput) issues.push(...e.issues);
+    else throw e;
+  }
+  if (issues.length) return { ok: false, issues };
+  return { ok: true, value: { code, text, localTestCode: input.localTestCode.trim() || null } };
+}
+
+export async function addStandardComment(db: Db, actor: string, input: StandardCommentInput): Promise<string> {
+  const p = parseStandardComment(input);
+  if (!p.ok) throw new InvalidInput(p.issues);
+  const id = uuidv7();
+  await db.$transaction(async (tx) => {
+    if (await tx.standardComment.findFirst({ where: { code: p.value.code, active: true } })) throw new InvalidInput([`The code ${p.value.code} is already in use. Retire that comment first.`]);
+    await tx.standardComment.create({ data: { id, ...p.value, createdBy: actor } });
+    await appendAudit(tx, { actor, action: 'standard-comment.add', entityType: 'standard_comment', entityId: id, after: p.value });
+  });
+  return id;
+}
+
+export async function retireStandardComment(db: Db, actor: string, id: string, reason: string): Promise<void> {
+  if (reason.trim().length < 5) throw new InvalidInput(['Give a reason of at least 5 characters.']);
+  await db.$transaction(async (tx) => {
+    const n = await tx.standardComment.updateMany({ where: { id, active: true }, data: { active: false, retiredBy: actor, retiredAt: new Date(), retireReason: reason.trim() } });
+    if (n.count !== 1) throw new WorkflowRejected({ code: 'INVALID_STATE', detail: 'that standard comment is not active' });
+    await appendAudit(tx, { actor, action: 'standard-comment.retire', entityType: 'standard_comment', entityId: id, reason: reason.trim() });
+  });
+}
+
+/** Active standard comments offered on a result of this test, by code. */
+export async function standardCommentsFor(db: Db | Tx, localTestCode: string | null) {
+  return db.standardComment.findMany({
+    where: { active: true, OR: [{ localTestCode: null }, ...(localTestCode ? [{ localTestCode }] : [])] },
+    orderBy: { code: 'asc' },
+  });
 }
 
 export async function withdrawResultComment(db: Db, commentId: string, actor: string, reason: string): Promise<string> {
