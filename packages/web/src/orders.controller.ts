@@ -182,7 +182,7 @@ export class OrdersController {
     type Entry = { at: Date; text: string; href?: string };
     const entries: Entry[] = [];
     if (orderAudit) entries.push({ at: orderAudit.at, text: `Order received from the HMIS (${s.order.hmisOrderId})` });
-    const words: Record<string, string> = { 'specimen.collected': 'Collected, label printed', 'specimen.label-reprint': 'Label reprinted', 'specimen.received': 'Received in the lab', 'specimen.rejected': 'Rejected' };
+    const words: Record<string, string> = { 'specimen.collected': 'Collected, label printed', 'specimen.label-reprint': 'Label reprinted', 'specimen.received': 'Received in the lab', 'specimen.rejected': 'Rejected', 'specimen.result-linked': 'Unmatched result linked' };
     for (const a of audit) entries.push({ at: a.at, text: `${words[a.action] ?? a.action} by ${a.actor}${a.reason ? `: ${a.reason}` : ''}` });
     for (const t of s.tests) {
       const r = t.result;

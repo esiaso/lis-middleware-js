@@ -53,6 +53,9 @@ export const NOTICES: Record<string, string> = {
   received: 'Specimen received in the lab.',
   rejected: 'Specimen rejected. Tests without a result are back on the collection list if recollection was chosen.',
   reprinted: 'Reprint recorded.',
+  'link-proposed': 'Link proposed. A different person must check the patient and confirm it.',
+  'link-withdrawn': 'Proposal withdrawn.',
+  linked: 'Unmatched result linked. It now needs review and approval like any other result.',
   signedout: 'You have signed out.',
 };
 

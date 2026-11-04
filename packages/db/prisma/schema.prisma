@@ -427,6 +427,13 @@ model UnmatchedResult {
   resolvedAt    DateTime? @map("resolved_at") @db.Timestamptz
   resolvedBy    String?   @map("resolved_by")
   resolution    String?
+  /// A proposed link to a specimen's ordered test, waiting for a second person (10 §2).
+  proposedTestId String?  @map("proposed_test_id") @db.Uuid
+  proposedBy    String?   @map("proposed_by")
+  proposedAt    DateTime? @map("proposed_at") @db.Timestamptz
+  proposalReason String?  @map("proposal_reason")
+  /// The result the observation became once the link was confirmed.
+  linkedResultId String?  @map("linked_result_id") @db.Uuid
 
   @@index([resolvedAt])
   @@map("unmatched_result")
