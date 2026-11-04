@@ -62,5 +62,5 @@ describe('secret files (10 §7)', () => {
     const file = join(dir, 'database_url');
     writeFileSync(file, text);
     expect(databaseUrlFromEnv({ DATABASE_URL_FILE: file })).toEqual({ url: value, source: `file ${file}` });
-  });
+  }, 60_000); // four Windows PowerShell starts, each a second or two on a cold runner
 });
