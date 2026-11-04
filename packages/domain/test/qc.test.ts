@@ -34,14 +34,14 @@ describe('qcSupports', () => {
     expect(qcSupports([{ rangeId: 'a', outcome: 'IN_RANGE', at: at(0) }, { rangeId: 'b', outcome: 'IN_RANGE', at: at(1) }], 8)).toEqual({ ok: true, detail: '2 controls in range in the last 8 h' });
     // Out of range, then rerun in range: fine. In range, then out: not.
     expect(qcSupports([{ rangeId: 'a', outcome: 'OUT_OF_RANGE', at: at(0) }, { rangeId: 'a', outcome: 'IN_RANGE', at: at(5) }], 8).ok).toBe(true);
-    expect(qcSupports([{ rangeId: 'a', outcome: 'IN_RANGE', at: at(5) }, { rangeId: 'a', outcome: 'UNITS_DIFFER', at: at(9) }, { rangeId: 'b', outcome: 'IN_RANGE', at: at(9) }], 8)).toEqual({ ok: false, detail: '1 of 2 controls out of range in the latest QC' });
+    expect(qcSupports([{ rangeId: 'a', outcome: 'IN_RANGE', at: at(5) }, { rangeId: 'a', outcome: 'UNITS_DIFFER', at: at(9) }, { rangeId: 'b', outcome: 'IN_RANGE', at: at(9) }], 8)).toEqual({ ok: false, detail: '1 of 2 controls failed the latest QC' });
   });
 });
 
 describe('parseQcRange', () => {
   const base = { instrumentId: 'c111-01', localTestCode: 'K', controlLot: 'L123', controlName: '', low: '4.1', high: '4.9', units: 'mmol/L', reference: 'Control insert L123 rev 2' };
   it('accepts a range', () => {
-    expect(parseQcRange(base)).toEqual({ ok: true, value: { ...base, controlName: null } });
+    expect(parseQcRange(base)).toEqual({ ok: true, value: { ...base, controlName: null, targetMean: null, targetSd: null, westgardRules: [] } });
   });
   it('explains every problem', () => {
     const r = parseQcRange({ instrumentId: '', localTestCode: '', controlLot: '', controlName: '', low: 'x', high: '1', units: '', reference: '' });

@@ -1,13 +1,14 @@
 <p><a href="/qc">&larr; QC</a></p>
 <h1 class="h4">QC ranges</h1>
 <p class="text-body-secondary">The acceptable range for one control on one instrument and test, both ends included. The middleware comes with no ranges: take them from the control insert or the lab's own QC plan. Name the control exactly as the instrument sends it (lot, name, or both); a range with only a lot matches any name, and the other way round. A range applies to QC results that arrive after it is saved.</p>
+<p class="small text-body-secondary">To apply Westgard rules, also enter the control's target mean and SD from the lab's own QC data or the insert, and tick the rules the lab's QC plan uses. The rules look along one control's own results, across runs; R-4s compares controls within a run and is not offered. A 1-2s result is a warning only; any other rule broken marks the QC as failed, even inside the range.</p>
 
 <table class="table table-sm align-middle">
-  <thead><tr><th>Instrument</th><th>Test</th><th>Control</th><th>Range</th><th>Units</th><th>Source</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
+  <thead><tr><th>Instrument</th><th>Test</th><th>Control</th><th>Range</th><th>Units</th><th>Mean ± SD</th><th>Westgard</th><th>Source</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
   <tbody>
     {{#each ranges}}
     <tr>
-      <td>{{instrument}}</td><td class="font-monospace">{{test}}</td><td>{{control}}</td><td class="font-monospace">{{low}} to {{high}}</td><td>{{units}}</td><td class="small">{{reference}}</td><td class="small">{{by}}, {{at}}</td>
+      <td>{{instrument}}</td><td class="font-monospace">{{test}}</td><td>{{control}}</td><td class="font-monospace">{{low}} to {{high}}</td><td>{{units}}</td><td class="font-monospace">{{target}}</td><td class="small">{{rules}}</td><td class="small">{{reference}}</td><td class="small">{{by}}, {{at}}</td>
       {{#if @root.can.approve}}
       <td>
         <details><summary class="small">Retire</summary>
@@ -22,7 +23,7 @@
       {{/if}}
     </tr>
     {{else}}
-    <tr><td colspan="8" class="text-body-secondary">No QC ranges, so QC results are kept but not checked.</td></tr>
+    <tr><td colspan="10" class="text-body-secondary">No QC ranges, so QC results are kept but not checked.</td></tr>
     {{/each}}
   </tbody>
 </table>
@@ -42,6 +43,11 @@
   <div class="col-md-2"><label class="form-label" for="low">Lowest acceptable</label><input class="form-control font-monospace" id="low" name="low" value="{{v.low}}" inputmode="decimal" required></div>
   <div class="col-md-2"><label class="form-label" for="high">Highest acceptable</label><input class="form-control font-monospace" id="high" name="high" value="{{v.high}}" inputmode="decimal" required></div>
   <div class="col-md-2"><label class="form-label" for="units">Units</label><input class="form-control" id="units" name="units" value="{{v.units}}" required maxlength="20"></div>
+  <div class="col-md-2"><label class="form-label" for="targetMean">Target mean</label><input class="form-control font-monospace" id="targetMean" name="targetMean" value="{{v.targetMean}}" inputmode="decimal"></div>
+  <div class="col-md-2"><label class="form-label" for="targetSd">Target SD</label><input class="form-control font-monospace" id="targetSd" name="targetSd" value="{{v.targetSd}}" inputmode="decimal"></div>
+  <fieldset class="col-md-8"><legend class="form-label fs-6">Westgard rules (optional; need the mean and SD)</legend>
+    {{#each westgard}}<div class="form-check"><input class="form-check-input" type="checkbox" name="westgardRules" value="{{value}}" id="wg-{{@index}}" {{#if checked}}checked{{/if}}><label class="form-check-label" for="wg-{{@index}}">{{label}}</label></div>{{/each}}
+  </fieldset>
   <div class="col-md-6"><label class="form-label" for="reference">Source</label><input class="form-control" id="reference" name="reference" value="{{v.reference}}" required minlength="5" maxlength="200"><div class="form-text">The control insert or the lab's QC plan, with its version.</div></div>
   <div class="col-md-4">{{> confirm id="qc-password" label="Your password" labelClass="form-label" inputClass="form-control"}}</div>
   <div class="col-12"><button class="btn btn-primary" type="submit">Save range</button></div>
@@ -51,7 +57,7 @@
 {{#if retired}}
 <h2 class="h6 mt-4">Retired ranges</h2>
 <table class="table table-sm small text-body-secondary">
-  <thead><tr><th>Instrument</th><th>Test</th><th>Control</th><th>Range</th><th>Retired</th><th>Reason</th></tr></thead>
-  <tbody>{{#each retired}}<tr><td>{{instrument}}</td><td class="font-monospace">{{test}}</td><td>{{control}}</td><td>{{low}} to {{high}} {{units}}</td><td>{{retiredBy}}, {{retiredAt}}</td><td>{{retireReason}}</td></tr>{{/each}}</tbody>
+  <thead><tr><th>Instrument</th><th>Test</th><th>Control</th><th>Range</th><th>Westgard</th><th>Retired</th><th>Reason</th></tr></thead>
+  <tbody>{{#each retired}}<tr><td>{{instrument}}</td><td class="font-monospace">{{test}}</td><td>{{control}}</td><td>{{low}} to {{high}} {{units}}</td><td>{{target}} {{rules}}</td><td>{{retiredBy}}, {{retiredAt}}</td><td>{{retireReason}}</td></tr>{{/each}}</tbody>
 </table>
 {{/if}}

@@ -84,7 +84,7 @@ with their source, a flag on each version as it arrives, approval held
 until the call with read-back is recorded, and the waiting list with its
 timer on the dashboard; A-18, 08 §12), autoverification (off for
 every test until the lab director adds a rule naming the validation report;
-approves only, release stays with a person; A-19), delta checks (rules from the lab, flag shown to reviewers and holding autoverification; A-20), a QC log (QC results checked against the lab's ranges, a dashboard warning, an optional QC window for autoverification; A-21), and a turnaround-time report with CSV export, lab-set targets and an overdue list (A-22, W-12), a patient history page with a cumulative report (W-13), and a printed result report per order (W-14), and DPAPI encryption of secret files on Windows
+approves only, release stays with a person; A-19), delta checks (rules from the lab, flag shown to reviewers and holding autoverification; A-20), a QC log (QC results checked against the lab's ranges and optional Westgard rules, a dashboard warning, an optional QC window for autoverification; A-21, A-23), and a turnaround-time report with CSV export, lab-set targets and an overdue list (A-22, W-12), a patient history page with a cumulative report (W-13), and a printed result report per order (W-14), and DPAPI encryption of secret files on Windows
 (10 §7; tested on the Windows CI runner, not yet on the hospital server).
 Not built yet: "add test to order" from an
 unmatched result (needs the HMIS, D-1 to D-6), assisted reconciliation when the HMIS returns (beyond the candidate list),
@@ -119,7 +119,7 @@ LDAPS, and the real HMIS connector, which waits for D-1 to D-6.
 
 ## Phase 5: Hardening and extensions
 
-* QC multi-rule checks and charts, if the lab wants them here (A-21).
+* Levey-Jennings charts and within-run rules (R-4s), if the lab wants them here (A-21, A-23).
 * Critical-result escalation via hospital SMS/email gateway, and a target time with escalation steps (A-18). The on-screen workflow is built.
 * Mapping editor UI with approval workflow (W-9).
 * Second OS installer; SIEM streaming; archive tooling.
