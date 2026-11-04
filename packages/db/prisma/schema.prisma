@@ -386,6 +386,7 @@ model Result {
   orderedTest          OrderedTest     @relation(fields: [orderedTestId], references: [id])
   versions             ResultVersion[]
   events               ResultEvent[]
+  criticalCalls        CriticalCall[]
 
   @@index([status])
   @@map("result")
@@ -403,6 +404,10 @@ model ResultVersion {
   reason        String?
   createdBy     String   @map("created_by")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  /// LOW, HIGH or UNITS_DIFFER, set once when the version is written (08 §12).
+  criticalFlag    String? @map("critical_flag")
+  criticalLimitId String? @map("critical_limit_id") @db.Uuid
+  criticalDetail  String? @map("critical_detail")
   result        Result   @relation(fields: [resultId], references: [id])
 
   @@unique([resultId, versionNo])
@@ -547,4 +552,51 @@ model UserSession {
 
   @@index([userId])
   @@map("user_session")
+}
+
+// ---------- Critical results (08 §12) ----------
+
+/// A critical (panic) limit set by the lab director. Never edited: a change retires it and adds a new one.
+model CriticalLimit {
+  id            String    @id @db.Uuid
+  localTestCode String    @map("local_test_code")
+  /// F or M; null applies to everyone.
+  sex           String?
+  ageMinDays    Int?      @map("age_min_days")
+  ageMaxDays    Int?      @map("age_max_days")
+  /// Decimal text, compared exactly. Critical when strictly below low or strictly above high.
+  low           String?
+  high          String?
+  units         String
+  /// The lab policy or document the values come from.
+  reference     String
+  active        Boolean   @default(true)
+  createdBy     String    @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  retiredBy     String?   @map("retired_by")
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz
+  retireReason  String?   @map("retire_reason")
+
+  @@index([localTestCode, active])
+  @@map("critical_limit")
+}
+
+/// Who was told about a critical result, and that they read it back. Append-only.
+model CriticalCall {
+  id         String   @id @db.Uuid
+  resultId   String   @map("result_id") @db.Uuid
+  versionNo  Int      @map("version_no")
+  /// Name of the person told.
+  notified   String
+  /// Their role and place, for example "ward nurse, Ward 3".
+  notifiedRole String @map("notified_role")
+  calledAt   DateTime @map("called_at") @db.Timestamptz
+  readBack   Boolean  @map("read_back")
+  note       String?
+  recordedBy String   @map("recorded_by")
+  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz
+  result     Result   @relation(fields: [resultId], references: [id])
+
+  @@index([resultId, versionNo])
+  @@map("critical_call")
 }

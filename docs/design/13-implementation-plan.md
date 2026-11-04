@@ -79,7 +79,10 @@ administrator's own password, nobody can change their own account, and the
 last active administrator cannot be removed), and hospital sign-in through
 OIDC with directory groups mapped to roles and a fresh IdP sign-in to confirm
 each approval-type action (A-17; tested against a stand-in IdP, not yet
-against the hospital's, D-19).
+against the hospital's, D-19), and critical results (limits from the lab
+with their source, a flag on each version as it arrives, approval held
+until the call with read-back is recorded, and the waiting list with its
+timer on the dashboard; A-18, 08 §12).
 Not built yet: "add test to order" from an
 unmatched result (needs the HMIS, D-1 to D-6), assisted reconciliation when the HMIS returns (beyond the candidate list),
 LDAPS, and the real HMIS connector, which waits for D-1 to D-6.
@@ -115,7 +118,7 @@ LDAPS, and the real HMIS connector, which waits for D-1 to D-6.
 
 * Autoverification framework (disabled by default; per-test enablement after
   validation).
-* Critical-result escalation via hospital SMS/email gateway.
+* Critical-result escalation via hospital SMS/email gateway, and a target time with escalation steps (A-18). The on-screen workflow is built.
 * Mapping editor UI with approval workflow (W-9).
 * Second OS installer; SIEM streaming; archive tooling.
 * Additional instruments from the inventory (D-26). From phase 2 an

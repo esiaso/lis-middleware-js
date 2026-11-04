@@ -1,0 +1,20 @@
+<h1 class="h4">Critical results waiting for a call</h1>
+<p class="text-body-secondary">Each one must be phoned to the ward or clinician, read back, and recorded on the result before it can be approved. The time waiting counts from when the value arrived. This page refreshes every minute. <a href="/critical/limits">Critical limits</a></p>
+<table class="table table-sm align-middle">
+  <thead><tr><th>Waiting</th><th>Patient</th><th>Ward</th><th>Test</th><th>Why</th><th>Accession</th><th>Arrived</th></tr></thead>
+  <tbody>
+    {{#each rows}}
+    <tr class="table-danger">
+      <td class="fw-bold font-monospace">{{waiting}}</td>
+      <td><a href="{{href}}">{{patient}}</a></td>
+      <td>{{location}}</td>
+      <td class="font-monospace">{{test}} <span class="small text-body-secondary">v{{version}}</span></td>
+      <td><span class="badge text-bg-danger">critical {{flag}}</span> <span class="small">{{detail}}</span></td>
+      <td class="font-monospace">{{accessionNo}}</td>
+      <td class="small">{{arrived}}</td>
+    </tr>
+    {{else}}
+    <tr><td colspan="7" class="text-body-secondary">No critical results are waiting for a call.</td></tr>
+    {{/each}}
+  </tbody>
+</table>

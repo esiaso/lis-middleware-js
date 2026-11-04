@@ -46,7 +46,7 @@ export interface WorkflowPolicy {
   twoPersonRule: boolean;
 }
 
-export type WorkflowError = { code: 'INVALID_STATE' | 'SAME_PERSON' | 'NO_SUCH_VERSION' | 'NOT_RELEASABLE' | 'REASON_REQUIRED' | 'CONFIRM_FIRST'; detail: string };
+export type WorkflowError = { code: 'INVALID_STATE' | 'SAME_PERSON' | 'NO_SUCH_VERSION' | 'NOT_RELEASABLE' | 'REASON_REQUIRED' | 'CONFIRM_FIRST' | 'CRITICAL_NOT_COMMUNICATED'; detail: string };
 export type WorkflowResult<T = ResultAggregate> = { ok: true; value: T } | { ok: false; error: WorkflowError };
 
 const err = (code: WorkflowError['code'], detail: string): { ok: false; error: WorkflowError } => ({ ok: false, error: { code, detail } });

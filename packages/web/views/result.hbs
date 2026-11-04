@@ -9,6 +9,29 @@
 {{#if r.newDataAfterApproval}}<div class="alert alert-warning" role="alert">A new value arrived from the instrument after approval. Decide whether a correction is needed.</div>{{/if}}
 {{#if r.needsConfirmation}}<div class="alert alert-info" role="status">The last delivery had no clear answer. The middleware is checking with the HMIS before any resend.</div>{{/if}}
 
+{{#if critical}}
+<div class="alert alert-danger" role="alert">
+  {{#each critical}}<p class="mb-1"><strong>&#9650; Critical result</strong>, version {{no}}: <span class="font-monospace">{{value}} {{units}}</span>, {{detail}}. Waiting {{waiting}} for a call.</p>{{/each}}
+  <p class="mb-0 small">Phone the ward or the clinician now, ask them to read the value back, and record it below. It cannot be approved until then.</p>
+</div>
+{{#if can.call}}
+<form method="post" action="/results/{{r.id}}/critical-call" class="card card-body border-danger mb-3">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <h2 class="h6">Record the call</h2>
+  <div class="row g-2">
+    <div class="col-md-2"><label class="form-label" for="call-version">Version</label>
+      <select class="form-select" id="call-version" name="versionNo">{{#each critical}}<option value="{{no}}">#{{no}}: {{value}} {{units}}</option>{{/each}}</select></div>
+    <div class="col-md-3"><label class="form-label" for="notified">Person told</label><input class="form-control" id="notified" name="notified" required minlength="2" maxlength="80"></div>
+    <div class="col-md-3"><label class="form-label" for="notifiedRole">Their role and ward</label><input class="form-control" id="notifiedRole" name="notifiedRole" required minlength="2" maxlength="80" placeholder="for example ward nurse, Ward 3"></div>
+    <div class="col-md-2"><label class="form-label" for="minutesAgo">Told how many minutes ago</label><input class="form-control" id="minutesAgo" name="minutesAgo" value="0" inputmode="numeric" pattern="\d{1,4}"></div>
+    <div class="col-md-8"><label class="form-label" for="note">Note (optional)</label><input class="form-control" id="note" name="note" maxlength="500" placeholder="for example earlier attempts, doctor paged"></div>
+    <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="readBack" name="readBack" value="yes" required><label class="form-check-label" for="readBack">They read the patient's name and the value back to me correctly.</label></div></div>
+    <div class="col-12"><button class="btn btn-danger" type="submit">Record the call</button></div>
+  </div>
+</form>
+{{/if}}
+{{/if}}
+
 <p>Status: <strong>{{r.status}}</strong>{{#if r.reviewedBy}} · reviewed by {{r.reviewedBy}}{{/if}}{{#if r.approvedBy}} · approved by {{r.approvedBy}}{{/if}}</p>
 
 <h2 class="h6">Versions</h2>
@@ -17,7 +40,7 @@
   <tbody>
     {{#each versions}}
     <tr class="{{#if selected}}table-primary{{/if}}">
-      <td>{{no}}{{#if selected}} (selected){{/if}}</td><td>{{kind}}</td><td class="font-monospace">{{value}} {{units}}</td><td>{{flags}}</td><td>{{by}}</td><td class="small">{{at}}</td><td>{{reason}}</td>
+      <td>{{no}}{{#if selected}} (selected){{/if}}</td><td>{{kind}}</td><td class="font-monospace">{{value}} {{units}}</td><td>{{flags}}{{#if critical}} <span class="badge text-bg-danger">critical {{critical}}</span>{{#if called}} <span class="badge text-bg-secondary">called</span>{{/if}}{{/if}}{{#if unitsDiffer}} <span class="badge text-bg-warning" title="{{unitsDiffer}}">limit not checked: units differ</span>{{/if}}</td><td>{{by}}</td><td class="small">{{at}}</td><td>{{reason}}</td>
     </tr>
     {{/each}}
   </tbody>
@@ -85,6 +108,13 @@
   </div>
   {{/if}}{{/if}}
 </div>
+
+{{#if calls}}
+<h2 class="h6">Critical result calls</h2>
+<ul class="list-unstyled small">
+  {{#each calls}}<li>v{{version}} · told {{notified}} ({{role}}) at {{at}}, read back · recorded by {{by}} at {{recordedAt}}{{#if note}} · {{note}}{{/if}}</li>{{/each}}
+</ul>
+{{/if}}
 
 <h2 class="h6">History</h2>
 <ul class="list-unstyled small">

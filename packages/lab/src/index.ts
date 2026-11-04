@@ -8,3 +8,4 @@ export * from './outbox.js';
 export * from './unmatched.js';
 export * from './instruments.js';
 export * from './downtime.js';
+export * from './critical.js';

@@ -3,10 +3,10 @@ import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, P
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
 import { migrationStatus, type Db } from '@lis/db';
 import { clinicalGateFor } from '@lis/domain';
-import { approve, confirmLink, correct, dismissUnmatched, proposeLink, release, replay, review, withdrawLink } from '@lis/lab';
+import { approve, confirmLink, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, waitingCriticals, withdrawLink } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
 import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS } from './auth.js';
-import { formatTime, formatValue, NOTICES, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
+import { elapsed, formatTime, formatValue, NOTICES, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
 import { LOGIN_CSRF_COOKIE, OpenDuringPasswordChange, Public, Roles, SESSION_COOKIE, type WebRequest } from './security.js';
 import { CALLBACK_PATH, FLIGHT_MS, OIDC_COOKIE, OidcRefused, START_PATH, STEP_UP_PATH, type Oidc } from './oidc.js';
 import { DB, OIDC, WEB_OPTIONS, type WebOptions } from './tokens.js';
@@ -48,6 +48,7 @@ export function page(req: WebRequest, res: Response, view: string, data: Record<
     can: {
       review: roles.includes('technologist') || roles.includes('approver'),
       approve: roles.includes('approver'),
+      call: roles.includes('technologist') || roles.includes('approver'),
       replay: roles.includes('approver') || roles.includes('admin'),
       dismiss: roles.includes('technologist') || roles.includes('approver'),
       register: roles.includes('admin') || roles.includes('technologist'),
@@ -199,16 +200,19 @@ export class DashboardController {
   @Get()
   async dashboard(@Req() req: WebRequest, @Res() res: Response): Promise<void> {
     const now = new Date();
-    const [instruments, byStatus, unmatched, failedOutbox, needsConfirmation] = await Promise.all([
+    const [instruments, byStatus, unmatched, failedOutbox, needsConfirmation, criticals] = await Promise.all([
       this.db.instrument.findMany({ orderBy: { displayName: 'asc' }, include: { lease: true } }),
       this.db.result.groupBy({ by: ['status'], _count: { _all: true } }),
       this.db.unmatchedResult.count({ where: { resolvedAt: null } }),
       this.db.outboxMessage.count({ where: { status: { in: ['FAILED', 'DEAD'] } } }),
       this.db.result.count({ where: { needsConfirmation: true } }),
+      waitingCriticals(this.db),
     ]);
     const counts = Object.fromEntries(byStatus.map((g) => [g.status, g._count._all]));
     page(req, res, 'dashboard', {
       title: 'Dashboard',
+      refresh: 60,
+      critical: criticals.length ? { n: criticals.length, oldest: elapsed(criticals[0]!.arrivedAt, now), more: criticals.length >= 100 } : null,
       instruments: instruments.map((i) => {
         const gate = clinicalGateFor({
           enabled: i.enabled,
@@ -269,6 +273,7 @@ export class ResultsController {
           value: formatValue(v?.value as ResultValue | undefined),
           units: v?.units ?? '',
           flags: v?.abnormalFlags.join(' ') ?? '',
+          critical: v?.criticalFlag && (NEEDS_CALL as readonly string[]).includes(v.criticalFlag) ? v.criticalFlag : '',
           status: STATUS_LABELS[r.status] ?? r.status,
           attention: r.newDataAfterApproval || r.needsConfirmation,
           updated: formatTime(r.updatedAt),
@@ -284,10 +289,15 @@ export class ResultsController {
       include: {
         versions: { orderBy: { versionNo: 'asc' } },
         events: { orderBy: { at: 'asc' } },
+        criticalCalls: { orderBy: { recordedAt: 'asc' } },
         orderedTest: { include: { order: { include: { patient: true } }, specimen: true } },
       },
     });
     if (!r) throw new NotFoundException();
+    const called = new Set(r.criticalCalls.map((c) => c.versionNo));
+    const isCritical = (f: string | null) => !!f && (NEEDS_CALL as readonly string[]).includes(f);
+    // Same rule as the waiting list: critical, no call yet, and not superseded before approval.
+    const waiting = r.versions.filter((v) => isCritical(v.criticalFlag) && !called.has(v.versionNo) && v.versionNo >= (r.selectedVersionNo ?? 0));
     const inst = r.instrumentId ? await this.db.instrument.findUnique({ where: { id: r.instrumentId } }) : null;
     const gate = inst
       ? clinicalGateFor({
@@ -325,7 +335,14 @@ export class ResultsController {
         by: v.createdBy,
         at: formatTime(v.createdAt),
         selected: v.versionNo === r.selectedVersionNo,
+        critical: isCritical(v.criticalFlag) ? v.criticalFlag : '',
+        unitsDiffer: v.criticalFlag === 'UNITS_DIFFER' ? (v.criticalDetail ?? '') : '',
+        called: called.has(v.versionNo),
       })),
+      critical: waiting.length
+        ? waiting.map((v) => ({ no: v.versionNo, value: formatValue(v.value as unknown as ResultValue), units: v.units ?? '', flag: v.criticalFlag, detail: v.criticalDetail ?? '', waiting: elapsed(v.createdAt) }))
+        : null,
+      calls: r.criticalCalls.map((c) => ({ version: c.versionNo, notified: c.notified, role: c.notifiedRole, at: formatTime(c.calledAt), by: c.recordedBy, recordedAt: formatTime(c.recordedAt), note: c.note ?? '' })),
       events: r.events.map((e) => ({ kind: e.kind, version: e.versionNo, actor: e.actor, reason: e.reason, at: formatTime(e.at) })),
       actions: {
         review: r.status === 'received' || r.status === 'reviewed',
