@@ -2,8 +2,8 @@ import { randomBytes } from 'node:crypto';
 import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
 import { migrationStatus, type Db } from '@lis/db';
-import { clinicalGateFor } from '@lis/domain';
-import { approve, confirmLink, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, waitingCriticals, withdrawLink } from '@lis/lab';
+import { AUTOVERIFY_ACTOR, clinicalGateFor } from '@lis/domain';
+import { approve, confirmLink, decisionsFor, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, waitingCriticals, withdrawLink } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
 import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS } from './auth.js';
 import { elapsed, formatTime, formatValue, NOTICES, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
@@ -308,6 +308,7 @@ export class ResultsController {
         })
       : ({ releasable: true } as const);
     const t = r.orderedTest;
+    const decisions = await decisionsFor(this.db, r.id);
     page(req, res, 'result', {
       title: `Result ${t.localTestCode ?? t.hmisTestCode}`,
       r: {
@@ -315,6 +316,7 @@ export class ResultsController {
         status: STATUS_LABELS[r.status] ?? r.status,
         reviewedBy: r.reviewedBy,
         approvedBy: r.approvedBy,
+        autoverified: r.approvedBy === AUTOVERIFY_ACTOR,
         newDataAfterApproval: r.newDataAfterApproval,
         needsConfirmation: r.needsConfirmation,
       },
@@ -343,6 +345,7 @@ export class ResultsController {
         ? waiting.map((v) => ({ no: v.versionNo, value: formatValue(v.value as unknown as ResultValue), units: v.units ?? '', flag: v.criticalFlag, detail: v.criticalDetail ?? '', waiting: elapsed(v.createdAt) }))
         : null,
       calls: r.criticalCalls.map((c) => ({ version: c.versionNo, notified: c.notified, role: c.notifiedRole, at: formatTime(c.calledAt), by: c.recordedBy, recordedAt: formatTime(c.recordedAt), note: c.note ?? '' })),
+      autoverify: decisions.map((d) => ({ version: d.versionNo, passed: d.passed, at: formatTime(d.at), reference: d.reference, failed: d.checks.filter((c) => !c.ok), checks: d.checks })),
       events: r.events.map((e) => ({ kind: e.kind, version: e.versionNo, actor: e.actor, reason: e.reason, at: formatTime(e.at) })),
       actions: {
         review: r.status === 'received' || r.status === 'reviewed',

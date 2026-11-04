@@ -236,6 +236,21 @@ hospital's email/SMS gateway or monitoring system.
   acceptable). It is **disabled** unless the lab director enables it for a
   specific test with a reference to the validation report. Every decision is
   stored (`autoverification_decision`) with the rule-set version.
+
+  **Built** (A-19): approvers keep rules at **Autoverification**
+  (`autoverify_rule`: test, inclusive low and high, units, validation report,
+  QC confirmation; at most one active rule per test, enforced by a partial
+  unique index; a change retires the old rule and adds a new one; both
+  audited and step-up confirmed). The first instrument value of a new result
+  for a test with a rule is checked inside the intake transaction, and the
+  decision is stored (`autoverification_decision`, append-only, every check
+  with its detail and the rule id). A pass sets the result to `approved` by
+  `system:autoverify` with an `approve` event, so the outbox trigger accepts
+  the later release; release is still done by a person. Repeats,
+  dilutions, corrections and manual values are never autoverified. Not
+  built: QC status (the director confirms how QC is covered when adding a
+  rule) and the delta check. The result page shows the decision and any
+  failed checks.
 * **Critical results**: a configurable critical range per test and patient
   group. When a version crosses it: flag in review, require the approver to
   record the communication (who was told, when, read-back confirmed), and

@@ -1,0 +1,56 @@
+<h1 class="h4">Autoverification</h1>
+<p class="text-body-secondary">With a rule, the first value of a new result for that test is approved without a person when every check passes: a first value (not a repeat or dilution), a plain number, the rule's units exactly, inside the rule's range (both ends included), no abnormal or instrument flags, not edited on the instrument, not critical, and from an instrument cleared for clinical use. Any failed check leaves the result for a person, and the result page lists the checks either way. Release to the HMIS is still done by a person.</p>
+<div class="alert alert-warning small">The middleware does not check quality control or compare with the patient's previous results. Add a rule only after the lab's own validation of it, and only where the lab's QC procedure stops results when QC fails. No test is autoverified until a rule is added here.</div>
+
+<table class="table table-sm align-middle">
+  <thead><tr><th>Test</th><th>Range</th><th>Units</th><th>Validation report</th><th>Last 7 days</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
+  <tbody>
+    {{#each rules}}
+    <tr>
+      <td class="font-monospace">{{test}}</td><td class="font-monospace">{{low}} to {{high}}</td><td>{{units}}</td><td class="small">{{reference}}</td><td class="small">{{passed}} autoverified, {{held}} left for a person</td><td class="small">{{by}}, {{at}}</td>
+      {{#if @root.can.approve}}
+      <td>
+        <details><summary class="small">Turn off</summary>
+          <form method="post" action="/autoverification/{{id}}/retire" class="mt-2">
+            <input type="hidden" name="_csrf" value="{{@root.csrf}}">
+            <input class="form-control form-control-sm mb-1" name="reason" minlength="5" required placeholder="Reason" aria-label="Reason">
+            {{> confirm inputClass="form-control form-control-sm mb-1"}}
+            <button class="btn btn-outline-danger btn-sm" type="submit">Turn off for this test</button>
+          </form>
+        </details>
+      </td>
+      {{/if}}
+    </tr>
+    {{else}}
+    <tr><td colspan="7" class="text-body-secondary">No rules. Every result is reviewed and approved by a person.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+
+{{#if can.approve}}
+<h2 class="h5 mt-4">Turn on a test</h2>
+<p class="small text-body-secondary">One rule per test. To change a rule, turn it off and add the new one. Both stay in the history. A rule applies to results that arrive after it is saved.</p>
+{{> issues}}
+<form method="post" action="/autoverification" class="row g-3">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <div class="col-md-3"><label class="form-label" for="localTestCode">Test</label>
+    <select class="form-select" id="localTestCode" name="localTestCode" required><option value="">Choose</option>{{#each tests}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{code}}</option>{{/each}}</select></div>
+  <div class="col-md-2"><label class="form-label" for="low">Lowest value</label><input class="form-control font-monospace" id="low" name="low" value="{{v.low}}" inputmode="decimal" required></div>
+  <div class="col-md-2"><label class="form-label" for="high">Highest value</label><input class="form-control font-monospace" id="high" name="high" value="{{v.high}}" inputmode="decimal" required></div>
+  <div class="col-md-2"><label class="form-label" for="units">Units</label><input class="form-control" id="units" name="units" value="{{v.units}}" required maxlength="20"><div class="form-text">Exactly as the instrument sends them.</div></div>
+  <div class="col-md-6"><label class="form-label" for="reference">Validation report</label><input class="form-control" id="reference" name="reference" value="{{v.reference}}" required minlength="5" maxlength="200"><div class="form-text">The lab's validation of this rule, with its version.</div></div>
+  <div class="col-12"><div class="form-check">
+    <input class="form-check-input" type="checkbox" id="qc" name="qc" value="yes" {{#if (eq v.qc "yes")}}checked{{/if}} required>
+    <label class="form-check-label" for="qc">I confirm the lab's QC procedure covers this test, because the middleware does not check QC.</label></div></div>
+  <div class="col-md-4">{{> confirm id="av-password" label="Your password" labelClass="form-label" inputClass="form-control"}}</div>
+  <div class="col-12"><button class="btn btn-primary" type="submit">Turn on autoverification</button></div>
+</form>
+{{/if}}
+
+{{#if retired}}
+<h2 class="h6 mt-4">Rules turned off</h2>
+<table class="table table-sm small text-body-secondary">
+  <thead><tr><th>Test</th><th>Range</th><th>Units</th><th>Validation report</th><th>Turned off</th><th>Reason</th></tr></thead>
+  <tbody>{{#each retired}}<tr><td class="font-monospace">{{test}}</td><td>{{low}} to {{high}}</td><td>{{units}}</td><td>{{reference}}</td><td>{{retiredBy}}, {{retiredAt}}</td><td>{{retireReason}}</td></tr>{{/each}}</tbody>
+</table>
+{{/if}}
