@@ -1,0 +1,76 @@
+<p><a href="/unmatched">&larr; Unmatched results</a></p>
+<h1 class="h4">Unmatched result <span class="small text-body-secondary">{{u.reason}}</span></h1>
+
+<table class="table table-sm w-auto">
+  <tbody>
+    <tr><th scope="row">Instrument</th><td>{{obs.instrumentId}}</td></tr>
+    <tr><th scope="row">Sample ID sent</th><td class="font-monospace">{{obs.sampleId}}{{#if obs.readError}} <span class="badge text-bg-warning">barcode read error</span>{{/if}}</td></tr>
+    <tr><th scope="row">Test</th><td class="font-monospace">{{obs.code}}{{#if obs.local}} &rarr; {{obs.local}}{{else}} <span class="badge text-bg-warning">not mapped</span>{{/if}}</td></tr>
+    <tr><th scope="row">Value</th><td class="font-monospace">{{obs.value}} {{obs.units}} {{obs.flags}}</td></tr>
+    <tr><th scope="row">Received</th><td>{{u.at}}</td></tr>
+  </tbody>
+</table>
+
+{{#if u.resolved}}
+<div class="alert alert-secondary" role="status">Resolved by {{u.resolvedBy}}: {{u.resolution}}{{#if u.linkedResultId}} · <a href="/results/{{u.linkedResultId}}">open the result</a>{{/if}}</div>
+{{else}}
+
+{{#if proposal}}
+<div class="card card-body mb-3">
+  <h2 class="h6">Proposed link, waiting for a second person</h2>
+  <p class="mb-1">To <a class="font-monospace" href="/specimens/{{proposal.specimenId}}">{{proposal.accessionNo}}</a> {{proposal.test}} · order {{proposal.hmisOrderId}}</p>
+  <p class="mb-1 fs-5"><strong>{{proposal.patient}}</strong></p>
+  <p class="small text-body-secondary">Proposed by {{proposal.by}} at {{proposal.at}}: {{proposal.reason}}</p>
+  {{#if can.dismiss}}
+  <div class="d-flex flex-wrap gap-3 align-items-end">
+    {{#if proposal.mine}}
+    <p class="mb-0">A different person must confirm.</p>
+    {{else}}
+    <form method="post" action="/unmatched/{{u.id}}/confirm" class="d-flex gap-2 align-items-end">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <div>
+        <label class="form-label small" for="confirm-password">I checked the specimen and the patient. Your password</label>
+        <input class="form-control form-control-sm" id="confirm-password" name="password" type="password" required>
+      </div>
+      <button class="btn btn-primary btn-sm" type="submit">Confirm link</button>
+    </form>
+    {{/if}}
+    <form method="post" action="/unmatched/{{u.id}}/withdraw">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <button class="btn btn-outline-secondary btn-sm" type="submit">Withdraw proposal</button>
+    </form>
+  </div>
+  {{/if}}
+</div>
+{{else}}
+{{#if can.dismiss}}
+<div class="row g-3">
+  <div class="col-md-6">
+    {{#if obs.mapped}}
+    <form method="post" action="/unmatched/{{u.id}}/propose" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <h2 class="h6">Link to a specimen</h2>
+      <p class="small text-body-secondary">Only to the same test ({{obs.local}}) on that specimen. A different person checks the patient and confirms before the result is attached.</p>
+      <label class="form-label" for="accessionNo">Accession number (scan the tube)</label>
+      <input class="form-control mb-2 font-monospace" id="accessionNo" name="accessionNo" required maxlength="40">
+      <label class="form-label" for="link-reason">Why it belongs there (at least 10 characters)</label>
+      <input class="form-control mb-2" id="link-reason" name="reason" minlength="10" required>
+      <button class="btn btn-primary" type="submit">Propose link</button>
+    </form>
+    {{else}}
+    <div class="alert alert-warning">The instrument code {{obs.code}} has no active mapping, so this result cannot be linked. Fix the test mapping first, or close it.</div>
+    {{/if}}
+  </div>
+  <div class="col-md-6">
+    <form method="post" action="/unmatched/{{u.id}}/dismiss" class="card card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <h2 class="h6">Close without linking</h2>
+      <label class="form-label" for="dismiss-reason">Reason</label>
+      <input class="form-control mb-2" id="dismiss-reason" name="reason" minlength="5" required>
+      <button class="btn btn-outline-secondary" type="submit">Close</button>
+    </form>
+  </div>
+</div>
+{{/if}}
+{{/if}}
+{{/if}}

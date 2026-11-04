@@ -176,6 +176,11 @@ Resolve: [Link to specimen (scan barcode)…] [Add test to order (reason)…]
          [Discard (reason)…]    · second-person check: required
 ```
 
+As built: a link always needs two people, whatever their role (stricter than
+the role table in [10](10-security-and-audit.md) §2, which lets an approver act
+alone). It only goes to the same local test on the scanned specimen, never to
+a different test, and an unmapped instrument code must be mapped first.
+
 ## W-8 Failed transmissions
 
 ```

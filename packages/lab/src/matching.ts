@@ -4,6 +4,41 @@ import { addInstrumentVersion, newResult, type VersionKind } from '@lis/domain';
 import { loadResult, saveResult } from './results.js';
 import type { Tx } from './tx.js';
 
+type NormalizedRow = { instrumentId: string; payload: unknown };
+type ObservationRow = { id: string; seq: number; value: unknown; units: string | null; abnormalFlags: string[] };
+
+/**
+ * Turn one observation into a result version on an ordered test: a new result,
+ * or a further version of the existing one (06 §5). Used by matching and by a
+ * confirmed link of an unmatched result. Returns the result id.
+ */
+export async function attachObservation(tx: Tx, nm: NormalizedRow, o: ObservationRow, test: { id: string }): Promise<string> {
+  const payload = nm.payload as { observations?: { resultStatus?: string; dilution?: string }[] } | null;
+  const meta = payload?.observations?.[o.seq - 1];
+  const kind: VersionKind = meta?.dilution ? 'dilution' : meta?.resultStatus === 'rerun' ? 'repeat' : 'initial';
+  const version = {
+    kind,
+    value: o.value as unknown as ResultValue,
+    abnormalFlags: o.abnormalFlags,
+    observationId: o.id,
+    createdBy: `system:${nm.instrumentId}`,
+    ...(o.units ? { units: o.units } : {}),
+  };
+  const existing = await tx.result.findUnique({ where: { orderedTestId: test.id } });
+  if (!existing) {
+    const resultId = uuidv7();
+    const agg = newResult(resultId, version);
+    await tx.result.create({ data: { id: resultId, orderedTestId: test.id, status: agg.status, selectedVersionNo: 1, instrumentId: nm.instrumentId } });
+    await tx.resultVersion.create({
+      data: { id: uuidv7(), resultId, versionNo: 1, kind: version.kind, value: version.value as unknown as JsonInput, units: version.units ?? null, abnormalFlags: version.abnormalFlags, observationId: o.id, createdBy: version.createdBy },
+    });
+    return resultId;
+  }
+  const before = await loadResult(tx, existing.id);
+  await saveResult(tx, before, addInstrumentVersion(before.aggregate, { ...version, kind: kind === 'initial' ? 'repeat' : kind }), version.createdBy);
+  return existing.id;
+}
+
 export type UnmatchedReason = 'UNKNOWN_BARCODE' | 'UNMAPPED_TEST' | 'NOT_ORDERED' | 'CANCELLED_TEST' | 'REJECTED_SPECIMEN';
 
 export interface MatchSummary {
@@ -32,7 +67,7 @@ export async function matchNormalizedMessage(tx: Tx, normalizedMessageId: string
     return summary;
   }
   const specimen = nm.sampleId && !nm.sampleIdReadError
-    ? await tx.specimen.findFirst({ where: { barcode: nm.sampleId, barcodeActive: true }, include: { tests: { include: { result: true } } } })
+    ? await tx.specimen.findFirst({ where: { barcode: nm.sampleId, barcodeActive: true }, include: { tests: true } })
     : null;
 
   for (const o of nm.observations) {
@@ -59,29 +94,7 @@ export async function matchNormalizedMessage(tx: Tx, normalizedMessageId: string
       continue;
     }
 
-    const payload = nm.payload as unknown as { observations?: { resultStatus?: string; dilution?: string }[] };
-    const meta = payload.observations?.[o.seq - 1];
-    const kind: VersionKind = meta?.dilution ? 'dilution' : meta?.resultStatus === 'rerun' ? 'repeat' : 'initial';
-    const version = {
-      kind,
-      value: o.value as unknown as ResultValue,
-      abnormalFlags: o.abnormalFlags,
-      observationId: o.id,
-      createdBy: `system:${nm.instrumentId}`,
-      ...(o.units ? { units: o.units } : {}),
-    };
-    if (!test.result) {
-      const resultId = uuidv7();
-      const agg = newResult(resultId, version);
-      await tx.result.create({ data: { id: resultId, orderedTestId: test.id, status: agg.status, selectedVersionNo: 1, instrumentId: nm.instrumentId } });
-      await tx.resultVersion.create({
-        data: { id: uuidv7(), resultId, versionNo: 1, kind: version.kind, value: version.value as unknown as JsonInput, units: version.units ?? null, abnormalFlags: version.abnormalFlags, observationId: o.id, createdBy: version.createdBy },
-      });
-      test.result = { id: resultId } as unknown as typeof test.result;
-    } else {
-      const before = await loadResult(tx, test.result.id);
-      await saveResult(tx, before, addInstrumentVersion(before.aggregate, { ...version, kind: kind === 'initial' ? 'repeat' : kind }), version.createdBy);
-    }
+    await attachObservation(tx, nm, o, test);
     summary.matched++;
   }
   return summary;

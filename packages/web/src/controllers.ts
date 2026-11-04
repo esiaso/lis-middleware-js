@@ -3,7 +3,7 @@ import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, P
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
 import { migrationStatus, type Db } from '@lis/db';
 import { clinicalGateFor } from '@lis/domain';
-import { approve, correct, dismissUnmatched, release, replay, review } from '@lis/lab';
+import { approve, confirmLink, correct, dismissUnmatched, proposeLink, release, replay, review, withdrawLink } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
 import { confirmPassword, login, logout } from './auth.js';
 import { formatTime, formatValue, NOTICES, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
@@ -311,9 +311,81 @@ export class UnmatchedController {
           value: o?.originalValueText ?? '',
           units: o?.units ?? '',
           at: formatTime(u.createdAt),
+          proposed: Boolean(u.proposedBy),
         };
       }),
     });
+  }
+
+  /** W-7 resolve: what the instrument sent, and any proposed link with the patient it would go to. */
+  @Get(':id')
+  async detail(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string): Promise<void> {
+    const u = await this.db.unmatchedResult.findUnique({ where: { id: uuidParam(id) } });
+    if (!u) throw new NotFoundException();
+    const o = await this.db.observation.findUniqueOrThrow({ where: { id: u.observationId }, include: { normalizedMessage: true } });
+    const target = u.proposedTestId
+      ? await this.db.orderedTest.findUnique({ where: { id: u.proposedTestId }, include: { specimen: true, order: { include: { patient: true } } } })
+      : null;
+    const p = target?.order.patient;
+    page(req, res, 'unmatched-detail', {
+      title: 'Unmatched result',
+      u: {
+        id: u.id,
+        reason: u.reason.replaceAll('_', ' ').toLowerCase(),
+        at: formatTime(u.createdAt),
+        resolved: Boolean(u.resolvedAt),
+        resolution: u.resolution ?? '',
+        resolvedBy: u.resolvedBy ?? '',
+        linkedResultId: u.linkedResultId ?? '',
+      },
+      obs: {
+        instrumentId: o.normalizedMessage.instrumentId,
+        sampleId: o.normalizedMessage.sampleId ?? '(no barcode)',
+        readError: o.normalizedMessage.sampleIdReadError,
+        code: o.instrumentTestCode,
+        local: o.localTestCode ?? '',
+        mapped: o.mapping === 'MAPPED' && Boolean(o.localTestCode),
+        value: o.originalValueText,
+        units: o.units ?? '',
+        flags: o.abnormalFlags.join(' '),
+      },
+      proposal: target
+        ? {
+            by: u.proposedBy,
+            at: formatTime(u.proposedAt),
+            reason: u.proposalReason ?? '',
+            accessionNo: target.specimen?.accessionNo ?? '',
+            specimenId: target.specimen?.id ?? '',
+            test: target.localTestCode ?? target.hmisTestCode,
+            hmisOrderId: target.order.hmisOrderId,
+            patient: p ? `${[p.familyName?.toUpperCase(), p.givenName].filter(Boolean).join(', ') || '(no name)'} · MRN ${p.mrn}${p.birthDate ? ` · born ${p.birthDate.toISOString().slice(0, 10)}` : ''}` : '',
+            mine: u.proposedBy === req.user!.username,
+          }
+        : null,
+    });
+  }
+
+  @Post(':id/propose')
+  @Roles('technologist', 'approver')
+  async propose(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Body() body: Form): Promise<void> {
+    await proposeLink(this.db, uuidParam(id), req.user!.username, { accessionNo: str(body, 'accessionNo'), reason: str(body, 'reason') });
+    res.redirect(303, `/unmatched/${id}?notice=link-proposed`);
+  }
+
+  @Post(':id/withdraw')
+  @Roles('technologist', 'approver')
+  async withdraw(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string): Promise<void> {
+    await withdrawLink(this.db, uuidParam(id), req.user!.username);
+    res.redirect(303, `/unmatched/${id}?notice=link-withdrawn`);
+  }
+
+  /** Second person, with password re-entry: the result reaches a patient's record only here. */
+  @Post(':id/confirm')
+  @Roles('technologist', 'approver')
+  async confirm(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Body() body: Form): Promise<void> {
+    if (!(await confirmPassword(this.db, req.user!.id, str(body, 'password')))) throw new ForbiddenException('Password not confirmed. Nothing was changed.');
+    const { resultId } = await confirmLink(this.db, uuidParam(id), req.user!.username);
+    res.redirect(303, `/results/${resultId}?notice=linked`);
   }
 
   @Post(':id/dismiss')
