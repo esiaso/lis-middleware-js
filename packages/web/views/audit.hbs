@@ -1,0 +1,42 @@
+<h1 class="h4">Audit</h1>
+{{#if check}}
+  {{#if check.ok}}
+  <p class="small text-body-secondary">Chain last verified {{check.at}} by {{check.by}}: {{check.count}} events, all intact.</p>
+  {{else}}
+  <div class="alert alert-danger" role="alert"><strong>Audit chain verification failed</strong> at event {{check.brokenAtSeq}} ({{check.at}}, {{check.by}}). An event was changed, removed or inserted outside the application. Report this to the lab director and hospital IT security now.</div>
+  {{/if}}
+{{else}}
+<p class="small text-body-secondary">The chain has not been verified from this screen yet.</p>
+{{/if}}
+
+<form method="get" action="/audit" class="row g-2 align-items-end mb-3">
+  <div class="col-auto"><label class="form-label small" for="entityType">Entity</label>
+    <select class="form-select form-select-sm" id="entityType" name="entityType"><option value="">All</option>{{#each types}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></div>
+  <div class="col-auto"><label class="form-label small" for="entityId">ID</label><input class="form-control form-control-sm font-monospace" id="entityId" name="entityId" value="{{f.entityId}}"></div>
+  <div class="col-auto"><label class="form-label small" for="actor">Actor</label><input class="form-control form-control-sm" id="actor" name="actor" value="{{f.actor}}"></div>
+  <div class="col-auto"><label class="form-label small" for="action">Action (end with . for a group)</label><input class="form-control form-control-sm" id="action" name="action" value="{{f.action}}" placeholder="result."></div>
+  <div class="col-auto"><label class="form-label small" for="from">From (UTC)</label><input class="form-control form-control-sm" type="date" id="from" name="from" value="{{f.from}}"></div>
+  <div class="col-auto"><label class="form-label small" for="to">To (UTC)</label><input class="form-control form-control-sm" type="date" id="to" name="to" value="{{f.to}}"></div>
+  <div class="col-auto"><button class="btn btn-primary btn-sm" type="submit">Search</button></div>
+  <div class="col-auto"><a class="btn btn-outline-secondary btn-sm" href="{{exportHref}}">Export {{total}} events</a></div>
+</form>
+<form method="post" action="/audit/verify" class="mb-3">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <button class="btn btn-outline-secondary btn-sm" type="submit">Verify the whole chain now</button>
+  <span class="small text-body-secondary">Reads every event; may take a while on a large trail.</span>
+</form>
+
+<p class="small text-body-secondary">{{total}} matching events, newest first.</p>
+<div class="table-responsive">
+<table class="table table-sm align-top small">
+  <thead><tr><th>#</th><th>Time (UTC)</th><th>Actor</th><th>Action</th><th>Entity</th><th>Reason</th><th>Before</th><th>After</th><th>Corr. ID</th></tr></thead>
+  <tbody>
+    {{#each rows}}
+    <tr><td>{{seq}}</td><td class="text-nowrap">{{at}}</td><td>{{actor}}</td><td class="font-monospace">{{action}}</td><td class="font-monospace">{{entity}}</td><td>{{reason}}</td><td class="font-monospace text-break">{{before}}</td><td class="font-monospace text-break">{{after}}</td><td class="font-monospace">{{correlationId}}</td></tr>
+    {{else}}
+    <tr><td colspan="9" class="text-body-secondary">No events match.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+</div>
+{{#if next}}<p><a href="{{next}}">Older events &rarr;</a></p>{{/if}}
