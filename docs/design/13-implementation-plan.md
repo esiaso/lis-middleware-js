@@ -84,7 +84,7 @@ with their source, a flag on each version as it arrives, approval held
 until the call with read-back is recorded, and the waiting list with its
 timer on the dashboard; A-18, 08 §12), autoverification (off for
 every test until the lab director adds a rule naming the validation report;
-approves only, release stays with a person; no QC or delta check; A-19), and DPAPI encryption of secret files on Windows
+approves only, release stays with a person; no QC check; A-19), delta checks (rules from the lab, flag shown to reviewers and holding autoverification; A-20), and DPAPI encryption of secret files on Windows
 (10 §7; tested on the Windows CI runner, not yet on the hospital server).
 Not built yet: "add test to order" from an
 unmatched result (needs the HMIS, D-1 to D-6), assisted reconciliation when the HMIS returns (beyond the candidate list),
@@ -119,7 +119,7 @@ LDAPS, and the real HMIS connector, which waits for D-1 to D-6.
 
 ## Phase 5: Hardening and extensions
 
-* Autoverification: QC status feed and delta check (A-19). Rules, checks and the decision record are built.
+* Autoverification: QC status feed (A-19). Rules, checks, delta checks and the decision record are built.
 * Critical-result escalation via hospital SMS/email gateway, and a target time with escalation steps (A-18). The on-screen workflow is built.
 * Mapping editor UI with approval workflow (W-9).
 * Second OS installer; SIEM streaming; archive tooling.

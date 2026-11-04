@@ -6,6 +6,7 @@ import {
 } from '@lis/domain';
 import { appendAudit } from './audit.js';
 import { criticalFor, requireCriticalCall } from './critical.js';
+import { deltaColumns, deltaFor } from './delta.js';
 import type { Tx } from './tx.js';
 
 export class WorkflowRejected extends Error {
@@ -57,6 +58,7 @@ export async function loadResult(tx: Tx | Db, resultId: string): Promise<LoadedR
 export async function saveResult(tx: Tx, before: LoadedResult, after: ResultAggregate, actor: string): Promise<void> {
   for (const v of after.versions.slice(before.aggregate.versions.length)) {
     const crit = await criticalFor(tx, after.resultId, v.value, v.units);
+    const delta = await deltaFor(tx, after.resultId, v.value, v.units);
     await tx.resultVersion.create({
       data: {
         id: uuidv7(),
@@ -72,6 +74,7 @@ export async function saveResult(tx: Tx, before: LoadedResult, after: ResultAggr
         criticalFlag: crit?.flag ?? null,
         criticalLimitId: crit?.limitId ?? null,
         criticalDetail: crit?.detail ?? null,
+        ...deltaColumns(delta),
       },
     });
   }

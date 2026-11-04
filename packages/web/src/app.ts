@@ -17,6 +17,7 @@ import { OrdersController } from './orders.controller.js';
 import { DowntimeController } from './downtime.controller.js';
 import { AuditController } from './audit.controller.js';
 import { AutoverificationController } from './autoverification.controller.js';
+import { DeltaController } from './delta.controller.js';
 import { CriticalCallController, CriticalController } from './critical.controller.js';
 import { AccountController, UsersController } from './users.controller.js';
 import { PageErrorFilter, SecurityGuard, securityHeaders, sessionMiddleware } from './security.js';
@@ -32,7 +33,7 @@ class WebModule {
   static with(db: Db, opts: WebOptions, logger: Logger): DynamicModule {
     return {
       module: WebModule,
-      controllers: [AuthController, DashboardController, ResultsController, UnmatchedController, FailedController, InstrumentsController, OrdersController, DowntimeController, AuditController, CriticalController, CriticalCallController, AutoverificationController, UsersController, AccountController, HealthController],
+      controllers: [AuthController, DashboardController, ResultsController, UnmatchedController, FailedController, InstrumentsController, OrdersController, DowntimeController, AuditController, CriticalController, CriticalCallController, AutoverificationController, DeltaController, UsersController, AccountController, HealthController],
       providers: [
         { provide: DB, useValue: db },
         { provide: WEB_OPTIONS, useValue: opts },

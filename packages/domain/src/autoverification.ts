@@ -25,6 +25,8 @@ export interface AutoverifyInput {
   instrumentFlags: string[];
   editedOnInstrument: boolean;
   criticalFlag: string | null;
+  /** Delta check flag on this version, if a delta rule exists for the test. */
+  deltaFlag: string | null;
   /** Instrument cleared for clinical use (verification gate). */
   instrumentCleared: boolean;
 }
@@ -61,6 +63,7 @@ export function evaluateAutoverification(rule: AutoverifyRule, i: AutoverifyInpu
   add('instrument flags', i.instrumentFlags.length === 0, i.instrumentFlags.length ? `instrument flags ${i.instrumentFlags.join(' ')}` : 'none');
   add('not edited', !i.editedOnInstrument, i.editedOnInstrument ? 'edited on the instrument' : 'not edited');
   add('not critical', !i.criticalFlag, i.criticalFlag ? `critical check: ${i.criticalFlag}` : 'not critical');
+  add('delta check', !i.deltaFlag, i.deltaFlag ? `delta check: ${i.deltaFlag}` : 'no delta flag');
   return { passed: checks.every((c) => c.ok), checks };
 }
 

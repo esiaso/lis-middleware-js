@@ -5,7 +5,7 @@ import { AUTOVERIFY_ACTOR, autoverifyResult, evaluateAutoverification, newResult
 const rule = { id: 'r1', low: '3.5', high: '5.0', units: 'mmol/L' };
 const num = (value: string) => ({ kind: 'numeric' as const, value, scale: value.split('.')[1]?.length ?? 0 });
 const ok = (over: Partial<AutoverifyInput> = {}): AutoverifyInput => ({
-  kind: 'initial', value: num('4.2'), units: 'mmol/L', abnormalFlags: [], instrumentFlags: [], editedOnInstrument: false, criticalFlag: null, instrumentCleared: true, ...over,
+  kind: 'initial', value: num('4.2'), units: 'mmol/L', abnormalFlags: [], instrumentFlags: [], editedOnInstrument: false, criticalFlag: null, deltaFlag: null, instrumentCleared: true, ...over,
 });
 const failed = (i: AutoverifyInput) => evaluateAutoverification(rule, i).checks.filter((c) => !c.ok).map((c) => c.check);
 
@@ -27,6 +27,7 @@ describe('evaluateAutoverification', () => {
     expect(failed(ok({ instrumentFlags: ['>Test'] }))).toEqual(['instrument flags']);
     expect(failed(ok({ editedOnInstrument: true }))).toEqual(['not edited']);
     expect(failed(ok({ criticalFlag: 'UNITS_DIFFER' }))).toEqual(['not critical']);
+    expect(failed(ok({ deltaFlag: 'EXCEEDED' }))).toEqual(['delta check']);
     expect(failed(ok({ value: { kind: 'censored', comparator: '<', limit: '4' } }))).toEqual(['numeric value', 'range']);
     expect(failed(ok({ kind: 'dilution', value: num('9'), abnormalFlags: ['H'], criticalFlag: 'HIGH' }))).toEqual(['first value', 'range', 'abnormal flags', 'not critical']);
   });

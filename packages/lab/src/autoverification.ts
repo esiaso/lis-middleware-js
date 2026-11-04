@@ -20,6 +20,7 @@ export interface FirstValue {
   instrumentFlags: InstrumentFlag[];
   editedOnInstrument: boolean;
   criticalFlag: string | null;
+  deltaFlag: string | null;
 }
 
 export async function autoverifyNewResult(tx: Tx, resultId: string, instrumentId: string, v: FirstValue): Promise<boolean> {
@@ -40,6 +41,7 @@ export async function autoverifyNewResult(tx: Tx, resultId: string, instrumentId
     instrumentFlags: v.instrumentFlags.map((f) => f.code),
     editedOnInstrument: v.editedOnInstrument,
     criticalFlag: v.criticalFlag,
+    deltaFlag: v.deltaFlag,
     instrumentCleared: gate.releasable,
   });
   await tx.autoverificationDecision.create({ data: { id: uuidv7(), resultId, versionNo: 1, ruleId: rule.id, passed: outcome.passed, checks: outcome.checks as unknown as JsonInput } });

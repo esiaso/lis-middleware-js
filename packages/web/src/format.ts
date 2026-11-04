@@ -78,6 +78,8 @@ export const NOTICES: Record<string, string> = {
   'limit-added': 'Critical limit saved. It applies to results that arrive from now on.',
   'autoverify-added': 'Autoverification turned on for that test. It applies to results that arrive from now on.',
   'autoverify-retired': 'Autoverification turned off for that test. Results already approved stay approved.',
+  'delta-added': 'Delta rule saved. It applies to results that arrive from now on.',
+  'delta-retired': 'Delta rule retired. Results already flagged keep their flag.',
   'limit-retired': 'Critical limit retired. Results already flagged keep their flag.',
 };
 
