@@ -12,9 +12,9 @@ import { DB } from './tokens.js';
 const FILTERS = { awaiting: 'Awaiting collection', collected: 'Collected', all: 'All' } as const;
 type Filter = keyof typeof FILTERS;
 
-function patientLine(p: { familyName: string | null; givenName: string | null; mrn: string; sex: string | null; birthDate: Date | null }) {
+function patientLine(p: { id: string; familyName: string | null; givenName: string | null; mrn: string; sex: string | null; birthDate: Date | null }) {
   const name = [p.familyName?.toUpperCase(), p.givenName].filter(Boolean).join(', ') || '(no name)';
-  return { name, mrn: p.mrn, sex: p.sex ?? '', birthDate: p.birthDate ? p.birthDate.toISOString().slice(0, 10) : '' };
+  return { id: p.id, name, mrn: p.mrn, sex: p.sex ?? '', birthDate: p.birthDate ? p.birthDate.toISOString().slice(0, 10) : '' };
 }
 
 /**

@@ -1,0 +1,22 @@
+<p><a href="/patients">&larr; Patients</a></p>
+<h1 class="h4">{{p.name}}</h1>
+<p>MRN {{p.mrn}}{{#if p.sex}} · {{p.sex}}{{/if}}{{#if p.birthDate}} · born {{p.birthDate}}{{/if}}{{#if p.provisional}} <span class="badge text-bg-warning">provisional</span>{{/if}}</p>
+{{#if p.mergedInto}}<div class="alert alert-secondary">This provisional record was reconciled. Its results moved with their orders to the <a href="{{p.mergedInto}}">HMIS patient</a>.</div>{{/if}}
+<p class="small text-body-secondary">Results from this middleware only, newest collection first. Values in italics are not yet approved. Each value links to its result. Results from before the middleware went live, or done elsewhere, are not here.</p>
+
+{{#if c.rows}}
+<div class="table-responsive">
+<table class="table table-sm table-bordered align-middle small">
+  <thead><tr><th>Test</th>{{#each c.columns}}<th class="text-nowrap">{{label}}{{#unless collected}}<br><span class="fw-normal text-body-secondary">ordered</span>{{/unless}}</th>{{/each}}</tr></thead>
+  <tbody>
+    {{#each c.rows}}
+    <tr><td class="font-monospace">{{test}}</td>{{#each cells}}<td class="text-nowrap">{{#each this}}<div><a href="{{href}}" class="font-monospace{{#unless approved}} fst-italic{{/unless}}">{{value}}</a> {{units}}{{#if flags}} <strong>{{flags}}</strong>{{/if}}{{#if critical}} <span class="badge text-bg-danger">{{critical}}</span>{{/if}}{{#if delta}} <span class="badge text-bg-warning">delta</span>{{/if}}{{#unless approved}} <span class="text-body-secondary">(not approved)</span>{{/unless}}</div>{{/each}}</td>{{/each}}</tr>
+    {{/each}}
+  </tbody>
+</table>
+</div>
+{{#if c.hidden}}<p class="small text-body-secondary">{{c.hidden}} earlier collection{{#unless (eq c.hidden 1)}}s{{/unless}} not shown.</p>{{/if}}
+{{#if capped}}<p class="small text-body-secondary">Only the newest 500 results are read.</p>{{/if}}
+{{else}}
+<p class="text-body-secondary">No results yet.</p>
+{{/if}}

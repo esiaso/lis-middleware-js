@@ -327,6 +327,7 @@ export class ResultsController {
         needsConfirmation: r.needsConfirmation,
       },
       patient: patientName(t.order.patient),
+      patientId: t.order.patient.id,
       order: { hmisOrderId: t.order.hmisOrderId, priority: t.order.priority, orderedAt: formatTime(t.order.orderedAt) },
       test: { local: t.localTestCode, hmis: t.hmisTestCode },
       specimen: t.specimen ? { accessionNo: t.specimen.accessionNo, collectedAt: formatTime(t.specimen.collectedAt) } : null,

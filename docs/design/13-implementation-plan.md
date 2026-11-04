@@ -84,7 +84,7 @@ with their source, a flag on each version as it arrives, approval held
 until the call with read-back is recorded, and the waiting list with its
 timer on the dashboard; A-18, 08 §12), autoverification (off for
 every test until the lab director adds a rule naming the validation report;
-approves only, release stays with a person; A-19), delta checks (rules from the lab, flag shown to reviewers and holding autoverification; A-20), a QC log (QC results checked against the lab's ranges, a dashboard warning, an optional QC window for autoverification; A-21), and a turnaround-time report with CSV export, lab-set targets and an overdue list (A-22, W-12), and DPAPI encryption of secret files on Windows
+approves only, release stays with a person; A-19), delta checks (rules from the lab, flag shown to reviewers and holding autoverification; A-20), a QC log (QC results checked against the lab's ranges, a dashboard warning, an optional QC window for autoverification; A-21), and a turnaround-time report with CSV export, lab-set targets and an overdue list (A-22, W-12), and a patient history page with a cumulative report (W-13), and DPAPI encryption of secret files on Windows
 (10 §7; tested on the Windows CI runner, not yet on the hospital server).
 Not built yet: "add test to order" from an
 unmatched result (needs the HMIS, D-1 to D-6), assisted reconciliation when the HMIS returns (beyond the candidate list),
