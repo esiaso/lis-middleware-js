@@ -285,6 +285,19 @@ cancelled, never with a value. Each view is recorded in the audit trail
 (`order.report-viewed`). For handing results out during HMIS downtime; the
 HMIS record stays the official result once it has it.
 
+## W-15 QC chart (Levey-Jennings)
+
+**QC ranges → chart** (also linked from each control on the QC log): the
+latest 60 numeric QC results for one range, oldest on the left, drawn as
+inline SVG on the server (no script). The axis is in the control's units.
+With a target mean and SD (A-23) it shows the mean and ±1, ±2, ±3 SD lines
+over mean ± 4 SD, widened to include the acceptable range; without them,
+only the range limits with a margin. Dots are coloured by outcome
+(accepted, Westgard rejection, out of range); a value beyond the axis is a
+triangle at the edge, never dropped. Each dot's tooltip and the table below
+give the value, z score and rules broken. Results in other units are not
+plotted. The x axis is result order, not time.
+
 ## W-10 Audit search and export
 
 ```

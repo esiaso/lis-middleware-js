@@ -18,7 +18,7 @@
   <thead><tr><th>Received</th><th>Instrument</th><th>Test</th><th>Control</th><th>Level</th><th>Value</th><th>Check</th></tr></thead>
   <tbody>
     {{#each rows}}
-    <tr><td class="small">{{at}}</td><td>{{instrument}}</td><td class="font-monospace">{{test}}</td><td>{{control}}</td><td>{{level}}</td><td class="font-monospace">{{value}} {{units}}</td><td><span class="badge text-bg-{{outcome.tone}}">{{outcome.label}}</span>{{#if warn}} <span class="badge text-bg-warning">1-2s warning</span>{{/if}} <span class="small">{{detail}}</span></td></tr>
+    <tr><td class="small">{{at}}</td><td>{{instrument}}</td><td class="font-monospace">{{test}}</td><td>{{#if rangeId}}<a href="/qc/ranges/{{rangeId}}/chart">{{control}}</a>{{else}}{{control}}{{/if}}</td><td>{{level}}</td><td class="font-monospace">{{value}} {{units}}</td><td><span class="badge text-bg-{{outcome.tone}}">{{outcome.label}}</span>{{#if warn}} <span class="badge text-bg-warning">1-2s warning</span>{{/if}} <span class="small">{{detail}}</span></td></tr>
     {{else}}
     <tr><td colspan="7" class="text-body-secondary">No QC results received yet.</td></tr>
     {{/each}}
