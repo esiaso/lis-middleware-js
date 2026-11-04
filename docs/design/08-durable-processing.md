@@ -249,8 +249,16 @@ hospital's email/SMS gateway or monitoring system.
   the later release; release is still done by a person. Repeats,
   dilutions, corrections and manual values are never autoverified. Not
   built: QC status (the director confirms how QC is covered when adding a
-  rule) and the delta check. The result page shows the decision and any
-  failed checks.
+  rule). The result page shows the decision and any failed checks.
+
+  **Delta check, built** (A-20): approvers keep rules at **Autoverification →
+  Delta checks** (`delta_rule`, one active per test, audited and step-up
+  confirmed). Each numeric version is compared, as it is written, with the
+  patient's last approved result for the test inside the rule's window, and
+  keeps the outcome (`result_version.delta_flag`, `delta_detail`,
+  `delta_previous_result_id`). Reviewers see the change, the previous value
+  and a link to it; the results list shows a badge. A flag does not block
+  approval; autoverification holds it.
 * **Critical results**: a configurable critical range per test and patient
   group. When a version crosses it: flag in review, require the approver to
   record the communication (who was told, when, read-back confirmed), and

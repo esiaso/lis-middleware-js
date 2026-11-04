@@ -274,6 +274,7 @@ export class ResultsController {
           units: v?.units ?? '',
           flags: v?.abnormalFlags.join(' ') ?? '',
           critical: v?.criticalFlag && (NEEDS_CALL as readonly string[]).includes(v.criticalFlag) ? v.criticalFlag : '',
+          delta: v?.deltaFlag === 'EXCEEDED' ? (v.deltaDetail ?? '') : '',
           status: STATUS_LABELS[r.status] ?? r.status,
           attention: r.newDataAfterApproval || r.needsConfirmation,
           updated: formatTime(r.updatedAt),
@@ -339,6 +340,7 @@ export class ResultsController {
         selected: v.versionNo === r.selectedVersionNo,
         critical: isCritical(v.criticalFlag) ? v.criticalFlag : '',
         unitsDiffer: v.criticalFlag === 'UNITS_DIFFER' ? (v.criticalDetail ?? '') : '',
+        delta: v.deltaFlag ? { exceeded: v.deltaFlag === 'EXCEEDED', detail: v.deltaDetail ?? '', previous: v.deltaPreviousResultId ? `/results/${v.deltaPreviousResultId}` : '' } : null,
         called: called.has(v.versionNo),
       })),
       critical: waiting.length

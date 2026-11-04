@@ -1,0 +1,54 @@
+<p><a href="/autoverification">&larr; Autoverification</a></p>
+<h1 class="h4">Delta checks</h1>
+<p class="text-body-secondary">A delta check compares a new value with the patient's most recent approved result for the same test, collected within the rule's window. A change larger than the rule allows is marked for the reviewer, with the previous value and a link to it. It does not block approval, but autoverification leaves any flagged value for a person. Units must match exactly; when they differ the values are not compared and the version says so. The middleware comes with no rules: every value here was entered by the lab. A rule applies to results that arrive after it is saved.</p>
+
+<table class="table table-sm align-middle">
+  <thead><tr><th>Test</th><th>Flag a change of more than</th><th>Compared with</th><th>Source</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
+  <tbody>
+    {{#each rules}}
+    <tr>
+      <td class="font-monospace">{{test}}</td><td class="font-monospace">{{limit}}</td><td>results from the last {{window}}</td><td class="small">{{reference}}</td><td class="small">{{by}}, {{at}}</td>
+      {{#if @root.can.approve}}
+      <td>
+        <details><summary class="small">Retire</summary>
+          <form method="post" action="/delta-checks/{{id}}/retire" class="mt-2">
+            <input type="hidden" name="_csrf" value="{{@root.csrf}}">
+            <input class="form-control form-control-sm mb-1" name="reason" minlength="5" required placeholder="Reason" aria-label="Reason">
+            {{> confirm inputClass="form-control form-control-sm mb-1"}}
+            <button class="btn btn-outline-danger btn-sm" type="submit">Retire rule</button>
+          </form>
+        </details>
+      </td>
+      {{/if}}
+    </tr>
+    {{else}}
+    <tr><td colspan="6" class="text-body-secondary">No delta rules, so no result is compared with earlier ones.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+
+{{#if can.approve}}
+<h2 class="h5 mt-4">Add a rule</h2>
+<p class="small text-body-secondary">One rule per test. Give a change in units, as a percentage of the previous value, or both (either one crossed raises the flag). To change a rule, retire it and add the new one.</p>
+{{> issues}}
+<form method="post" action="/delta-checks" class="row g-3">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <div class="col-md-3"><label class="form-label" for="localTestCode">Test</label>
+    <select class="form-select" id="localTestCode" name="localTestCode" required><option value="">Choose</option>{{#each tests}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{code}}</option>{{/each}}</select></div>
+  <div class="col-md-2"><label class="form-label" for="maxAbs">Change in units</label><input class="form-control font-monospace" id="maxAbs" name="maxAbs" value="{{v.maxAbs}}" inputmode="decimal"></div>
+  <div class="col-md-2"><label class="form-label" for="maxPercent">Change in %</label><input class="form-control font-monospace" id="maxPercent" name="maxPercent" value="{{v.maxPercent}}" inputmode="decimal"></div>
+  <div class="col-md-2"><label class="form-label" for="windowDays">Within (days)</label><input class="form-control" id="windowDays" name="windowDays" value="{{v.windowDays}}" inputmode="numeric" required></div>
+  <div class="col-md-2"><label class="form-label" for="units">Units</label><input class="form-control" id="units" name="units" value="{{v.units}}" required maxlength="20"><div class="form-text">Exactly as the instrument sends them.</div></div>
+  <div class="col-md-6"><label class="form-label" for="reference">Source</label><input class="form-control" id="reference" name="reference" value="{{v.reference}}" required minlength="5" maxlength="200"><div class="form-text">The lab document these values come from, with its version.</div></div>
+  <div class="col-md-4">{{> confirm id="delta-password" label="Your password" labelClass="form-label" inputClass="form-control"}}</div>
+  <div class="col-12"><button class="btn btn-primary" type="submit">Save rule</button></div>
+</form>
+{{/if}}
+
+{{#if retired}}
+<h2 class="h6 mt-4">Retired rules</h2>
+<table class="table table-sm small text-body-secondary">
+  <thead><tr><th>Test</th><th>Limit</th><th>Window</th><th>Source</th><th>Retired</th><th>Reason</th></tr></thead>
+  <tbody>{{#each retired}}<tr><td class="font-monospace">{{test}}</td><td>{{limit}}</td><td>{{window}}</td><td>{{reference}}</td><td>{{retiredBy}}, {{retiredAt}}</td><td>{{retireReason}}</td></tr>{{/each}}</tbody>
+</table>
+{{/if}}

@@ -409,6 +409,11 @@ model ResultVersion {
   criticalFlag    String? @map("critical_flag")
   criticalLimitId String? @map("critical_limit_id") @db.Uuid
   criticalDetail  String? @map("critical_detail")
+  /// EXCEEDED or UNITS_DIFFER from the delta check, set once when the version is written (08 §12, A-20).
+  deltaFlag             String? @map("delta_flag")
+  deltaRuleId           String? @map("delta_rule_id") @db.Uuid
+  deltaPreviousResultId String? @map("delta_previous_result_id") @db.Uuid
+  deltaDetail           String? @map("delta_detail")
   result        Result   @relation(fields: [resultId], references: [id])
 
   @@unique([resultId, versionNo])
@@ -640,4 +645,25 @@ model AutoverificationDecision {
 
   @@index([resultId])
   @@map("autoverification_decision")
+}
+
+/// Delta check rule for one test (08 §12, A-20). Set by the lab; the middleware ships with none.
+model DeltaRule {
+  id            String    @id @db.Uuid
+  localTestCode String    @map("local_test_code")
+  /// Decimal text. At least one of the two is set. A change strictly greater is flagged.
+  maxAbs        String?   @map("max_abs")
+  maxPercent    String?   @map("max_percent")
+  windowDays    Int       @map("window_days")
+  units         String
+  reference     String
+  active        Boolean   @default(true)
+  createdBy     String    @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  retiredBy     String?   @map("retired_by")
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz
+  retireReason  String?   @map("retire_reason")
+
+  @@index([localTestCode, active])
+  @@map("delta_rule")
 }
