@@ -387,6 +387,7 @@ model Result {
   versions             ResultVersion[]
   events               ResultEvent[]
   criticalCalls        CriticalCall[]
+  autoverifications    AutoverificationDecision[]
 
   @@index([status])
   @@map("result")
@@ -599,4 +600,44 @@ model CriticalCall {
 
   @@index([resultId, versionNo])
   @@map("critical_call")
+}
+
+/// Autoverification rule for one test (08 §12, A-19). Set by the lab director after the lab's own validation; no rule, no autoverification.
+model AutoverifyRule {
+  id             String    @id @db.Uuid
+  localTestCode  String    @map("local_test_code")
+  /// Decimal text, inclusive. Both required.
+  low            String
+  high           String
+  units          String
+  /// The lab's validation report and its version.
+  reference      String
+  /// The director confirmed how QC is covered; the middleware does not check QC.
+  qcAcknowledged Boolean   @map("qc_acknowledged")
+  active         Boolean   @default(true)
+  createdBy      String    @map("created_by")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  retiredBy      String?   @map("retired_by")
+  retiredAt      DateTime? @map("retired_at") @db.Timestamptz
+  retireReason   String?   @map("retire_reason")
+  decisions      AutoverificationDecision[]
+
+  @@index([localTestCode, active])
+  @@map("autoverify_rule")
+}
+
+/// One autoverification decision with every check, append-only.
+model AutoverificationDecision {
+  id        String         @id @db.Uuid
+  resultId  String         @map("result_id") @db.Uuid
+  versionNo Int            @map("version_no")
+  ruleId    String         @map("rule_id") @db.Uuid
+  passed    Boolean
+  checks    Json
+  at        DateTime       @default(now()) @db.Timestamptz
+  result    Result         @relation(fields: [resultId], references: [id])
+  rule      AutoverifyRule @relation(fields: [ruleId], references: [id])
+
+  @@index([resultId])
+  @@map("autoverification_decision")
 }

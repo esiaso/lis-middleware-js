@@ -1,6 +1,7 @@
-import type { ResultValue } from '@lis/contracts';
+import type { InstrumentFlag, ResultValue } from '@lis/contracts';
 import { uuidv7, type JsonInput } from '@lis/db';
 import { addInstrumentVersion, newResult, type VersionKind } from '@lis/domain';
+import { autoverifyNewResult } from './autoverification.js';
 import { criticalFor } from './critical.js';
 import { loadResult, saveResult } from './results.js';
 import type { Tx } from './tx.js';
@@ -14,7 +15,7 @@ type ObservationRow = { id: string; seq: number; value: unknown; units: string |
  * confirmed link of an unmatched result. Returns the result id.
  */
 export async function attachObservation(tx: Tx, nm: NormalizedRow, o: ObservationRow, test: { id: string }): Promise<string> {
-  const payload = nm.payload as { observations?: { resultStatus?: string; dilution?: string }[] } | null;
+  const payload = nm.payload as { observations?: { resultStatus?: string; dilution?: string; instrumentFlags?: InstrumentFlag[]; editedOnInstrument?: boolean }[] } | null;
   const meta = payload?.observations?.[o.seq - 1];
   const kind: VersionKind = meta?.dilution ? 'dilution' : meta?.resultStatus === 'rerun' ? 'repeat' : 'initial';
   const version = {
@@ -36,6 +37,13 @@ export async function attachObservation(tx: Tx, nm: NormalizedRow, o: Observatio
         id: uuidv7(), resultId, versionNo: 1, kind: version.kind, value: version.value as unknown as JsonInput, units: version.units ?? null, abnormalFlags: version.abnormalFlags, observationId: o.id, createdBy: version.createdBy,
         criticalFlag: crit?.flag ?? null, criticalLimitId: crit?.limitId ?? null, criticalDetail: crit?.detail ?? null,
       },
+    });
+    await autoverifyNewResult(tx, resultId, nm.instrumentId, {
+      kind: version.kind, value: version.value, units: version.units, abnormalFlags: version.abnormalFlags,
+      // A payload without these fields is treated as flagged and edited: doubt leaves it for a person.
+      instrumentFlags: meta ? (meta.instrumentFlags ?? []) : [{ code: 'NO-METADATA' }],
+      editedOnInstrument: meta ? (meta.editedOnInstrument ?? false) : true,
+      criticalFlag: crit?.flag ?? null,
     });
     return resultId;
   }

@@ -32,7 +32,7 @@
 {{/if}}
 {{/if}}
 
-<p>Status: <strong>{{r.status}}</strong>{{#if r.reviewedBy}} · reviewed by {{r.reviewedBy}}{{/if}}{{#if r.approvedBy}} · approved by {{r.approvedBy}}{{/if}}</p>
+<p>Status: <strong>{{r.status}}</strong>{{#if r.autoverified}} · <span class="badge text-bg-success">autoverified</span> approved by the lab's autoverification rule, waiting for a person to release{{else}}{{#if r.reviewedBy}} · reviewed by {{r.reviewedBy}}{{/if}}{{#if r.approvedBy}} · approved by {{r.approvedBy}}{{/if}}{{/if}}</p>
 
 <h2 class="h6">Versions</h2>
 <table class="table table-sm">
@@ -108,6 +108,14 @@
   </div>
   {{/if}}{{/if}}
 </div>
+
+{{#each autoverify}}
+<div class="card card-body mb-3 small {{#if passed}}border-success{{/if}}">
+  <p class="mb-1"><strong>{{#if passed}}Autoverified{{else}}Left for a person by autoverification{{/if}}</strong>, version {{version}}, {{at}}, under the rule validated in {{reference}}.</p>
+  {{#if failed}}<p class="mb-1">Checks that did not pass:</p><ul class="mb-1">{{#each failed}}<li>{{check}}: {{detail}}</li>{{/each}}</ul>{{/if}}
+  <details><summary>All checks</summary><ul class="mb-0">{{#each checks}}<li>{{#if ok}}&#10003;{{else}}&#10007;{{/if}} {{check}}: {{detail}}</li>{{/each}}</ul></details>
+</div>
+{{/each}}
 
 {{#if calls}}
 <h2 class="h6">Critical result calls</h2>

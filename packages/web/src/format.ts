@@ -76,6 +76,8 @@ export const NOTICES: Record<string, string> = {
   signedout: 'You have signed out.',
   'critical-called': 'Call recorded. The critical result can now be approved.',
   'limit-added': 'Critical limit saved. It applies to results that arrive from now on.',
+  'autoverify-added': 'Autoverification turned on for that test. It applies to results that arrive from now on.',
+  'autoverify-retired': 'Autoverification turned off for that test. Results already approved stay approved.',
   'limit-retired': 'Critical limit retired. Results already flagged keep their flag.',
 };
 
