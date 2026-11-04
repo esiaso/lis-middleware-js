@@ -341,6 +341,17 @@ comments are listed below with who retired them and why. On a result page
 the comment form gains a "Standard comment" list of the active ones for that
 test, beside the free-text box; staff pick one or type, not both.
 
+## W-20 QC summary
+
+**QC → QC summary**: one row per QC range that had results in the period
+(from and to dates, default the current month so far): instrument, test,
+control, the range and target, then n, observed mean, SD, CV %, lowest and
+highest value, bias % and shift in SD against the target, and the counts of
+rejected, warning and not-compared results, with a link to the range's
+Levey-Jennings chart (W-15). A retired range is marked. Approvers and
+auditors can download the same as CSV; each download is audited as
+`report.qc-summary-export`.
+
 ## W-10 Audit search and export
 
 ```

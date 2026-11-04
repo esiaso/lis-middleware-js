@@ -18,3 +18,4 @@ export * from './reference-ranges.js';
 export * from './comments.js';
 export * from './history.js';
 export * from './order-report.js';
+export * from './qc-summary.js';

@@ -1,0 +1,29 @@
+<div class="d-flex align-items-baseline gap-3"><h1 class="h4">QC summary</h1><a href="/qc">QC log</a><a href="/qc/ranges">QC ranges</a></div>
+<p class="text-body-secondary">How each control ran over the period, for the lab's monthly QC review and for setting or checking a range's target mean and SD. Days run in {{timeZone}}; the period starts on the first of this month unless you choose another. The statistics use every QC value the range was compared with, accepted or rejected, so they show how the control actually ran. Values in other units or with no number are not used and are counted under "not compared". SD is the sample SD (n − 1); CV is SD over the mean. Bias is the observed mean's difference from the target mean, as a percentage, and the shift is that difference in target SDs; both need the range's target. The figures are rounded from floating-point arithmetic, which is ample for QC review. They are worked out each time from the QC log; nothing here changes a range.</p>
+{{> issues}}
+<form method="get" action="/qc/summary" class="row g-2 align-items-end mb-3">
+  <div class="col-auto"><label class="form-label small" for="from">From</label><input class="form-control form-control-sm" type="date" id="from" name="from" value="{{from}}"></div>
+  <div class="col-auto"><label class="form-label small" for="to">To (included)</label><input class="form-control form-control-sm" type="date" id="to" name="to" value="{{to}}"></div>
+  <div class="col-auto"><button class="btn btn-outline-secondary btn-sm" type="submit">Show</button></div>
+  {{#if can.exportReports}}<div class="col-auto ms-auto"><a class="btn btn-outline-primary btn-sm" href="{{csv}}">Download CSV</a></div>{{/if}}
+</form>
+
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+  <thead><tr><th>Instrument</th><th>Test</th><th>Control</th><th>Range</th><th>Target</th><th class="text-end">n</th><th class="text-end">Mean</th><th class="text-end">SD</th><th class="text-end">CV %</th><th class="text-end">Min</th><th class="text-end">Max</th><th class="text-end">Bias %</th><th class="text-end">Shift (SD)</th><th class="text-end">Rejected</th><th class="text-end">Warnings</th><th class="text-end">Not compared</th><th></th></tr></thead>
+  <tbody>
+    {{#each rows}}
+    <tr>
+      <td>{{instrument}}</td><td class="font-monospace">{{test}}</td><td>{{control}}{{#unless active}} <span class="badge text-bg-secondary">retired range</span>{{/unless}}</td>
+      <td class="small">{{limits}} {{units}}</td><td class="small">{{target}}</td>
+      <td class="text-end">{{n}}</td><td class="text-end font-monospace">{{mean}}</td><td class="text-end font-monospace">{{sd}}</td><td class="text-end">{{cv}}</td>
+      <td class="text-end font-monospace">{{min}}</td><td class="text-end font-monospace">{{max}}</td><td class="text-end">{{bias}}</td><td class="text-end">{{shift}}</td>
+      <td class="text-end">{{rejected}}</td><td class="text-end">{{warnings}}</td><td class="text-end">{{notCompared}}</td>
+      <td><a class="small" href="/qc/ranges/{{rangeId}}/chart">Chart</a></td>
+    </tr>
+    {{else}}
+    <tr><td colspan="17" class="text-body-secondary">No QC results were checked against a range in this period.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+</div>

@@ -1,11 +1,11 @@
 import { Body, Controller, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { ResultValue } from '@lis/contracts';
 import type { Db } from '@lis/db';
-import { parseQcRange, WESTGARD_LABEL, WESTGARD_RULES } from '@lis/domain';
-import { addQcRange, downtimeTestCatalogue, failingQc, InvalidInput, retireQcRange } from '@lis/lab';
+import { formatStat, parseQcRange, WESTGARD_LABEL, WESTGARD_RULES, zonedDay } from '@lis/domain';
+import { addQcRange, appendAudit, downtimeTestCatalogue, failingQc, InvalidInput, parseTatFilter, qcSummary, retireQcRange, type QcSummaryRow, type TatFilter } from '@lis/lab';
 import type { Response } from 'express';
 import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
-import { formatTime, formatValue } from './format.js';
+import { displayTimeZone, formatTime, formatValue } from './format.js';
 import { leveyJennings } from './levey-jennings.js';
 import { Roles, type WebRequest } from './security.js';
 import { DB } from './tokens.js';
@@ -20,6 +20,33 @@ const OUTCOME: Record<string, { label: string; tone: string }> = {
 };
 const CHART_POINTS = 60;
 const list = (raw: unknown): string[] => (Array.isArray(raw) ? raw : typeof raw === 'string' ? [raw] : []).filter((x): x is string => typeof x === 'string');
+/** A spreadsheet must not run a cell as a formula (CSV injection). */
+const cell = (v: string | null | undefined) => {
+  const s = v ?? '';
+  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+};
+const q = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
+/** The period asked for, or this month so far in the lab's time zone. */
+const summaryPeriod = (query: Record<string, unknown>): TatFilter => {
+  const tz = displayTimeZone();
+  const today = zonedDay(new Date(), tz);
+  return parseTatFilter({ from: q(query['from']) ?? `${today.slice(0, 8)}01`, to: q(query['to']) }, new Date(), tz);
+};
+/** Statistics with one decimal place more than the values carry. */
+const shown = (r: QcSummaryRow) => {
+  const p = r.places + 1;
+  return {
+    n: r.stats.n,
+    mean: formatStat(r.stats.mean, p),
+    sd: formatStat(r.stats.sd, p),
+    cv: formatStat(r.stats.cvPercent, 1),
+    min: formatStat(r.stats.min, r.places),
+    max: formatStat(r.stats.max, r.places),
+    bias: formatStat(r.stats.biasPercent, 1),
+    shift: formatStat(r.stats.shiftSd, 2),
+  };
+};
 const control = (c: { controlName: string | null; controlLot: string | null }) => [c.controlName, c.controlLot && `lot ${c.controlLot}`].filter(Boolean).join(', ') || '(not named)';
 
 /** QC results from the instruments and the lab's acceptable ranges (08 §12, A-21). */
@@ -55,6 +82,50 @@ export class QcController {
         detail: e.detail,
       })),
     });
+  }
+
+  /** Observed mean, SD and CV per range over a period (A-28, W-20). */
+  @Get('summary')
+  async summary(@Req() req: WebRequest, @Res() res: Response, @Query() query: Record<string, unknown>): Promise<void> {
+    let f: TatFilter;
+    let issues: string[] = [];
+    try {
+      f = summaryPeriod(query);
+    } catch (e) {
+      if (!(e instanceof InvalidInput)) throw e;
+      issues = e.issues;
+      f = summaryPeriod({});
+    }
+    const rows = await qcSummary(this.db, f.from, f.to);
+    page(req, res, 'qc-summary', {
+      title: 'QC summary',
+      issues,
+      from: f.fromDay,
+      to: f.toDay,
+      rows: rows.map((r) => ({
+        rangeId: r.rangeId, instrument: r.instrument, test: r.test, control: control(r), units: r.units, limits: `${r.low} to ${r.high}`,
+        target: r.targetMean && r.targetSd ? `${r.targetMean} ± ${r.targetSd}` : '', active: r.active,
+        rejected: r.rejected, warnings: r.warnings, notCompared: r.notCompared, ...shown(r),
+      })),
+      csv: `/qc/summary.csv?from=${f.fromDay}&to=${f.toDay}`,
+    });
+  }
+
+  @Get('summary.csv')
+  @Roles('approver', 'auditor')
+  async summaryCsv(@Req() req: WebRequest, @Res() res: Response, @Query() query: Record<string, unknown>): Promise<void> {
+    const f = summaryPeriod(query);
+    const rows = await qcSummary(this.db, f.from, f.to);
+    const head = ['instrument_id', 'instrument', 'test', 'control_name', 'control_lot', 'units', 'low', 'high', 'target_mean', 'target_sd', 'range_active', 'n', 'mean', 'sd', 'cv_percent', 'min', 'max', 'bias_percent', 'shift_sd', 'rejected', 'warnings', 'not_compared'];
+    const lines = rows.map((r) => {
+      const s = shown(r);
+      return [cell(r.instrumentId), cell(r.instrument), cell(r.test), cell(r.controlName), cell(r.controlLot), cell(r.units), r.low, r.high, r.targetMean ?? '', r.targetSd ?? '', r.active ? 'yes' : 'no', s.n, s.mean, s.sd, s.cv, s.min, s.max, s.bias, s.shift, r.rejected, r.warnings, r.notCompared].join(',');
+    });
+    await this.db.$transaction((tx) => appendAudit(tx, { actor: req.user!.username, action: 'report.qc-summary-export', entityType: 'report', entityId: 'qc-summary', after: { from: f.from.toISOString(), to: f.to.toISOString(), rows: rows.length } }));
+    res.setHeader('content-type', 'text/csv; charset=utf-8');
+    res.setHeader('content-disposition', `attachment; filename="qc-summary-${f.fromDay}-to-${f.toDay}.csv"`);
+    res.setHeader('cache-control', 'no-store');
+    res.send([head.join(','), ...lines].join('\r\n') + '\r\n');
   }
 
   @Get('ranges')

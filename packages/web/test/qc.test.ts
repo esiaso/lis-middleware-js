@@ -178,4 +178,35 @@ describe.skipIf(!url)('QC log over HTTP', () => {
     expect(chart.html).toContain('4.85 mmol/L, z 3.50, breaks 1-3s, 2-2s, warning 1-2s'); // the point's tooltip
     expect((await dr.get(`/qc/ranges/${uuidv7()}/chart`)).status).toBe(404);
   });
+
+  it('summarises each range over a period, with a CSV for approvers and auditors', async () => {
+    const dr = await as('dr.lab');
+    const csrf = await dr.csrf('/qc/ranges');
+    expect((await dr.post('/qc/ranges', { ...rangeForm, _csrf: csrf, targetMean: '4.5', targetSd: '0.1' })).status).toBe(303);
+    for (const v of ['4.4', '4.5', '4.6', '5.0']) await qc([['K', v]]);
+    await qc([['K', '81']], { lot: 'L123', controlName: 'PC1' }, 'mg/dL'); // other units: not compared
+
+    const tech = await as('tech');
+    const page = await tech.get('/qc/summary');
+    expect(page.status).toBe(200);
+    expect(page.html).toContain('c 111');
+    // Mean 4.625, sample SD 0.263, CV 5.7 %, bias 2.8 %, shift 1.25 SD; one rejected, one not compared.
+    const row = page.html.slice(page.html.indexOf('<td>c 111</td>'));
+    for (const text of ['>4<', '>4.63<', '>0.26<', '>5.7<', '>4.4<', '>5.0<', '>2.8<', '>1.25<']) expect(row).toContain(text);
+    expect(row).toMatch(/text-end">1<\/td><td class="text-end">0<\/td><td class="text-end">1<\/td>/); // rejected, warnings, not compared
+    expect(page.html).not.toContain('/qc/summary.csv');
+    expect((await tech.get('/qc/summary.csv')).status).toBe(403);
+
+    expect((await dr.get('/qc/summary?from=2026-13-01')).html).toContain('is not a date');
+    const csv = await dr.get('/qc/summary.csv');
+    expect(csv.status).toBe(200);
+    const [head, line, ...rest] = csv.html.trim().split('\r\n');
+    expect(head).toBe('instrument_id,instrument,test,control_name,control_lot,units,low,high,target_mean,target_sd,range_active,n,mean,sd,cv_percent,min,max,bias_percent,shift_sd,rejected,warnings,not_compared');
+    expect(line).toBe('c111-01,c 111,K,,L123,mmol/L,4.1,4.9,4.5,0.1,yes,4,4.63,0.26,5.7,4.4,5.0,2.8,1.25,1,0,1');
+    expect(rest).toEqual([]);
+    expect(await db.auditEvent.count({ where: { action: 'report.qc-summary-export' } })).toBe(1);
+
+    // An earlier period has nothing.
+    expect((await dr.get('/qc/summary?from=2020-01-01&to=2020-01-31')).html).toContain('No QC results were checked against a range');
+  });
 });
