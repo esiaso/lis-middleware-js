@@ -1,4 +1,4 @@
-<h1 class="h4">Turnaround times</h1>
+<div class="d-flex align-items-baseline gap-3"><h1 class="h4">Turnaround times</h1><a href="/reports/overdue">Overdue results</a><a href="/reports/targets">Targets</a></div>
 <p class="text-body-secondary">From the times the middleware records for each result, grouped by the day the specimen was collected (UTC). Each step uses the first time it happened, so a correction or a resend does not move it. Median and 90th percentile, with the number of results that have both times. A step whose times are missing is left out of that step only; one whose times run backwards (for example a collection time entered after receipt) is left out and counted.</p>
 {{> issues}}
 <form method="get" action="/reports/turnaround" class="row g-2 align-items-end mb-3">
@@ -14,10 +14,10 @@
 {{else}}
 <div class="table-responsive">
 <table class="table table-sm align-middle small">
-  <thead><tr><th>Test</th><th>Results</th>{{#each steps}}<th>{{label}}</th>{{/each}}</tr></thead>
+  <thead><tr><th>Test</th><th>Results</th>{{#if hasTargets}}<th>Received to released, against target</th>{{/if}}{{#each steps}}<th>{{label}}</th>{{/each}}</tr></thead>
   <tbody>
-    {{#with all}}<tr class="fw-semibold"><td>{{test}}</td><td>{{results}}</td>{{#each steps}}<td>{{> tat-cell}}</td>{{/each}}</tr>{{/with}}
-    {{#each tests}}<tr><td class="font-monospace">{{test}}</td><td>{{results}}</td>{{#each steps}}<td>{{> tat-cell}}</td>{{/each}}</tr>{{/each}}
+    {{#with all}}<tr class="fw-semibold"><td>{{test}}</td><td>{{results}}</td>{{#if @root.hasTargets}}<td>{{> tat-target}}</td>{{/if}}{{#each steps}}<td>{{> tat-cell}}</td>{{/each}}</tr>{{/with}}
+    {{#each tests}}<tr><td class="font-monospace">{{test}}</td><td>{{results}}</td>{{#if @root.hasTargets}}<td>{{> tat-target}}</td>{{/if}}{{#each steps}}<td>{{> tat-cell}}</td>{{/each}}</tr>{{/each}}
   </tbody>
 </table>
 </div>

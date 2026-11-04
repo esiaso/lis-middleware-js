@@ -7,7 +7,7 @@ import { pino } from 'pino';
 import { Browser, PW } from './browser.js';
 
 const url = process.env['TEST_DATABASE_URL'];
-const TABLES = 'user_session, app_user, audit_event, result_event, result_version, result, specimen, ordered_test, lab_order, patient';
+const TABLES = 'tat_target, user_session, app_user, audit_event, result_event, result_version, result, specimen, ordered_test, lab_order, patient';
 
 describe.skipIf(!url)('turnaround report over HTTP', () => {
   let db: Db;
@@ -24,7 +24,7 @@ describe.skipIf(!url)('turnaround report over HTTP', () => {
     return b;
   };
   /** A result with given minutes after 08:00 for each step; null leaves the step out. */
-  const result = async (test: string, priority: string, m: { collected?: number; received?: number; first?: number; approved?: number; released?: number; accepted?: number }, accession?: string) => {
+  const result = async (test: string, priority: string, m: { collected?: number; received?: number; first?: number; approved?: number; released?: number; accepted?: number }, accession?: string, opts: { status?: string; receivedAt?: Date } = {}) => {
     n++;
     const orderId = uuidv7();
     const specimenId = uuidv7();
@@ -32,9 +32,9 @@ describe.skipIf(!url)('turnaround report over HTTP', () => {
     const resultId = uuidv7();
     const acc = accession ?? `L26110300${String(n).padStart(3, '0')}`;
     await db.labOrder.create({ data: { id: orderId, hmisOrderId: `ORD-${n}`, patientId, priority, orderedAt: at(0), status: 'active', sourceJson: {} } });
-    await db.specimen.create({ data: { id: specimenId, orderId, accessionNo: acc, barcode: `B${n}`, status: 'received', collectedAt: m.collected === undefined ? null : at(m.collected), receivedAt: m.received === undefined ? null : at(m.received), createdBy: 'test' } });
+    await db.specimen.create({ data: { id: specimenId, orderId, accessionNo: acc, barcode: `B${n}`, status: 'received', collectedAt: m.collected === undefined ? null : at(m.collected), receivedAt: opts.receivedAt ?? (m.received === undefined ? null : at(m.received)), createdBy: 'test' } });
     await db.orderedTest.create({ data: { id: testId, orderId, hmisLineId: '1', hmisTestCode: `HMIS-${test}`, localTestCode: test, status: 'collected', specimenId } });
-    await db.result.create({ data: { id: resultId, orderedTestId: testId, status: 'sent', selectedVersionNo: 1 } });
+    await db.result.create({ data: { id: resultId, orderedTestId: testId, status: opts.status ?? 'sent', selectedVersionNo: 1 } });
     if (m.first !== undefined) await db.resultVersion.create({ data: { id: uuidv7(), resultId, versionNo: 1, kind: 'initial', value: { kind: 'numeric', value: '4.2', scale: 1 }, abnormalFlags: [], createdBy: 'system:x', createdAt: at(m.first) } });
     const ev = (kind: string, min: number | undefined, detail?: object) =>
       min === undefined ? null : db.resultEvent.create({ data: { id: uuidv7(), resultId, kind, versionNo: 1, actor: kind === 'approve' ? 'dr.lab' : 'system:jobs', at: at(min), ...(detail ? { detail } : {}) } });
@@ -94,5 +94,39 @@ describe.skipIf(!url)('turnaround report over HTTP', () => {
     expect(csv.html).not.toContain('MRN9');
     expect(csv.html).toContain(`"'=HYPERLINK(""x"")"`);
     expect(await db.auditEvent.count({ where: { action: 'report.turnaround-export' } })).toBe(1);
+  });
+
+  it('lets the lab set targets, counts late results, and lists unreleased ones past their target', async () => {
+    const tech = await as('tech');
+    expect((await tech.get('/reports/targets')).html).toContain('No targets.');
+    expect((await tech.post('/reports/targets', { _csrf: await tech.csrf('/reports/targets'), localTestCode: '', priority: '', minutes: '60', reference: 'Lab policy TAT-01 v1', password: PW })).status).toBe(403);
+    const dr = await as('dr.lab');
+    const csrf = await dr.csrf('/reports/targets');
+    const form = { _csrf: csrf, localTestCode: '', priority: '', minutes: '120', reference: 'Lab policy TAT-01 v1', password: PW };
+    const bad = await dr.post('/reports/targets', { ...form, minutes: '0', password: 'wrong' });
+    expect(bad.status).toBe(422);
+    expect(bad.html).toContain('1 to 43200 minutes');
+    expect((await dr.post('/reports/targets', form)).location).toBe('/reports/targets?notice=target-added');
+    expect((await dr.post('/reports/targets', { ...form, priority: 'stat', minutes: '10' })).location).toBe('/reports/targets?notice=target-added');
+    expect((await dr.post('/reports/targets', form)).html).toContain('already an active target');
+
+    await result('K', 'routine', { collected: 0, received: 30, first: 60, approved: 90, released: 95 }); // 65 min, target 120: met
+    await result('K', 'stat', { collected: 0, received: 10, first: 20, approved: 25, released: 26 }); // 16 min, target 10: late
+    await result('NA', 'routine', { first: 0 }, undefined, { status: 'received', receivedAt: new Date(Date.now() - 3 * 3_600_000) }); // pending, 3 h: late
+    await result('NA', 'stat', { first: 0 }, undefined, { status: 'reviewed', receivedAt: new Date(Date.now() - 5 * 60_000) }); // pending, 5 min: not yet
+
+    const report = await dr.get('/reports/turnaround');
+    expect(report.html).toContain('Received to released, against target');
+    expect(report.html).toMatch(/1 met, <span class="text-danger-emphasis">1 late<\/span><br><span class="text-body-secondary">of 2 with a target/);
+
+    const overdue = await dr.get('/reports/overdue');
+    expect(overdue.html).toContain('EXAMPLE, Ben (MRN9)');
+    expect(overdue.html.match(/<tr><td><a href="\/results\//g)).toHaveLength(1);
+    expect((await dr.get('/')).html).toContain('1 result past the turnaround target');
+
+    const any = await db.tatTarget.findFirstOrThrow({ where: { priority: null } });
+    expect((await dr.post(`/reports/targets/${any.id}/retire`, { _csrf: csrf, reason: 'policy v2', password: PW })).location).toBe('/reports/targets?notice=target-retired');
+    expect((await dr.get('/')).html).not.toContain('past the turnaround target');
+    expect((await db.auditEvent.findMany({ where: { entityType: 'tat_target' } })).map((e) => e.action).sort()).toEqual(['tat-target.add', 'tat-target.add', 'tat-target.retire']);
   });
 });

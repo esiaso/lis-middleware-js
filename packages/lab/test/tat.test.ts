@@ -23,6 +23,22 @@ describe('summarizeTat', () => {
   });
 });
 
+describe('summarizeTat with targets', () => {
+  it('counts met, late, and still-open late results against the most specific target', () => {
+    const targets = [{ id: 'all', localTestCode: null, priority: null, minutes: 60 }, { id: 'stat', localTestCode: null, priority: 'stat', minutes: 15 }];
+    const rows = [
+      row({ received: t(8), released: t(9) }), // exactly 60: met
+      row({ received: t(8), released: t(9, 1) }), // late
+      row({ priority: 'stat', received: t(8), released: t(8, 20) }), // late against 15
+      row({ received: t(10) }), // open, 30 min by now: not counted late
+      row({ received: t(6) }), // open, past target: late
+      row({ released: t(9) }), // no receipt time: not counted
+    ];
+    expect(summarizeTat(rows, targets, t(10, 30)).all.target).toEqual({ counted: 5, met: 1, late: 3 });
+    expect(summarizeTat(rows).all.target).toEqual({ counted: 0, met: 0, late: 0 });
+  });
+});
+
 describe('parseTatFilter', () => {
   const now = new Date('2026-11-04T15:00:00Z');
   it('defaults to the last 7 days including today, in UTC', () => {

@@ -719,3 +719,23 @@ model QcEvaluation {
   @@index([at])
   @@map("qc_evaluation")
 }
+
+/// Turnaround target from receipt in the lab to release (A-22). Set by the lab; none shipped.
+model TatTarget {
+  id            String    @id @db.Uuid
+  /// Null applies to every test.
+  localTestCode String?   @map("local_test_code")
+  /// routine, urgent or stat; null applies to every priority.
+  priority      String?
+  minutes       Int
+  reference     String
+  active        Boolean   @default(true)
+  createdBy     String    @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  retiredBy     String?   @map("retired_by")
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz
+  retireReason  String?   @map("retire_reason")
+
+  @@index([active])
+  @@map("tat_target")
+}
