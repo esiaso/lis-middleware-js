@@ -5,10 +5,11 @@ import { migrationStatus, type Db } from '@lis/db';
 import { clinicalGateFor } from '@lis/domain';
 import { approve, confirmLink, correct, dismissUnmatched, proposeLink, release, replay, review, withdrawLink } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
-import { confirmPassword, login, logout } from './auth.js';
+import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS } from './auth.js';
 import { formatTime, formatValue, NOTICES, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
 import { LOGIN_CSRF_COOKIE, OpenDuringPasswordChange, Public, Roles, SESSION_COOKIE, type WebRequest } from './security.js';
-import { DB, WEB_OPTIONS, type WebOptions } from './tokens.js';
+import { CALLBACK_PATH, FLIGHT_MS, OIDC_COOKIE, OidcRefused, START_PATH, STEP_UP_PATH, type Oidc } from './oidc.js';
+import { DB, OIDC, WEB_OPTIONS, type WebOptions } from './tokens.js';
 
 export type Form = Record<string, unknown>;
 export const str = (f: Form | undefined, k: string): string => (typeof f?.[k] === 'string' ? (f[k] as string) : '');
@@ -16,6 +17,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function uuidParam(id: string): string {
   if (!UUID.test(id)) throw new NotFoundException();
   return id;
+}
+
+/**
+ * Confirm it is still this person before an approval-type action (10 §3).
+ * Local accounts type their password into the form; hospital sign-in
+ * accounts confirm at the IdP first, once per action.
+ */
+export async function requireStepUp(db: Db, req: WebRequest, password: string): Promise<void> {
+  if (await confirmIdentity(db, req.user!, req.sessionToken, password)) return;
+  throw new ForbiddenException(req.user!.sso ? 'Confirm with the hospital sign-in first; each confirmation is good for one action within 5 minutes. Nothing was changed.' : 'Password not confirmed. Nothing was changed.');
 }
 
 /** Render with the signed-in person, their CSRF token, and a fixed notice if the redirect asked for one. */
@@ -27,6 +38,13 @@ export function page(req: WebRequest, res: Response, view: string, data: Record<
     user: req.user,
     csrf: req.user?.csrfToken,
     notice,
+    // For hospital sign-in accounts, forms that need re-confirmation show a link back to this page.
+    stepUp: req.user?.sso
+      ? {
+          href: `${STEP_UP_PATH}?next=${encodeURIComponent(safeNext(req.originalUrl.replace(/([?&])notice=[^&]*&?/, '$1').replace(/[?&]$/, '')))}`,
+          until: req.user.stepUpAt && Date.now() - req.user.stepUpAt.getTime() < STEP_UP_MS ? formatTime(new Date(req.user.stepUpAt.getTime() + STEP_UP_MS)) : '',
+        }
+      : undefined,
     can: {
       review: roles.includes('technologist') || roles.includes('approver'),
       approve: roles.includes('approver'),
@@ -53,6 +71,7 @@ export class AuthController {
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(WEB_OPTIONS) private readonly opts: WebOptions,
+    @Inject(OIDC) private readonly oidc: Oidc | null,
   ) {}
 
   private cookie(extra: CookieOptions): CookieOptions {
@@ -63,7 +82,79 @@ export class AuthController {
   private showLogin(req: WebRequest, res: Response, next: string, error?: string): void {
     const token = randomBytes(32).toString('hex');
     res.cookie(LOGIN_CSRF_COOKIE, token, this.cookie({ sameSite: 'strict', path: '/login', maxAge: 30 * 60_000 }));
-    res.render('login', { title: 'Sign in', loginCsrf: token, next, error, notice: typeof req.query['notice'] === 'string' ? NOTICES[req.query['notice']] : undefined });
+    res.render('login', {
+      title: 'Sign in',
+      loginCsrf: token,
+      next,
+      error,
+      notice: typeof req.query['notice'] === 'string' ? NOTICES[req.query['notice']] : undefined,
+      sso: this.oidc ? { label: this.oidc.settings.label, href: `${START_PATH}?next=${encodeURIComponent(next)}` } : undefined,
+    });
+  }
+
+  /** Send the browser to the hospital IdP (10 §3). */
+  private async toIdp(res: Response, purpose: 'login' | 'step-up', next: string): Promise<void> {
+    const { url, cookie } = await this.oidc!.start(purpose, next);
+    res.cookie(OIDC_COOKIE, cookie, this.cookie({ sameSite: 'lax', path: START_PATH, maxAge: FLIGHT_MS }));
+    res.redirect(303, url);
+  }
+
+  @Public()
+  @Get(START_PATH.slice(1))
+  async startOidc(@Req() req: WebRequest, @Res() res: Response): Promise<void> {
+    if (!this.oidc) throw new NotFoundException();
+    const next = safeNext(req.query['next']);
+    if (req.user) return res.redirect(303, next);
+    try {
+      await this.toIdp(res, 'login', next);
+    } catch (e) {
+      res.status(503);
+      this.showLogin(req, res, next, `The hospital sign-in cannot be reached (${(e as Error).message}). Try again, or use a local account.`);
+    }
+  }
+
+  /** Re-confirm at the IdP before an approval-type action. Comes back to the page it started from. */
+  @Get(STEP_UP_PATH.slice(1))
+  async startStepUp(@Req() req: WebRequest, @Res() res: Response): Promise<void> {
+    if (!this.oidc || !req.user!.sso) throw new NotFoundException();
+    await this.toIdp(res, 'step-up', safeNext(req.query['next']));
+  }
+
+  @Public()
+  @Get(CALLBACK_PATH.slice(1))
+  async oidcCallback(@Req() req: WebRequest, @Res() res: Response): Promise<void> {
+    if (!this.oidc) throw new NotFoundException();
+    const cookie = (req.cookies as Record<string, string | undefined>)[OIDC_COOKIE];
+    res.clearCookie(OIDC_COOKIE, { path: START_PATH });
+    const query = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+    let done: Awaited<ReturnType<Oidc['finish']>>;
+    try {
+      done = await this.oidc.finish(query, cookie);
+    } catch (e) {
+      if (!(e instanceof OidcRefused)) throw e;
+      if (req.user) throw new ForbiddenException(e.message);
+      res.status(401);
+      return this.showLogin(req, res, '/', e.message);
+    }
+    const { purpose, next, profile } = done;
+    if (purpose === 'step-up') {
+      if (!req.user || !req.sessionToken || !(await recordStepUp(this.db, req.sessionToken, req.user, profile))) throw new ForbiddenException('That hospital sign-in is not the person signed in here. Nothing was confirmed.');
+      return res.redirect(303, next);
+    }
+    if (req.user) await logout(this.db, req.sessionToken);
+    const r = await oidcSignIn(this.db, profile, this.opts.session);
+    if (!r.ok) {
+      res.status(403);
+      const why = {
+        'no-role': 'Your hospital account is not in any directory group that has access to the lab middleware. Ask IT or the lab manager.',
+        disabled: 'This account is disabled in the lab middleware. Ask an administrator.',
+        'name-taken': 'A local account already has your username, so the hospital sign-in cannot use it. Ask an administrator.',
+        'bad-name': 'Your hospital username cannot be used here. Ask IT.',
+      }[r.reason];
+      return this.showLogin(req, res, next, why);
+    }
+    res.cookie(SESSION_COOKIE, r.token, this.cookie({ sameSite: 'lax', path: '/', maxAge: this.opts.session.absoluteMs }));
+    res.redirect(303, next);
   }
 
   @Public()
@@ -255,7 +346,7 @@ export class ResultsController {
   }
 
   private async stepUp(req: WebRequest, body: Form): Promise<void> {
-    if (!(await confirmPassword(this.db, req.user!.id, str(body, 'password')))) throw new ForbiddenException('Password not confirmed. Nothing was changed.');
+    await requireStepUp(this.db, req, str(body, 'password'));
   }
 
   @Post(':id/approve')
@@ -387,7 +478,7 @@ export class UnmatchedController {
   @Post(':id/confirm')
   @Roles('technologist', 'approver')
   async confirm(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Body() body: Form): Promise<void> {
-    if (!(await confirmPassword(this.db, req.user!.id, str(body, 'password')))) throw new ForbiddenException('Password not confirmed. Nothing was changed.');
+    await requireStepUp(this.db, req, str(body, 'password'));
     const { resultId } = await confirmLink(this.db, uuidParam(id), req.user!.username);
     res.redirect(303, `/results/${resultId}?notice=linked`);
   }

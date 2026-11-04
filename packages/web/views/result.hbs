@@ -42,8 +42,7 @@
     <form method="post" action="/results/{{r.id}}/approve" class="card card-body">
       <input type="hidden" name="_csrf" value="{{csrf}}">
       {{#if twoPersonRule}}<p class="small text-body-secondary">The approver must be a different person from the reviewer.</p>{{/if}}
-      <label class="form-label" for="approve-password">Your password</label>
-      <input class="form-control mb-2" id="approve-password" name="password" type="password" required>
+      {{> confirm id="approve-password" label="Your password" labelClass="form-label" inputClass="form-control mb-2"}}
       <button class="btn btn-primary" type="submit">Approve</button>
     </form>
   </div>
@@ -53,8 +52,7 @@
   <div class="col-md-6 col-lg-4">
     <form method="post" action="/results/{{r.id}}/release" class="card card-body">
       <input type="hidden" name="_csrf" value="{{csrf}}">
-      <label class="form-label" for="release-password">Your password</label>
-      <input class="form-control mb-2" id="release-password" name="password" type="password" required>
+      {{> confirm id="release-password" label="Your password" labelClass="form-label" inputClass="form-control mb-2"}}
       <button class="btn btn-success" type="submit">Release to HMIS</button>
     </form>
   </div>
@@ -81,8 +79,7 @@
       <input class="form-control mb-2" id="units" name="units">
       <label class="form-label" for="reason">Reason (at least 10 characters)</label>
       <input class="form-control mb-2" id="reason" name="reason" minlength="10" required>
-      <label class="form-label" for="correct-password">Your password</label>
-      <input class="form-control mb-2" id="correct-password" name="password" type="password" required>
+      {{> confirm id="correct-password" label="Your password" labelClass="form-label" inputClass="form-control mb-2"}}
       <button class="btn btn-danger" type="submit">Save correction</button>
     </form>
   </div>

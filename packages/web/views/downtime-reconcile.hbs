@@ -24,7 +24,7 @@
         <form method="post" action="/downtime/{{../o.id}}/reconcile" class="d-flex gap-2">
           <input type="hidden" name="_csrf" value="{{../csrf}}">
           <input type="hidden" name="hmisOrderId" value="{{orderId}}">
-          <input class="form-control form-control-sm" type="password" name="password" placeholder="Your password" aria-label="Your password" required>
+          {{> confirm inputClass="form-control form-control-sm"}}
           <button class="btn btn-primary btn-sm text-nowrap" type="submit">Same patient: reconcile</button>
         </form>
         {{/if}}{{/if}}
@@ -41,7 +41,7 @@
   <h2 class="h6">Or enter the HMIS order number</h2>
   <div class="row g-2 align-items-end">
     <div class="col-auto"><label class="form-label small" for="hmisOrderNo">HMIS order number</label><input class="form-control form-control-sm font-monospace" id="hmisOrderNo" name="hmisOrderNo" required></div>
-    <div class="col-auto"><label class="form-label small" for="rec-password">Your password</label><input class="form-control form-control-sm" id="rec-password" name="password" type="password" required></div>
+    <div class="col-auto">{{> confirm id="rec-password" label="Your password" labelClass="form-label small" inputClass="form-control form-control-sm"}}</div>
     <div class="col-auto"><button class="btn btn-outline-primary btn-sm" type="submit">Reconcile</button></div>
   </div>
 </form>

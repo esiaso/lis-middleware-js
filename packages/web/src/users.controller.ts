@@ -1,11 +1,11 @@
-import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, Param, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Inject, NotFoundException, Param, Post, Req, Res } from '@nestjs/common';
 import type { Db } from '@lis/db';
 import { InvalidInput } from '@lis/lab';
 import type { Response } from 'express';
 import {
-  changeOwnPassword, checkRoles, confirmPassword, createUser, resetUserPassword, ROLES, setUserActive, setUserRoles, unlockUser, USERNAME, validatePassword,
+  changeOwnPassword, checkRoles, createUser, resetUserPassword, ROLES, setUserActive, setUserRoles, unlockUser, USERNAME, validatePassword,
 } from './auth.js';
-import { page, str, uuidParam, type Form } from './controllers.js';
+import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
 import { formatTime } from './format.js';
 import { OpenDuringPasswordChange, Roles, type WebRequest } from './security.js';
 import { DB } from './tokens.js';
@@ -30,7 +30,7 @@ export class UsersController {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   private async stepUp(req: WebRequest, body: Form): Promise<void> {
-    if (!(await confirmPassword(this.db, req.user!.id, str(body, 'adminPassword')))) throw new ForbiddenException('Your password was not confirmed. Nothing was changed.');
+    await requireStepUp(this.db, req, str(body, 'adminPassword'));
   }
 
   @Get()
@@ -47,6 +47,7 @@ export class UsersController {
         active: u.active,
         locked: Boolean(u.lockedUntil && u.lockedUntil > now),
         mustChange: u.mustChangePassword,
+        sso: u.authSource === 'oidc',
       })),
     });
   }
@@ -104,7 +105,9 @@ export class UsersController {
         createdAt: formatTime(u.createdAt),
         sessions: u.sessions.filter((s) => s.expiresAt > now).length,
         self: u.id === req.user!.id,
+        sso: u.authSource === 'oidc',
       },
+      roleList: u.roles.join(', '),
       roles: ROLES.map((r) => ({ value: r, note: ROLE_NOTES[r], checked: u.roles.includes(r) })),
       history: history.map((h) => ({ at: formatTime(h.at), actor: h.actor, action: h.action, reason: h.reason ?? '', after: h.after ? JSON.stringify(h.after) : '' })),
     });
@@ -148,6 +151,7 @@ export class AccountController {
   @Get('password')
   @OpenDuringPasswordChange()
   form(@Req() req: WebRequest, @Res() res: Response): void {
+    if (req.user!.sso) throw new NotFoundException();
     page(req, res, 'account-password', { title: 'Change password', issues: [], forced: req.user!.mustChangePassword });
   }
 

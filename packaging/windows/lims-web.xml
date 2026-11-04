@@ -11,6 +11,13 @@
   <env name="BIND_HOST" value="127.0.0.1" />
   <env name="PORT" value="3000" />
   <env name="LIMS_TWO_PERSON_RULE" value="true" />
+  <!-- Hospital sign-in (11 §11): uncomment and fill in. The secret file is readable by NT SERVICE\lims-web only.
+  <env name="LIMS_OIDC_ISSUER" value="https://idp.example/realms/hospital" />
+  <env name="LIMS_OIDC_CLIENT_ID" value="lims" />
+  <env name="LIMS_OIDC_CLIENT_SECRET_FILE" value="C:\ProgramData\LIMS Middleware\secrets\oidc_client_secret" />
+  <env name="LIMS_OIDC_REDIRECT_URI" value="https://lims.example/login/oidc/callback" />
+  <env name="LIMS_OIDC_ROLE_MAP" value="LIMS-Admins=admin;LIMS-Approvers=approver" />
+  -->
   <startmode>Automatic</startmode>
   <delayedAutoStart>true</delayedAutoStart>
   <onfailure action="restart" delay="5 sec" />

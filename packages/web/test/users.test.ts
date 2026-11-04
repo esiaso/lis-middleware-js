@@ -154,7 +154,7 @@ describe.skipIf(!url)('user management over HTTP', () => {
     await db.appUser.update({ where: { username: 'admin2' }, data: { active: false } });
     const adminId = await idOf('admin');
     // Only reachable when the acting account is not itself an active admin, so call the service directly.
-    const actor = { id: await idOf('tech'), username: 'tech', displayName: 'Tech', roles: ['admin' as const], mustChangePassword: false, csrfToken: '' };
+    const actor = { id: await idOf('tech'), username: 'tech', displayName: 'Tech', roles: ['admin' as const], mustChangePassword: false, csrfToken: '', sso: false, stepUpAt: null };
     await expect(setUserRoles(db, actor, adminId, ['technologist'])).rejects.toThrow(/last active administrator/i);
   });
 });

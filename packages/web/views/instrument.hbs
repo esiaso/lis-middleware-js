@@ -36,7 +36,7 @@
       <h2 class="h6">Sign lab acceptance</h2>
       <p class="small text-body-secondary">You sign this yourself, as {{user.displayName}}.</p>
       <label class="form-label" for="acceptanceRef">Parallel-run report reference</label><input class="form-control mb-2" id="acceptanceRef" name="acceptanceRef" required>
-      <label class="form-label" for="accept-password">Your password</label><input class="form-control mb-2" id="accept-password" name="password" type="password" required>
+      {{> confirm id="accept-password" label="Your password" labelClass="form-label" inputClass="form-control mb-2"}}
       <button class="btn btn-success" type="submit">Sign acceptance</button>
     </form>
   </div>
@@ -107,7 +107,7 @@
 {{#if draft.mine}}<p class="small text-body-secondary">You saved this draft, so someone else must approve it.</p>{{else}}
 <form method="post" action="/instruments/{{i.id}}/mappings/{{draft.versionNo}}/approve" class="row g-2 align-items-end mb-3">
   <input type="hidden" name="_csrf" value="{{csrf}}">
-  <div class="col-auto"><label class="form-label" for="map-password">Your password</label><input class="form-control" id="map-password" name="password" type="password" required></div>
+  <div class="col-auto">{{> confirm id="map-password" label="Your password" labelClass="form-label" inputClass="form-control"}}</div>
   <div class="col-auto"><button class="btn btn-success" type="submit">Approve and make active</button></div>
 </form>
 {{/if}}

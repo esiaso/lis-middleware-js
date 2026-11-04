@@ -11,7 +11,7 @@
       {{#if can.audit}}<li class="nav-item"><a class="nav-link" href="/audit">Audit</a></li>{{/if}}
       {{#if can.users}}<li class="nav-item"><a class="nav-link" href="/users">Users</a></li>{{/if}}
     </ul>
-    <a class="navbar-text me-3" href="/account/password" title="Change password">{{user.displayName}}</a>
+    {{#if user.sso}}<span class="navbar-text me-3">{{user.displayName}}</span>{{else}}<a class="navbar-text me-3" href="/account/password" title="Change password">{{user.displayName}}</a>{{/if}}
     <form method="post" action="/logout" class="d-inline">
       <input type="hidden" name="_csrf" value="{{csrf}}">
       <button class="btn btn-outline-secondary btn-sm" type="submit">Sign out</button>

@@ -2,6 +2,7 @@
 <h1 class="h4">{{u.displayName}} <span class="small text-body-secondary font-monospace">{{u.username}}</span></h1>
 <p>
   {{#if u.active}}Active{{else}}<strong>Disabled</strong>{{/if}}{{#if u.locked}} · <span class="badge text-bg-warning">locked until {{u.lockedUntil}}</span>{{/if}}{{#if u.mustChange}} · temporary password, must be changed at next sign-in{{/if}}
+  · {{#if u.sso}}signs in with the hospital account; roles follow directory groups{{else}}local password{{/if}}
   · created {{u.createdAt}}{{#if u.passwordChangedAt}} · password last changed {{u.passwordChangedAt}}{{/if}} · {{u.sessions}} open session(s)
 </p>
 
@@ -10,14 +11,17 @@
 {{else}}
 <div class="row g-3 mb-4">
   <div class="col-lg-6">
+    {{#if u.sso}}
+    <div class="card card-body"><h2 class="h6">Roles</h2><p class="small mb-0">{{roleList}}. These come from the person's directory groups at each sign-in; change the groups, or the role map in the settings (LIMS_OIDC_ROLE_MAP).</p></div>
+    {{else}}
     <form method="post" action="/users/{{u.id}}/roles" class="card card-body">
       <input type="hidden" name="_csrf" value="{{csrf}}">
       <h2 class="h6">Roles</h2>
       {{> role-boxes}}
-      <label class="form-label small" for="pw-roles">Your password</label>
-      <input class="form-control form-control-sm mb-2" id="pw-roles" name="adminPassword" type="password" required>
+      {{> confirm id="pw-roles" name="adminPassword" label="Your password" labelClass="form-label small" inputClass="form-control form-control-sm mb-2"}}
       <button class="btn btn-primary btn-sm" type="submit">Save roles</button>
     </form>
+    {{/if}}
   </div>
   <div class="col-lg-6">
     <form method="post" action="/users/{{u.id}}/active" class="card card-body mb-3">
@@ -27,26 +31,25 @@
       {{#if u.active}}<p class="small text-body-secondary">Ends every session at once. The account and its history are kept.</p>{{/if}}
       <label class="form-label small" for="active-reason">Reason</label>
       <input class="form-control form-control-sm mb-2" id="active-reason" name="reason" minlength="5" required>
-      <label class="form-label small" for="pw-active">Your password</label>
-      <input class="form-control form-control-sm mb-2" id="pw-active" name="adminPassword" type="password" required>
+      {{> confirm id="pw-active" name="adminPassword" label="Your password" labelClass="form-label small" inputClass="form-control form-control-sm mb-2"}}
       <button class="btn {{#if u.active}}btn-outline-danger{{else}}btn-outline-success{{/if}} btn-sm" type="submit">{{#if u.active}}Disable{{else}}Enable{{/if}}</button>
     </form>
+    {{#unless u.sso}}
     <form method="post" action="/users/{{u.id}}/password" class="card card-body mb-3">
       <input type="hidden" name="_csrf" value="{{csrf}}">
       <h2 class="h6">Set a temporary password</h2>
       <p class="small text-body-secondary">Ends their sessions. They must choose their own password at next sign-in.</p>
       <label class="form-label small" for="temp">Temporary password (at least 12 characters)</label>
       <input class="form-control form-control-sm mb-2" id="temp" name="password" type="password" minlength="12" required autocomplete="new-password">
-      <label class="form-label small" for="pw-reset">Your password</label>
-      <input class="form-control form-control-sm mb-2" id="pw-reset" name="adminPassword" type="password" required>
+      {{> confirm id="pw-reset" name="adminPassword" label="Your password" labelClass="form-label small" inputClass="form-control form-control-sm mb-2"}}
       <button class="btn btn-outline-warning btn-sm" type="submit">Set temporary password</button>
     </form>
+    {{/unless}}
     {{#if u.locked}}
     <form method="post" action="/users/{{u.id}}/unlock" class="card card-body">
       <input type="hidden" name="_csrf" value="{{csrf}}">
       <h2 class="h6">Unlock now</h2>
-      <label class="form-label small" for="pw-unlock">Your password</label>
-      <input class="form-control form-control-sm mb-2" id="pw-unlock" name="adminPassword" type="password" required>
+      {{> confirm id="pw-unlock" name="adminPassword" label="Your password" labelClass="form-label small" inputClass="form-control form-control-sm mb-2"}}
       <button class="btn btn-outline-secondary btn-sm" type="submit">Unlock</button>
     </form>
     {{/if}}

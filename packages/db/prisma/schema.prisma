@@ -522,9 +522,14 @@ model AppUser {
   /// Set when an administrator sets a temporary password; cleared when the person chooses their own.
   mustChangePassword Boolean @default(false) @map("must_change_password")
   passwordChangedAt DateTime? @map("password_changed_at") @db.Timestamptz
+  /// "local" (password here) or "oidc" (hospital sign-in; roles come from directory groups).
+  authSource   String        @default("local") @map("auth_source")
+  oidcIssuer   String?       @map("oidc_issuer")
+  oidcSubject  String?       @map("oidc_subject")
   createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
   sessions     UserSession[]
 
+  @@unique([oidcIssuer, oidcSubject])
   @@map("app_user")
 }
 
@@ -536,6 +541,8 @@ model UserSession {
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
   /// Idle expiry; slides forward on use but never past createdAt + absolute limit.
   expiresAt  DateTime @map("expires_at") @db.Timestamptz
+  /// Hospital sign-in re-confirmed for one approval-type action (10 §3 step-up); used once.
+  stepUpAt   DateTime? @map("step_up_at") @db.Timestamptz
   user       AppUser  @relation(fields: [userId], references: [id])
 
   @@index([userId])

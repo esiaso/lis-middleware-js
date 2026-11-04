@@ -1,9 +1,8 @@
-import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, Param, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Inject, NotFoundException, Param, Post, Req, Res } from '@nestjs/common';
 import type { Db } from '@lis/db';
 import { DOWNTIME, downtimeTestCatalogue, InvalidInput, reconcileDowntimeOrder, reconciliationCandidates, registerDowntimeOrder } from '@lis/lab';
 import type { Response } from 'express';
-import { confirmPassword } from './auth.js';
-import { page, str, uuidParam, type Form } from './controllers.js';
+import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
 import { formatTime } from './format.js';
 import { Roles, type WebRequest } from './security.js';
 import { DB } from './tokens.js';
@@ -122,7 +121,7 @@ export class DowntimeController {
   @Post(':id/reconcile')
   @Roles('technologist', 'approver')
   async reconcile(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Body() body: Form): Promise<void> {
-    if (!(await confirmPassword(this.db, req.user!.id, str(body, 'password')))) throw new ForbiddenException('Password not confirmed. Nothing was changed.');
+    await requireStepUp(this.db, req, str(body, 'password'));
     // Either a candidate from the list, or an HMIS order number typed in.
     const typed = str(body, 'hmisOrderNo').trim();
     let target = str(body, 'hmisOrderId');

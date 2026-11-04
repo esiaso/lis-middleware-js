@@ -11,7 +11,7 @@
   {{> role-boxes}}
   <p class="small text-body-secondary">An administrator cannot approve results unless also given the approver role. Give each person only the roles their job needs.</p>
   <div class="row g-2 align-items-end">
-    <div class="col-auto"><label class="form-label" for="adminPassword">Your password</label><input class="form-control" id="adminPassword" name="adminPassword" type="password" required autocomplete="current-password"></div>
+    <div class="col-auto">{{> confirm id="adminPassword" name="adminPassword" label="Your password" labelClass="form-label" inputClass="form-control"}}</div>
     <div class="col-auto"><button class="btn btn-primary" type="submit">Create user</button></div>
   </div>
 </form>

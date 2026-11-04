@@ -51,6 +51,18 @@
   15 min), used for break-glass admin only and audited prominently.
 * Re-authentication (or SSO step-up) for approve, correct, replay, and
   mapping approval when the IdP supports it; otherwise password re-entry.
+* **Built (OIDC):** code flow with PKCE against the IdP's discovery
+  document, settings in [11](11-installation-and-runbooks.md) §11. The
+  account is created at the first sign-in and found afterwards by issuer and
+  subject, never by username, so a directory entry cannot take over a local
+  account with the same name (that sign-in is refused). Roles follow the
+  directory groups at every sign-in (changes audited as `system:oidc`);
+  an administrator can still disable the account here, but cannot set its
+  roles or a password. Step-up for these accounts is a fresh sign-in at the
+  IdP (`prompt=login`, `max_age=0`, checked against `auth_time`) by the same
+  subject; it allows one approval-type action within 5 minutes (A-17).
+  Signing out ends the middleware session only, not the IdP session.
+  LDAPS is not built.
 
 ## 4. Browser sessions and web security
 

@@ -259,6 +259,37 @@ Web service (`lims-web`):
 | `LIMS_TWO_PERSON_RULE` | `true` | reviewer and approver must differ (10 §2) |
 | `LIMS_INSECURE_COOKIES` | `false` | `true` drops the cookie `Secure` flag and HSTS; only for a loopback-only test setup |
 
+Hospital sign-in (OIDC, 10 §3). Leave `LIMS_OIDC_ISSUER` unset for local
+accounts only. Once it is set, the service refuses to start until the other
+required settings are valid.
+
+| Setting | Default | Notes |
+|---|---|---|
+| `LIMS_OIDC_ISSUER` | unset | the IdP's issuer address, `https://` only; everything else about the IdP is read from its discovery document |
+| `LIMS_OIDC_CLIENT_ID` | required | the client registered at the IdP for the middleware |
+| client secret | none (public client, PKCE only) | systemd credential `oidc_client_secret` (Linux), the file in `LIMS_OIDC_CLIENT_SECRET_FILE` (Windows), or `LIMS_OIDC_CLIENT_SECRET` (development) |
+| `LIMS_OIDC_REDIRECT_URI` | required | `https://<middleware address>/login/oidc/callback`, exactly as registered at the IdP |
+| `LIMS_OIDC_ROLE_MAP` | required | `Group=role[,role];Group=role`. Groups are as the IdP sends them (names, paths such as `/LIMS-Admins`, or object IDs). Someone with no mapped group cannot sign in |
+| `LIMS_OIDC_GROUPS_CLAIM` | `groups` | ID-token claim holding the groups |
+| `LIMS_OIDC_USERNAME_CLAIM` | `preferred_username` | lower-cased; e-mail style names are allowed |
+| `LIMS_OIDC_DISPLAY_NAME_CLAIM` | `name` | |
+| `LIMS_OIDC_SCOPES` | `openid profile` | add whatever scope the IdP needs to put groups in the ID token |
+| `LIMS_OIDC_PROMPT_LOGIN` | `true` | ask for the password at every sign-in, because lab workstations are shared; `false` allows silent SSO |
+| `LIMS_OIDC_LABEL` | `hospital account` | text on the sign-in button |
+
+What to ask hospital IT for when registering the client (D-19): the
+authorization code flow with PKCE (S256); the redirect URI above; the groups
+in the **ID token** (the middleware does not call the userinfo endpoint);
+`auth_time` in the ID token and support for `prompt=login` with `max_age=0`,
+because approve, release, correct and account changes are confirmed by a
+fresh sign-in at the IdP. Where the IdP's certificate is from the hospital
+CA, set `NODE_EXTRA_CA_CERTS` to that CA's PEM file for `lims-web`. On Linux,
+add the secret with `systemctl edit lims-web` and a line
+`LoadCredential=oidc_client_secret:/etc/lims/secrets/oidc_client_secret`
+(the shipped unit does not name it, because systemd refuses to start a unit
+whose credential file is missing). Keep at least one local administrator
+for break-glass use when the IdP is down.
+
 First administrator, before the hospital IdP is connected (password on
 standard input, at least 12 characters, never on the command line):
 `lims-web create-user <username> "<display name>" admin < password-file`.
