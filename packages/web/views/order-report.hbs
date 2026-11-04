@@ -1,0 +1,37 @@
+<div class="d-print-none mb-3">
+  <p><a href="/orders/{{o.id}}">&larr; Order</a></p>
+  <p class="mb-1">Print with Ctrl+P. Only approved results carry a value; the rest print as pending.</p>
+  {{#unless approved}}<div class="alert alert-warning">No result on this order is approved yet, so the report has no values.</div>{{/unless}}
+</div>
+<article class="result-report">
+  <header class="border-bottom mb-2 pb-1">
+    <div class="h5 mb-0">{{header}}</div>
+    <div class="small">Printed {{printed}} by {{printedBy}}</div>
+  </header>
+  <div class="row small mb-2">
+    <div class="col-7"><strong>{{patient.name}}</strong>{{#if patient.provisional}} (provisional record){{/if}}<br>MRN {{patient.mrn}}{{#if patient.sex}} · {{patient.sex}}{{/if}}{{#if patient.birthDate}} · born {{patient.birthDate}}{{/if}}</div>
+    <div class="col-5">Order {{o.hmisOrderId}}{{#if o.downtime}} (downtime order){{/if}} · {{o.priority}}<br>{{#if o.location}}{{o.location}}{{/if}}{{#if o.clinician}} · {{o.clinician}}{{/if}}<br>Ordered {{o.orderedAt}}</div>
+  </div>
+  {{#if specimens}}
+  <table class="table table-sm small mb-2">
+    <thead><tr><th>Specimen</th><th>Type</th><th>Collected</th><th>Received</th></tr></thead>
+    <tbody>{{#each specimens}}<tr><td>{{accessionNo}}{{#if rejected}} (rejected){{/if}}</td><td>{{type}}</td><td>{{collected}}</td><td>{{received}}</td></tr>{{/each}}</tbody>
+  </table>
+  {{/if}}
+  <table class="table table-sm">
+    <thead><tr><th>Test</th><th>Result</th><th>Units</th><th>Flag</th><th>Reference range (from the instrument)</th><th>Approved</th></tr></thead>
+    <tbody>
+      {{#each lines}}
+      <tr>
+        <td>{{test}}{{#if hmisTestCode}} <span class="text-body-secondary small">({{hmisTestCode}})</span>{{/if}}</td>
+        {{#if approved}}
+        <td class="font-monospace fw-semibold">{{value}}{{#if corrected}} <span class="small fw-normal">(corrected)</span>{{/if}}</td><td>{{units}}</td><td>{{flags}}{{#if critical}} <strong>CRITICAL {{critical}}</strong>{{/if}}</td><td class="small">{{referenceRange}}</td><td class="small">{{approvedBy}}<br>{{approvedAt}}</td>
+        {{else}}
+        <td colspan="5" class="text-body-secondary">{{#if cancelled}}Cancelled{{else}}Pending{{/if}}</td>
+        {{/if}}
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  <footer class="small text-body-secondary border-top pt-1">Values as reported by the instrument and approved in the laboratory. {{#if pending}}Pending tests have no approved result yet; do not act on them from this report. {{/if}}The HMIS record is the official result where it has been received.</footer>
+</article>

@@ -71,7 +71,7 @@ const OIDC_KEYS = [
   'LIMS_OIDC_SCOPES', 'LIMS_OIDC_USERNAME_CLAIM', 'LIMS_OIDC_DISPLAY_NAME_CLAIM', 'LIMS_OIDC_GROUPS_CLAIM', 'LIMS_OIDC_LABEL', 'LIMS_OIDC_PROMPT_LOGIN',
 ];
 /** Every LIMS_* setting the services read. A LIMS_ key not listed here is a typo. */
-export const KNOWN_LIMS_KEYS = ['LIMS_TWO_PERSON_RULE', 'LIMS_INSECURE_COOKIES', 'LIMS_HOME', ...OIDC_KEYS];
+export const KNOWN_LIMS_KEYS = ['LIMS_TWO_PERSON_RULE', 'LIMS_INSECURE_COOKIES', 'LIMS_HOME', 'LIMS_REPORT_HEADER', ...OIDC_KEYS];
 /** Keys whose values are never shown. */
 export const SECRET_KEY = /SECRET|PASSWORD|TOKEN|PRIVATE|^DATABASE_URL$/i;
 
@@ -106,6 +106,7 @@ export function validateSource(src: ConfigSource, o: { exists?: (p: string) => b
     // The services compare with exact strings, so "True" or "yes" would silently mean the default.
     if (x !== undefined && x !== 'true' && x !== 'false') add('fail', k, `must be true or false, not "${x}"`);
   }
+  if ((v.get('LIMS_REPORT_HEADER') ?? '').length > 120) add('warn', 'LIMS_REPORT_HEADER', 'is longer than 120 characters; the report shows only the first 120');
   if (v.get('NODE_ENV') !== 'production') add('warn', 'NODE_ENV', `is ${v.has('NODE_ENV') ? `"${v.get('NODE_ENV')}"` : 'not set'}; set NODE_ENV=production on a server`);
   if (v.has('DATABASE_URL')) add('warn', 'DATABASE_URL', 'the database password is in the settings; move it to the credential file (lims secrets set database_url) and remove this line');
   const dbFile = v.get('DATABASE_URL_FILE');

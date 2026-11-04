@@ -15,4 +15,6 @@ export interface WebOptions {
   session: SessionPolicy;
   /** Hospital sign-in (10 §3); absent means local accounts only. */
   oidc?: OidcSettings;
+  /** First line of a printed result report, such as the lab's name and address (LIMS_REPORT_HEADER). */
+  reportHeader?: string;
 }

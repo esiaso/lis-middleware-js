@@ -36,6 +36,7 @@ async function main(): Promise<void> {
     logger,
     ...(oidc ? { oidc } : {}),
     twoPersonRule: process.env['LIMS_TWO_PERSON_RULE'] !== 'false',
+    ...(process.env['LIMS_REPORT_HEADER']?.trim() ? { reportHeader: process.env['LIMS_REPORT_HEADER'].trim().slice(0, 120) } : {}),
     // TLS terminates at the reverse proxy (11 §4); only a loopback-only test setup turns this off.
     secureCookies: process.env['LIMS_INSECURE_COOKIES'] !== 'true',
   });

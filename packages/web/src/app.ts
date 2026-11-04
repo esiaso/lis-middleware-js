@@ -18,6 +18,7 @@ import { DowntimeController } from './downtime.controller.js';
 import { AuditController } from './audit.controller.js';
 import { AutoverificationController } from './autoverification.controller.js';
 import { DeltaController } from './delta.controller.js';
+import { OrderReportController } from './order-report.controller.js';
 import { PatientsController } from './patients.controller.js';
 import { QcController } from './qc.controller.js';
 import { ReportsController } from './reports.controller.js';
@@ -36,7 +37,7 @@ class WebModule {
   static with(db: Db, opts: WebOptions, logger: Logger): DynamicModule {
     return {
       module: WebModule,
-      controllers: [AuthController, DashboardController, ResultsController, UnmatchedController, FailedController, InstrumentsController, OrdersController, DowntimeController, AuditController, CriticalController, CriticalCallController, AutoverificationController, DeltaController, QcController, PatientsController, ReportsController, UsersController, AccountController, HealthController],
+      controllers: [AuthController, DashboardController, ResultsController, UnmatchedController, FailedController, InstrumentsController, OrdersController, DowntimeController, AuditController, CriticalController, CriticalCallController, AutoverificationController, DeltaController, QcController, PatientsController, OrderReportController, ReportsController, UsersController, AccountController, HealthController],
       providers: [
         { provide: DB, useValue: db },
         { provide: WEB_OPTIONS, useValue: opts },
@@ -66,7 +67,7 @@ export interface CreateAppOptions extends Partial<WebOptions> {
  * the internet at runtime.
  */
 export async function createApp(db: Db, o: CreateAppOptions = {}): Promise<NestExpressApplication> {
-  const opts: WebOptions = { twoPersonRule: o.twoPersonRule ?? true, secureCookies: o.secureCookies ?? true, session: o.session ?? DEFAULT_SESSION_POLICY, ...(o.oidc ? { oidc: o.oidc } : {}) };
+  const opts: WebOptions = { twoPersonRule: o.twoPersonRule ?? true, secureCookies: o.secureCookies ?? true, session: o.session ?? DEFAULT_SESSION_POLICY, ...(o.oidc ? { oidc: o.oidc } : {}), ...(o.reportHeader ? { reportHeader: o.reportHeader } : {}) };
   const logger = o.logger ?? pino({ base: { svc: 'web' } });
   const app = await NestFactory.create<NestExpressApplication>(WebModule.with(db, opts, logger), { logger: false, bodyParser: true });
   const express = app.getHttpAdapter().getInstance() as { disable(name: string): void; set(name: string, v: unknown): void };
