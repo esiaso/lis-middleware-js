@@ -79,7 +79,7 @@ or from `DATABASE_URL` (development only; `lims verify` warns).
 
 `lims` commands built: `verify [--out <dir>]`, `status`, `db migrate`,
 `config validate`, `secrets set <name>`, `diag tcp <host> <port>`,
-`diag bundle`, `version`. Not built yet: `backup verify`. Settings are
+`diag bundle`, `backup create`, `backup verify`, `version`. Settings are
 environment variables (`/etc/lims/lims.env`, or the `<env>` entries of each
 WinSW XML), not `lims.yaml`.
 
@@ -237,6 +237,26 @@ validation file.
   consistently. Encrypted. Retain per D-21.
 * Also back up: `config/`, `secrets/` (encrypted, separate key custody),
   installer version in use, and audit export files.
+* **The middleware's own backup (built):** `lims backup create --out <dir>`
+  writes `lims-backup-<time>.dump` (PostgreSQL custom format, no owners or
+  grants) and a `.json` manifest: the SHA-256 of the dump, row counts of the
+  main tables, the audit chain head, the applied migrations and the bundle
+  version. The dump and the manifest come from one database snapshot, so
+  they agree even while the services run, and the backup itself is recorded
+  in the audit trail (`backup.create`) before the snapshot. It needs the
+  PostgreSQL client tools of the server's major version (`pg_dump`,
+  `pg_restore`; found on `PATH`, under `C:\Program Files\PostgreSQL\<n>\bin`,
+  or given with `--pg-bin`). The dump holds patient data: keep it with the
+  same protection as the database. It is for upgrades and hand-offs, and
+  does not replace the hospital's nightly backup and WAL archiving (D-21).
+* `lims backup verify <dump>` checks the file against its manifest and that
+  `pg_restore` can read it. With `--scratch-url-file <file>` (a file holding
+  the address of an **empty** scratch database, so its password is not on
+  the command line) it restores there, then checks the migrations, the
+  audit chain, its head against the manifest, and the row counts. It refuses
+  any database that already has tables, so a live database is never written
+  to. Afterwards it empties the scratch database again (`--keep` leaves the
+  data, which includes patient data). `--out <dir>` saves the report.
 * **Restore test monthly** to a separate VM: restore, start services with
   analyzer links **disabled** (config flag) and HMIS delivery **disabled**,
   run `lims verify` and the audit chain check, record the result.
@@ -254,7 +274,9 @@ validation file.
 ## 9. Upgrade and rollback
 
 1. Read release notes, especially migration notes.
-2. Take a backup and verify it (`lims backup verify`).
+2. Take a backup and verify it: `lims backup create --out <dir>`, then
+   `lims backup verify <dump> --scratch-url-file <file>` against an empty
+   scratch database (§8).
 3. Install the new version side by side (`<new-version>` dir).
 4. Stop jobs, web, then analyzer workers (analyzers retry; schedule in a
    quiet period and tell the lab).

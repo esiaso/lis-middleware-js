@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { hostname, tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import { basename, join } from 'node:path';
 import { createDb, databaseUrlFromEnv, SCHEMA_PATH, type Db } from '@lis/db';
+import { createBackup, verifyBackup } from './backup.js';
 import { defaultSources, formatChecks, parseEnvFile, parseServiceXml, summariseConfig, validateConfig, type ConfigSource } from './config.js';
 import { buildDiagBundle, collectLogs } from './diag.js';
 import { readSecretInput, SECRETS, setSecret } from './secrets.js';
@@ -21,6 +22,10 @@ const USAGE = `usage:
   lims diag tcp <host> <port>   test a TCP connection to a device server (sends nothing)
   lims diag bundle [--out <dir>] [--log-dir <dir>]
                                 one .tar.gz for support: reports, settings and recent logs, secrets removed
+  lims backup create --out <dir> [--pg-bin <dir>]
+                                a database dump from one snapshot, with a manifest (11 §9 step 2)
+  lims backup verify <file> [--scratch-url-file <file>] [--keep] [--pg-bin <dir>] [--out <dir>]
+                                check a backup; with an EMPTY scratch database, restore it there and check the audit chain
   lims version                  show the bundle version`;
 
 function flag(argv: string[], name: string): string | undefined {
@@ -90,6 +95,43 @@ async function main(argv: string[]): Promise<number> {
         env: { ...process.env, DATABASE_URL: databaseUrlFromEnv().url, PRISMA_HIDE_UPDATE_MESSAGE: '1', CHECKPOINT_DISABLE: '1' },
       });
       return r.status ?? 1;
+    }
+    case 'backup': {
+      const pgBin = flag(argv, '--pg-bin');
+      if (sub === 'create') {
+        const out = flag(argv, '--out');
+        if (!out) break;
+        const { url } = databaseUrlFromEnv();
+        const db = createDb(url);
+        try {
+          const root = findBundleRoot();
+          const version = root ? (await import('./verify.js')).readManifest(root).version : undefined;
+          const r = await createBackup(db, url, { outDir: out, ...(pgBin ? { pgBin } : {}), ...(version ? { version } : {}) });
+          process.stdout.write(`saved ${r.dump} (${r.m.bytes} bytes)\nmanifest ${r.manifest}\n${r.m.counts['audit_event']} audit events, head ${r.m.auditHead?.hash.slice(0, 16) ?? 'none'}…\nNext: lims backup verify ${r.dump} --scratch-url-file <file>\n`);
+          return 0;
+        } catch (e) {
+          process.stderr.write(`backup failed, nothing kept: ${(e as Error).message}\n`);
+          return 1;
+        } finally {
+          await db.$disconnect();
+        }
+      }
+      const [file] = rest;
+      if (sub !== 'verify' || !file) break;
+      // The scratch database address holds a password, so it is read from a file, never the command line.
+      const urlFile = flag(argv, '--scratch-url-file');
+      const restoreTo = urlFile ? readFileSync(urlFile, 'utf8').trim() : undefined;
+      const r = await verifyBackup(file, { ...(restoreTo ? { restoreTo } : {}), ...(pgBin ? { pgBin } : {}), keep: argv.includes('--keep') });
+      const text = formatChecks(`lims backup verify ${basename(file)} on ${hostname()} at ${new Date().toISOString()}`, r.checks, r.ok);
+      process.stdout.write(text);
+      const out = flag(argv, '--out');
+      if (out) {
+        mkdirSync(out, { recursive: true });
+        const saved = join(out, `backup-verify-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`);
+        writeFileSync(saved, text);
+        process.stdout.write(`saved ${saved}\n`);
+      }
+      return r.ok ? 0 : 1;
     }
     case 'config': {
       if (sub !== 'validate') break;
