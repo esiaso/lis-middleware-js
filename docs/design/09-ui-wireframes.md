@@ -247,6 +247,16 @@ profile on a captured message (from the link trace) without storing
 anything, so the administrator can check field positions before the
 interface test.
 
+## W-12 Turnaround times
+
+**Reports → Turnaround** (A-22): a date range (UTC days, both included, at
+most 366) and a priority filter. One row for all tests and one per test.
+Each step column shows the median and 90th percentile and how many results
+had both times: ordered to collected, collected to received in the lab,
+received to first value, first value to approved, approved to released,
+released to accepted by the HMIS, and collected to accepted. Approvers and
+auditors can download the per-result times as CSV, without patient names.
+
 ## W-10 Audit search and export
 
 ```

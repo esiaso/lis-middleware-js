@@ -1,0 +1,25 @@
+<h1 class="h4">Turnaround times</h1>
+<p class="text-body-secondary">From the times the middleware records for each result, grouped by the day the specimen was collected (UTC). Each step uses the first time it happened, so a correction or a resend does not move it. Median and 90th percentile, with the number of results that have both times. A step whose times are missing is left out of that step only; one whose times run backwards (for example a collection time entered after receipt) is left out and counted.</p>
+{{> issues}}
+<form method="get" action="/reports/turnaround" class="row g-2 align-items-end mb-3">
+  <div class="col-auto"><label class="form-label small" for="from">From</label><input class="form-control form-control-sm" type="date" id="from" name="from" value="{{from}}"></div>
+  <div class="col-auto"><label class="form-label small" for="to">To (included)</label><input class="form-control form-control-sm" type="date" id="to" name="to" value="{{to}}"></div>
+  <div class="col-auto"><label class="form-label small" for="priority">Priority</label><select class="form-select form-select-sm" id="priority" name="priority"><option value="">All</option>{{#each priorities}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></div>
+  <div class="col-auto"><button class="btn btn-outline-secondary btn-sm" type="submit">Show</button></div>
+  {{#if can.exportReports}}<div class="col-auto ms-auto"><a class="btn btn-outline-primary btn-sm" href="{{csv}}">Download CSV</a></div>{{/if}}
+</form>
+
+{{#if empty}}
+<p class="text-body-secondary">No results with a specimen collected in this range.</p>
+{{else}}
+<div class="table-responsive">
+<table class="table table-sm align-middle small">
+  <thead><tr><th>Test</th><th>Results</th>{{#each steps}}<th>{{label}}</th>{{/each}}</tr></thead>
+  <tbody>
+    {{#with all}}<tr class="fw-semibold"><td>{{test}}</td><td>{{results}}</td>{{#each steps}}<td>{{> tat-cell}}</td>{{/each}}</tr>{{/with}}
+    {{#each tests}}<tr><td class="font-monospace">{{test}}</td><td>{{results}}</td>{{#each steps}}<td>{{> tat-cell}}</td>{{/each}}</tr>{{/each}}
+  </tbody>
+</table>
+</div>
+<p class="small text-body-secondary">"Accepted by the HMIS" is the first delivery the HMIS accepted. Until the HMIS connector is configured (D-1 to D-6) that column stays empty.</p>
+{{/if}}
