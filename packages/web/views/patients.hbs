@@ -1,0 +1,14 @@
+<h1 class="h4">Patients</h1>
+<form method="get" action="/patients" class="row g-2 mb-3">
+  <div class="col-md-4"><input class="form-control" name="q" value="{{q}}" placeholder="MRN or family name" aria-label="MRN or family name" minlength="2" maxlength="60" autofocus></div>
+  <div class="col-auto"><button class="btn btn-outline-secondary" type="submit">Search</button></div>
+</form>
+{{#if searched}}
+<table class="table table-sm align-middle">
+  <thead><tr><th>Name</th><th>MRN</th><th>Sex</th><th>Born</th></tr></thead>
+  <tbody>
+    {{#each rows}}<tr><td><a href="/patients/{{id}}">{{name}}</a>{{#if provisional}} <span class="badge text-bg-warning">provisional</span>{{/if}}{{#if merged}} <span class="badge text-bg-secondary">reconciled</span>{{/if}}</td><td>{{mrn}}</td><td>{{sex}}</td><td>{{birthDate}}</td></tr>
+    {{else}}<tr><td colspan="4" class="text-body-secondary">No patient found. The middleware only knows patients the HMIS has sent orders for.</td></tr>{{/each}}
+  </tbody>
+</table>
+{{/if}}

@@ -261,6 +261,17 @@ column shows how many met the receipt-to-release target and how many were
 late; **Overdue results** lists unreleased results past target, and the
 dashboard shows a warning while any are.
 
+## W-13 Patient history
+
+**Patients**: search by MRN (an exact MRN opens the patient) or by the start
+of the family name, among patients the HMIS has sent orders for. The patient
+page is a cumulative report: one row per test, one column per collection
+time (newest first, the newest 12), each value linking to its result, with
+abnormal, critical and delta flags; values not yet approved are in italics.
+It holds results from this middleware only. A reconciled provisional record
+points to the HMIS patient its results moved to. The result and order pages
+link to it.
+
 ## W-10 Audit search and export
 
 ```
