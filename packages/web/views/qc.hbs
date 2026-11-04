@@ -1,0 +1,26 @@
+<div class="d-flex align-items-baseline gap-3"><h1 class="h4">QC</h1><a href="/qc/ranges">QC ranges &rarr;</a></div>
+<p class="text-body-secondary">QC results as the instruments send them, each checked against the lab's acceptable range for that instrument, test and control. The middleware applies no Westgard or other multi-rule checks, and never uses QC results as patient results. A result without a range is kept but not judged.</p>
+
+{{#if failing}}
+<div class="alert alert-danger" role="alert">
+  <strong>Latest QC out of range</strong>
+  <ul class="mb-0">{{#each failing}}<li>{{instrument}}, {{test}}, {{control}}: {{detail}} ({{at}})</li>{{/each}}</ul>
+  <p class="small mb-0 mt-1">Each line stays until a later result for that control is in range. Follow the lab's QC procedure for patient results run since.</p>
+</div>
+{{/if}}
+
+<form method="get" action="/qc" class="row g-2 mb-3">
+  <div class="col-auto"><select class="form-select form-select-sm" name="instrument" aria-label="Instrument"><option value="">All instruments</option>{{#each instruments}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></div>
+  <div class="col-auto"><button class="btn btn-outline-secondary btn-sm" type="submit">Show</button></div>
+</form>
+
+<table class="table table-sm align-middle">
+  <thead><tr><th>Received</th><th>Instrument</th><th>Test</th><th>Control</th><th>Level</th><th>Value</th><th>Check</th></tr></thead>
+  <tbody>
+    {{#each rows}}
+    <tr><td class="small">{{at}}</td><td>{{instrument}}</td><td class="font-monospace">{{test}}</td><td>{{control}}</td><td>{{level}}</td><td class="font-monospace">{{value}} {{units}}</td><td><span class="badge text-bg-{{outcome.tone}}">{{outcome.label}}</span> <span class="small">{{detail}}</span></td></tr>
+    {{else}}
+    <tr><td colspan="7" class="text-body-secondary">No QC results received yet.</td></tr>
+    {{/each}}
+  </tbody>
+</table>

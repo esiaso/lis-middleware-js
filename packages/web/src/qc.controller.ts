@@ -1,0 +1,117 @@
+import { Body, Controller, Get, Inject, Param, Post, Query, Req, Res } from '@nestjs/common';
+import type { ResultValue } from '@lis/contracts';
+import type { Db } from '@lis/db';
+import { parseQcRange } from '@lis/domain';
+import { addQcRange, downtimeTestCatalogue, failingQc, InvalidInput, retireQcRange } from '@lis/lab';
+import type { Response } from 'express';
+import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
+import { formatTime, formatValue } from './format.js';
+import { Roles, type WebRequest } from './security.js';
+import { DB } from './tokens.js';
+
+const OUTCOME: Record<string, { label: string; tone: string }> = {
+  IN_RANGE: { label: 'in range', tone: 'success' },
+  OUT_OF_RANGE: { label: 'out of range', tone: 'danger' },
+  UNITS_DIFFER: { label: 'units differ', tone: 'warning' },
+  NO_RANGE: { label: 'no range', tone: 'secondary' },
+  NOT_NUMERIC: { label: 'not compared', tone: 'secondary' },
+};
+const control = (c: { controlName: string | null; controlLot: string | null }) => [c.controlName, c.controlLot && `lot ${c.controlLot}`].filter(Boolean).join(', ') || '(not named)';
+
+/** QC results from the instruments and the lab's acceptable ranges (08 §12, A-21). */
+@Controller('qc')
+export class QcController {
+  constructor(@Inject(DB) private readonly db: Db) {}
+
+  @Get()
+  async log(@Req() req: WebRequest, @Res() res: Response, @Query('instrument') instrument?: string): Promise<void> {
+    const filter = typeof instrument === 'string' && instrument ? instrument : undefined;
+    const [failing, rows, instruments] = await Promise.all([
+      failingQc(this.db),
+      this.db.qcEvaluation.findMany({ where: filter ? { instrumentId: filter } : {}, orderBy: [{ at: 'desc' }, { id: 'desc' }], take: 200 }),
+      this.db.instrument.findMany({ orderBy: { displayName: 'asc' }, select: { id: true, displayName: true } }),
+    ]);
+    const name = new Map(instruments.map((i) => [i.id, i.displayName]));
+    page(req, res, 'qc', {
+      title: 'QC',
+      refresh: 60,
+      failing: failing.map((f) => ({ instrument: f.instrumentName, test: f.localTestCode, control: control(f), detail: f.detail, at: formatTime(f.at) })),
+      instruments: instruments.map((i) => ({ id: i.id, name: i.displayName, selected: i.id === filter })),
+      rows: rows.map((e) => ({
+        at: formatTime(e.at),
+        instrument: name.get(e.instrumentId) ?? e.instrumentId,
+        test: e.localTestCode ?? '',
+        control: control(e),
+        level: e.controlLevel ?? '',
+        value: formatValue(e.value as unknown as ResultValue),
+        units: e.units ?? '',
+        outcome: OUTCOME[e.outcome] ?? { label: e.outcome, tone: 'secondary' },
+        detail: e.detail,
+      })),
+    });
+  }
+
+  @Get('ranges')
+  async ranges(@Req() req: WebRequest, @Res() res: Response): Promise<void> {
+    await this.renderRanges(req, res, {}, []);
+  }
+
+  private async renderRanges(req: WebRequest, res: Response, v: Record<string, string>, issues: string[], status = 200): Promise<void> {
+    const [ranges, retired, tests, instruments] = await Promise.all([
+      this.db.qcRange.findMany({ where: { active: true }, orderBy: [{ instrumentId: 'asc' }, { localTestCode: 'asc' }, { createdAt: 'asc' }], include: { instrument: { select: { displayName: true } } } }),
+      this.db.qcRange.findMany({ where: { active: false }, orderBy: { retiredAt: 'desc' }, take: 50, include: { instrument: { select: { displayName: true } } } }),
+      downtimeTestCatalogue(this.db),
+      this.db.instrument.findMany({ orderBy: { displayName: 'asc' }, select: { id: true, displayName: true } }),
+    ]);
+    const row = (r: (typeof ranges)[number]) => ({
+      id: r.id,
+      instrument: r.instrument.displayName,
+      test: r.localTestCode,
+      control: control(r),
+      low: r.low,
+      high: r.high,
+      units: r.units,
+      reference: r.reference,
+      by: r.createdBy,
+      at: formatTime(r.createdAt),
+      retiredBy: r.retiredBy ?? '',
+      retiredAt: formatTime(r.retiredAt),
+      retireReason: r.retireReason ?? '',
+    });
+    res.status(status);
+    page(req, res, 'qc-ranges', {
+      title: 'QC ranges',
+      ranges: ranges.map(row),
+      retired: retired.map(row),
+      tests: tests.map((code) => ({ code, selected: code === v['localTestCode'] })),
+      instruments: instruments.map((i) => ({ id: i.id, name: i.displayName, selected: i.id === v['instrumentId'] })),
+      v,
+      issues,
+    });
+  }
+
+  @Post('ranges')
+  @Roles('approver')
+  async add(@Req() req: WebRequest, @Res() res: Response, @Body() body: Form): Promise<void> {
+    const keys = ['instrumentId', 'localTestCode', 'controlLot', 'controlName', 'low', 'high', 'units', 'reference'] as const;
+    const v = Object.fromEntries(keys.map((k) => [k, str(body, k)])) as Record<(typeof keys)[number], string>;
+    const parsed = parseQcRange(v);
+    if (!parsed.ok) return this.renderRanges(req, res, v, parsed.issues, 422);
+    await requireStepUp(this.db, req, str(body, 'password'));
+    try {
+      await addQcRange(this.db, req.user!.username, v);
+    } catch (e) {
+      if (e instanceof InvalidInput) return this.renderRanges(req, res, v, e.issues, 422);
+      throw e;
+    }
+    res.redirect(303, '/qc/ranges?notice=qc-range-added');
+  }
+
+  @Post('ranges/:id/retire')
+  @Roles('approver')
+  async retire(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Body() body: Form): Promise<void> {
+    await requireStepUp(this.db, req, str(body, 'password'));
+    await retireQcRange(this.db, req.user!.username, uuidParam(id), str(body, 'reason'));
+    res.redirect(303, '/qc/ranges?notice=qc-range-retired');
+  }
+}

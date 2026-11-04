@@ -80,6 +80,8 @@ export const NOTICES: Record<string, string> = {
   'autoverify-retired': 'Autoverification turned off for that test. Results already approved stay approved.',
   'delta-added': 'Delta rule saved. It applies to results that arrive from now on.',
   'delta-retired': 'Delta rule retired. Results already flagged keep their flag.',
+  'qc-range-added': 'QC range saved. It applies to QC results that arrive from now on.',
+  'qc-range-retired': 'QC range retired. Earlier checks keep their outcome.',
   'limit-retired': 'Critical limit retired. Results already flagged keep their flag.',
 };
 

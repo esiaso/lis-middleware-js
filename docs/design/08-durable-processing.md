@@ -247,9 +247,9 @@ hospital's email/SMS gateway or monitoring system.
   with its detail and the rule id). A pass sets the result to `approved` by
   `system:autoverify` with an `approve` event, so the outbox trigger accepts
   the later release; release is still done by a person. Repeats,
-  dilutions, corrections and manual values are never autoverified. Not
-  built: QC status (the director confirms how QC is covered when adding a
-  rule). The result page shows the decision and any failed checks.
+  dilutions, corrections and manual values are never autoverified. A rule
+  can also require QC in range for the test on that instrument within a
+  number of hours (A-21). The result page shows the decision and any failed checks.
 
   **Delta check, built** (A-20): approvers keep rules at **Autoverification →
   Delta checks** (`delta_rule`, one active per test, audited and step-up
@@ -259,6 +259,14 @@ hospital's email/SMS gateway or monitoring system.
   `delta_previous_result_id`). Reviewers see the change, the previous value
   and a link to it; the results list shows a badge. A flag does not block
   approval; autoverification holds it.
+
+  **QC log, built** (A-21): QC observations, already kept apart from patient
+  results (T-16), are each checked at intake against the lab's ranges
+  (`qc_range`, one active per instrument, test and control; audited and
+  step-up confirmed) and the outcome is kept (`qc_evaluation`,
+  append-only). The **QC** page lists recent results and every control whose
+  latest result is out of range; the dashboard warns until a later result is
+  in range. No multi-rule checks.
 * **Critical results**: a configurable critical range per test and patient
   group. When a version crosses it: flag in review, require the approver to
   record the communication (who was told, when, read-back confirmed), and

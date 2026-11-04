@@ -4,6 +4,7 @@ import { addInstrumentVersion, newResult, type VersionKind } from '@lis/domain';
 import { autoverifyNewResult } from './autoverification.js';
 import { criticalFor } from './critical.js';
 import { deltaColumns, deltaFor } from './delta.js';
+import { evaluateQcMessage } from './qc.js';
 import { loadResult, saveResult } from './results.js';
 import type { Tx } from './tx.js';
 
@@ -80,7 +81,7 @@ export async function matchNormalizedMessage(tx: Tx, normalizedMessageId: string
 
   // Rule 6: QC never reaches patient tables.
   if (nm.sampleClass === 'qc') {
-    summary.qc = nm.observations.length;
+    summary.qc = await evaluateQcMessage(tx, normalizedMessageId);
     return summary;
   }
   const specimen = nm.sampleId && !nm.sampleIdReadError

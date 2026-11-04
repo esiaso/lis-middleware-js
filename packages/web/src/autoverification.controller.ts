@@ -34,6 +34,7 @@ export class AutoverificationController {
       high: r.high,
       units: r.units,
       reference: r.reference,
+      qcHours: r.qcWithinHours ?? '',
       by: r.createdBy,
       at: formatTime(r.createdAt),
       passed: n(r.id, true),
@@ -57,7 +58,7 @@ export class AutoverificationController {
   @Post()
   @Roles('approver')
   async add(@Req() req: WebRequest, @Res() res: Response, @Body() body: Form): Promise<void> {
-    const v = { localTestCode: str(body, 'localTestCode'), low: str(body, 'low'), high: str(body, 'high'), units: str(body, 'units'), reference: str(body, 'reference'), qc: str(body, 'qc') };
+    const v = { localTestCode: str(body, 'localTestCode'), low: str(body, 'low'), high: str(body, 'high'), units: str(body, 'units'), reference: str(body, 'reference'), qc: str(body, 'qc'), qcWithinHours: str(body, 'qcWithinHours') };
     const input = { ...v, qcAcknowledged: v.qc === 'yes' };
     // Values first, so a typo does not use up a step-up.
     const parsed = parseAutoverifyRule(input);
