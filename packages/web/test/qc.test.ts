@@ -167,5 +167,15 @@ describe.skipIf(!url)('QC log over HTTP', () => {
     await qc([['K', '4.85']]); // z 3.5: 1-3s, inside the range
     e = await db.qcEvaluation.findFirstOrThrow({ orderBy: [{ at: 'desc' }, { id: 'desc' }] });
     expect(e.westgardReject).toEqual(['1-3s', '2-2s']);
+
+    // The Levey-Jennings chart plots every numeric result for the range, linked from the log.
+    const range = await db.qcRange.findFirstOrThrow();
+    expect((await dr.get('/qc')).html).toContain(`/qc/ranges/${range.id}/chart`);
+    const chart = await dr.get(`/qc/ranges/${range.id}/chart`);
+    expect(chart.status).toBe(200);
+    expect(chart.html.match(/<circle class="lj-mark"/g)?.length).toBe(5);
+    expect(chart.html).toContain('mean 4.5');
+    expect(chart.html).toContain('4.85 mmol/L, z 3.50, breaks 1-3s, 2-2s, warning 1-2s'); // the point's tooltip
+    expect((await dr.get(`/qc/ranges/${uuidv7()}/chart`)).status).toBe(404);
   });
 });

@@ -1,0 +1,34 @@
+<p><a href="/qc/ranges">&larr; QC ranges</a></p>
+<h1 class="h4">QC chart{{#unless range.active}} <span class="badge text-bg-secondary">retired range</span>{{/unless}}</h1>
+<p class="mb-1"><strong>{{range.instrument}}</strong> · <span class="font-monospace">{{range.test}}</span> · {{range.control}}</p>
+<p class="small text-body-secondary">Acceptable {{range.low}} to {{range.high}} {{range.units}}{{#if range.target}} · target {{range.target}}{{/if}}{{#if range.rules}} · Westgard {{range.rules}}{{/if}}. The latest {{limit}} numeric results for this range, oldest on the left. Results in other units are not plotted; they are on the <a href="/qc">QC log</a>.</p>
+
+{{#if chart.points}}
+<figure class="lj-figure">
+  <svg class="lj-chart" viewBox="0 0 {{chart.width}} {{chart.height}}" role="img" aria-label="Levey-Jennings chart; the values are in the table below">
+    {{#each chart.lines}}
+    <line class="lj-line lj-{{kind}}" x1="{{../chart.left}}" x2="{{../chart.right}}" y1="{{y}}" y2="{{y}}"></line>
+    <text class="lj-axis" x="{{../chart.left}}" dx="-4" y="{{y}}" dy="3" text-anchor="end">{{label}}</text>
+    {{/each}}
+    <path class="lj-path" d="{{chart.path}}"></path>
+    {{#each chart.points}}
+    <g class="{{cls}}">
+      <title>{{title}}</title>
+      {{#if clipped}}{{#if (eq clipped "above")}}<path class="lj-mark" d="M{{x}} {{y}} l-5 9 h10 z"></path>{{else}}<path class="lj-mark" d="M{{x}} {{y}} l-5 -9 h10 z"></path>{{/if}}{{else}}<circle class="lj-mark" cx="{{x}}" cy="{{y}}" r="4"></circle>{{/if}}
+    </g>
+    {{/each}}
+  </svg>
+  <figcaption class="small text-body-secondary">Dots: <span class="lj-key lj-ok">accepted</span>, <span class="lj-key lj-rule">Westgard rejection</span>, <span class="lj-key lj-bad">out of range</span>. A triangle is a value beyond the chart's edge.</figcaption>
+</figure>
+{{/if}}
+
+<table class="table table-sm align-middle">
+  <thead><tr><th>Received</th><th>Value</th><th>Check</th></tr></thead>
+  <tbody>
+    {{#each rows}}
+    <tr><td class="small">{{at}}</td><td class="font-monospace text-nowrap">{{shown}}</td><td><span class="badge text-bg-{{badge.tone}}">{{badge.label}}</span> <span class="small">{{detail}}</span></td></tr>
+    {{else}}
+    <tr><td colspan="3" class="text-body-secondary">No numeric QC results for this range yet.</td></tr>
+    {{/each}}
+  </tbody>
+</table>

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { ResultValue } from '@lis/contracts';
 import type { Db } from '@lis/db';
 import { parseQcRange, WESTGARD_LABEL, WESTGARD_RULES } from '@lis/domain';
@@ -6,6 +6,7 @@ import { addQcRange, downtimeTestCatalogue, failingQc, InvalidInput, retireQcRan
 import type { Response } from 'express';
 import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
 import { formatTime, formatValue } from './format.js';
+import { leveyJennings } from './levey-jennings.js';
 import { Roles, type WebRequest } from './security.js';
 import { DB } from './tokens.js';
 
@@ -17,6 +18,7 @@ const OUTCOME: Record<string, { label: string; tone: string }> = {
   NO_RANGE: { label: 'no range', tone: 'secondary' },
   NOT_NUMERIC: { label: 'not compared', tone: 'secondary' },
 };
+const CHART_POINTS = 60;
 const list = (raw: unknown): string[] => (Array.isArray(raw) ? raw : typeof raw === 'string' ? [raw] : []).filter((x): x is string => typeof x === 'string');
 const control = (c: { controlName: string | null; controlLot: string | null }) => [c.controlName, c.controlLot && `lot ${c.controlLot}`].filter(Boolean).join(', ') || '(not named)';
 
@@ -49,6 +51,7 @@ export class QcController {
         units: e.units ?? '',
         outcome: OUTCOME[e.outcome] ?? { label: e.outcome, tone: 'secondary' },
         warn: e.westgardWarn.length > 0 && e.outcome === 'IN_RANGE',
+        rangeId: e.rangeId,
         detail: e.detail,
       })),
     });
@@ -93,6 +96,42 @@ export class QcController {
       westgard: WESTGARD_RULES.map((r) => ({ value: r, label: WESTGARD_LABEL[r], checked: rules.includes(r) })),
       v,
       issues,
+    });
+  }
+
+  /** Levey-Jennings chart of one range's latest QC results (W-15). */
+  @Get('ranges/:id/chart')
+  async chart(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string): Promise<void> {
+    const r = await this.db.qcRange.findUnique({ where: { id: uuidParam(id) }, include: { instrument: { select: { displayName: true } } } });
+    if (!r) throw new NotFoundException();
+    const evals = await this.db.qcEvaluation.findMany({
+      where: { rangeId: r.id, outcome: { in: ['IN_RANGE', 'OUT_OF_RANGE', 'RULE_VIOLATION'] } },
+      orderBy: [{ at: 'desc' }, { id: 'desc' }],
+      take: CHART_POINTS,
+    });
+    const rows = evals
+      .reverse()
+      .map((e) => ({ e, v: e.value as unknown as ResultValue }))
+      .filter((x): x is { e: (typeof evals)[number]; v: Extract<ResultValue, { kind: 'numeric' }> } => x.v.kind === 'numeric')
+      .map(({ e, v }) => ({
+        value: Number(v.value),
+        at: formatTime(e.at),
+        outcome: e.outcome,
+        label: `${v.value} ${e.units ?? ''}${e.zScore !== null ? `, z ${e.zScore.toFixed(2)}` : ''}${e.westgardReject.length ? `, breaks ${e.westgardReject.join(', ')}` : ''}${e.westgardWarn.length ? `, warning ${e.westgardWarn.join(', ')}` : ''}`,
+        shown: `${v.value} ${e.units ?? ''}`,
+        badge: OUTCOME[e.outcome] ?? { label: e.outcome, tone: 'secondary' },
+        detail: e.detail,
+      }));
+    const chart = leveyJennings({ low: Number(r.low), high: Number(r.high), mean: r.targetMean === null ? null : Number(r.targetMean), sd: r.targetSd === null ? null : Number(r.targetSd) }, rows);
+    page(req, res, 'qc-chart', {
+      title: 'QC chart',
+      range: {
+        instrument: r.instrument.displayName, test: r.localTestCode, control: control(r), low: r.low, high: r.high, units: r.units,
+        target: r.targetMean && r.targetSd ? `${r.targetMean} ± ${r.targetSd}` : '', rules: r.westgardRules.join(', '), active: r.active,
+      },
+      chart,
+      rows: [...rows].reverse(),
+      limit: CHART_POINTS,
     });
   }
 

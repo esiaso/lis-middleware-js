@@ -270,7 +270,7 @@ hospital's email/SMS gateway or monitoring system.
   mean and SD and the lab's choice of 1-2s (warning), 1-3s, 2-2s, 4-1s and
   10x, checked along that control's earlier accepted results; a rejection
   inside the range is `RULE_VIOLATION`. The z score and the rules broken are
-  kept on `qc_evaluation`. No R-4s, no charts.
+  kept on `qc_evaluation`. No R-4s. Each range has a Levey-Jennings chart (W-15).
 * **Critical results**: a configurable critical range per test and patient
   group. When a version crosses it: flag in review, require the approver to
   record the communication (who was told, when, read-back confirmed), and

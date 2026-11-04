@@ -8,7 +8,7 @@
   <tbody>
     {{#each ranges}}
     <tr>
-      <td>{{instrument}}</td><td class="font-monospace">{{test}}</td><td>{{control}}</td><td class="font-monospace">{{low}} to {{high}}</td><td>{{units}}</td><td class="font-monospace">{{target}}</td><td class="small">{{rules}}</td><td class="small">{{reference}}</td><td class="small">{{by}}, {{at}}</td>
+      <td>{{instrument}}</td><td class="font-monospace">{{test}}</td><td>{{control}} <a class="small" href="/qc/ranges/{{id}}/chart">chart</a></td><td class="font-monospace">{{low}} to {{high}}</td><td>{{units}}</td><td class="font-monospace">{{target}}</td><td class="small">{{rules}}</td><td class="small">{{reference}}</td><td class="small">{{by}}, {{at}}</td>
       {{#if @root.can.approve}}
       <td>
         <details><summary class="small">Retire</summary>
@@ -58,6 +58,6 @@
 <h2 class="h6 mt-4">Retired ranges</h2>
 <table class="table table-sm small text-body-secondary">
   <thead><tr><th>Instrument</th><th>Test</th><th>Control</th><th>Range</th><th>Westgard</th><th>Retired</th><th>Reason</th></tr></thead>
-  <tbody>{{#each retired}}<tr><td>{{instrument}}</td><td class="font-monospace">{{test}}</td><td>{{control}}</td><td>{{low}} to {{high}} {{units}}</td><td>{{target}} {{rules}}</td><td>{{retiredBy}}, {{retiredAt}}</td><td>{{retireReason}}</td></tr>{{/each}}</tbody>
+  <tbody>{{#each retired}}<tr><td>{{instrument}}</td><td class="font-monospace">{{test}}</td><td>{{control}} <a href="/qc/ranges/{{id}}/chart">chart</a></td><td>{{low}} to {{high}} {{units}}</td><td>{{target}} {{rules}}</td><td>{{retiredBy}}, {{retiredAt}}</td><td>{{retireReason}}</td></tr>{{/each}}</tbody>
 </table>
 {{/if}}

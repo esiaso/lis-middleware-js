@@ -9,6 +9,22 @@
 @page label { size: 50mm 25mm; margin: 0; }
 /* Result report (W-14): A4, black on white. */
 .result-report { max-width: 190mm; background: #fff; color: #000; }
+/* Levey-Jennings chart (W-15). Colours follow the Bootstrap theme. */
+.lj-chart { width: 100%; max-width: 720px; height: auto; display: block; }
+.lj-line { stroke: var(--bs-border-color); stroke-width: 1; }
+.lj-mean { stroke: var(--bs-body-color); }
+.lj-sd2 { stroke-dasharray: 4 3; }
+.lj-sd3 { stroke: var(--bs-warning); stroke-dasharray: 4 3; }
+.lj-limit { stroke: var(--bs-danger); }
+.lj-axis { font-size: 10px; fill: var(--bs-secondary-color); }
+.lj-path { fill: none; stroke: var(--bs-secondary-color); stroke-width: 1; }
+.lj-ok .lj-mark { fill: var(--bs-success); }
+.lj-rule .lj-mark { fill: var(--bs-warning); stroke: var(--bs-body-color); }
+.lj-bad .lj-mark { fill: var(--bs-danger); }
+.lj-key::before { content: ""; display: inline-block; width: .6em; height: .6em; border-radius: 50%; margin-right: .25em; }
+.lj-key.lj-ok::before { background: var(--bs-success); }
+.lj-key.lj-rule::before { background: var(--bs-warning); }
+.lj-key.lj-bad::before { background: var(--bs-danger); }
 @media print {
   .navbar, .alert { display: none !important; }
   .result-report { max-width: none; }
