@@ -1,10 +1,10 @@
 import { Body, Controller, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { ResultValue } from '@lis/contracts';
 import type { Db } from '@lis/db';
-import { accessionSpecimen, InvalidInput, receiveSpecimen, recordLabelPrint, rejectSpecimen, REJECTION_REASONS, type RejectionReason } from '@lis/lab';
+import { accessionSpecimen, InvalidInput, matchAddedTest, receiveSpecimen, recordLabelPrint, rejectSpecimen, REJECTION_REASONS, type RejectionReason } from '@lis/lab';
 import bwipjs from 'bwip-js';
 import type { Response } from 'express';
-import { page, str, uuidParam, type Form } from './controllers.js';
+import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
 import { fromZonedLocal, zonedLocal } from '@lis/domain';
 import { displayTimeZone, formatTime, formatValue, STATUS_LABELS } from './format.js';
 import { Roles, type WebRequest } from './security.js';
@@ -90,7 +90,11 @@ export class OrdersController {
       include: { patient: true, tests: { orderBy: { hmisLineId: 'asc' }, include: { result: true } }, specimens: { orderBy: { createdAt: 'asc' }, include: { tests: true } } },
     });
     if (!o) throw new NotFoundException();
-    const pending = o.tests.filter((t) => !t.specimenId);
+    // A test the lab added (A-34) is never collected: it came with its specimen.
+    const pending = o.tests.filter((t) => !t.specimenId && t.source !== 'LAB_ADDED');
+    const waitingAdded = o.tests.filter((t) => t.source === 'LAB_ADDED' && t.status === 'active');
+    const free = (t: (typeof o.tests)[number]) => t.source === 'HMIS' && t.status === 'active' && !t.specimenId && !t.result;
+    const lineOf = new Map(o.tests.map((t) => [t.id, t.hmisLineId]));
     const groups = new Map<string, typeof pending>();
     for (const t of pending) {
       const key = t.specimenType ?? 'Specimen type not given by the HMIS';
@@ -102,7 +106,10 @@ export class OrdersController {
       patient: patientLine(o.patient),
       groups: [...groups].map(([type, tests]) => ({
         type,
-        tests: tests.map((t) => ({ id: t.id, code: t.localTestCode ?? t.hmisTestCode, unmapped: !t.localTestCode, cancelled: t.status === 'cancelled' })),
+        tests: tests.map((t) => ({
+          id: t.id, code: t.localTestCode ?? t.hmisTestCode, unmapped: !t.localTestCode, cancelled: t.status === 'cancelled',
+          matchesAdded: free(t) && waitingAdded.some((a) => a.localTestCode === t.localTestCode),
+        })),
         collectable: tests.some((t) => t.status === 'active'),
       })),
       specimens: o.specimens.map((s) => ({
@@ -117,12 +124,34 @@ export class OrdersController {
         tests: s.tests.map((t) => t.localTestCode ?? t.hmisTestCode).join(' '),
         rejection: s.rejectionReason ?? '',
       })),
+      added: o.tests.filter((t) => t.source === 'LAB_ADDED').map((t) => ({
+        id: t.id,
+        code: t.localTestCode ?? t.hmisTestCode,
+        requestedBy: t.requestedBy ?? '',
+        addedBy: t.addedBy ?? '',
+        confirmedBy: t.addedConfirmedBy ?? '',
+        reason: t.addedReason ?? '',
+        at: formatTime(t.addedAt),
+        waiting: t.status === 'active',
+        matched: t.matchedToId ? { line: lineOf.get(t.matchedToId) ?? '', by: t.matchedBy ?? '', at: formatTime(t.matchedAt) } : null,
+        resultId: t.result?.id ?? '',
+        candidates: t.status === 'active' ? o.tests.filter((h) => free(h) && h.localTestCode === t.localTestCode).map((h) => ({ id: h.id, line: h.hmisLineId, code: h.hmisTestCode })) : [],
+      })),
       reasons: Object.entries(REJECTION_REASONS).map(([value, label]) => ({ value, label })),
       now: zonedLocal(new Date(), displayTimeZone()),
     });
   }
 
   /** Collect the chosen tests into one specimen, then go straight to its label. */
+  /** Move a test the lab added onto the clinician's HMIS order line once it has arrived (A-34). */
+  @Post('orders/:id/match-added')
+  @Roles('technologist', 'approver')
+  async matchAdded(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Body() body: Form): Promise<void> {
+    await requireStepUp(this.db, req, str(body, 'password'));
+    await matchAddedTest(this.db, uuidParam(str(body, 'addedTestId')), uuidParam(str(body, 'hmisTestId')), req.user!.username);
+    res.redirect(303, `/orders/${uuidParam(id)}?notice=added-test-matched`);
+  }
+
   @Post('orders/:id/collect')
   @Roles('operator', 'technologist', 'approver')
   async collect(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Body() body: Form): Promise<void> {

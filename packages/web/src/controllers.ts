@@ -3,7 +3,7 @@ import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, P
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
 import { migrationStatus, type Db } from '@lis/db';
 import { AUTOVERIFY_ACTOR, clinicalGateFor } from '@lis/domain';
-import { activeEntry, addResultComment, approve, confirmLink, decisionsFor, failingQc, hmisLinkStatus, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, standardCommentsFor, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
+import { activeEntry, addResultComment, approve, confirmLink, decisionsFor, failingQc, hmisLinkStatus, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeAddTest, proposeLink, release, replay, review, standardCommentsFor, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
 import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS, type LoginResult } from './auth.js';
 import { directory } from './ldap.js';
@@ -360,6 +360,7 @@ export class ResultsController {
       instrument: inst ? { name: inst.displayName, model: `${inst.manufacturer} ${inst.model}` } : null,
       notClinical: gate.releasable ? null : gate.detail,
       downtime: t.order.source === 'MANUAL_DOWNTIME' ? { orderId: t.order.id, id: t.order.hmisOrderId } : null,
+      addedByLab: t.source === 'LAB_ADDED' ? { orderId: t.order.id, requestedBy: t.requestedBy ?? '' } : null,
       versions: r.versions.map((v) => ({
         no: v.versionNo,
         kind: v.kind,
@@ -390,7 +391,7 @@ export class ResultsController {
       actions: {
         review: r.status === 'received' || r.status === 'reviewed',
         approve: r.status === 'reviewed',
-        release: r.status === 'approved' && gate.releasable && t.order.source !== 'MANUAL_DOWNTIME',
+        release: r.status === 'approved' && gate.releasable && t.order.source !== 'MANUAL_DOWNTIME' && t.source !== 'LAB_ADDED',
         replay: r.status === 'failed',
         correct: r.status === 'sent' || r.status === 'hmis_confirmed',
       },
@@ -502,7 +503,15 @@ export class UnmatchedController {
     const target = u.proposedTestId
       ? await this.db.orderedTest.findUnique({ where: { id: u.proposedTestId }, include: { specimen: true, order: { include: { patient: true } } } })
       : null;
-    const p = target?.order.patient;
+    // An add-test proposal (A-34) names a specimen; the test does not exist until it is confirmed.
+    const addTo = u.proposedAction === 'ADD_TEST' && u.proposedSpecimenId
+      ? await this.db.specimen.findUnique({ where: { id: u.proposedSpecimenId }, include: { order: { include: { patient: true } } } })
+      : null;
+    const p = target?.order.patient ?? addTo?.order.patient;
+    // The tube the instrument read, for adding its test to that tube's order.
+    const read = u.reason === 'NOT_ORDERED' && o.normalizedMessage.sampleId
+      ? await this.db.specimen.findFirst({ where: { barcode: o.normalizedMessage.sampleId, barcodeActive: true } })
+      : null;
     page(req, res, 'unmatched-detail', {
       title: 'Unmatched result',
       u: {
@@ -518,6 +527,8 @@ export class UnmatchedController {
         instrumentId: o.normalizedMessage.instrumentId,
         sampleId: o.normalizedMessage.sampleId ?? '(no barcode)',
         readError: o.normalizedMessage.sampleIdReadError,
+        canAdd: u.reason === 'NOT_ORDERED',
+        accession: read?.accessionNo ?? '',
         code: o.instrumentTestCode,
         local: o.localTestCode ?? '',
         mapped: o.mapping === 'MAPPED' && Boolean(o.localTestCode),
@@ -525,15 +536,17 @@ export class UnmatchedController {
         units: o.units ?? '',
         flags: o.abnormalFlags.join(' '),
       },
-      proposal: target
+      proposal: target || addTo
         ? {
+            add: Boolean(addTo),
+            requestedBy: u.proposedRequestedBy ?? '',
             by: u.proposedBy,
             at: formatTime(u.proposedAt),
             reason: u.proposalReason ?? '',
-            accessionNo: target.specimen?.accessionNo ?? '',
-            specimenId: target.specimen?.id ?? '',
-            test: target.localTestCode ?? target.hmisTestCode,
-            hmisOrderId: target.order.hmisOrderId,
+            accessionNo: target?.specimen?.accessionNo ?? addTo?.accessionNo ?? '',
+            specimenId: target?.specimen?.id ?? addTo?.id ?? '',
+            test: target ? (target.localTestCode ?? target.hmisTestCode) : (o.localTestCode ?? ''),
+            hmisOrderId: (target ?? addTo)!.order.hmisOrderId,
             patient: p ? `${[p.familyName?.toUpperCase(), p.givenName].filter(Boolean).join(', ') || '(no name)'} · MRN ${p.mrn}${p.birthDate ? ` · born ${p.birthDate.toISOString().slice(0, 10)}` : ''}` : '',
             mine: u.proposedBy === req.user!.username,
           }
@@ -546,6 +559,14 @@ export class UnmatchedController {
   async propose(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Body() body: Form): Promise<void> {
     await proposeLink(this.db, uuidParam(id), req.user!.username, { accessionNo: str(body, 'accessionNo'), reason: str(body, 'reason') });
     res.redirect(303, `/unmatched/${id}?notice=link-proposed`);
+  }
+
+  /** First person: add the instrument's test to the specimen's order, as a clinician asked (A-34). */
+  @Post(':id/add-test')
+  @Roles('technologist', 'approver')
+  async addTest(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Body() body: Form): Promise<void> {
+    await proposeAddTest(this.db, uuidParam(id), req.user!.username, { accessionNo: str(body, 'accessionNo'), requestedBy: str(body, 'requestedBy'), reason: str(body, 'reason') });
+    res.redirect(303, `/unmatched/${id}?notice=add-test-proposed`);
   }
 
   @Post(':id/withdraw')

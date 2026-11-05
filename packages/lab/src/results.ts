@@ -203,6 +203,13 @@ export async function release(db: Db, resultId: string, user: { username: string
     if (row.orderedTest.order.source === 'MANUAL_DOWNTIME') {
       throw new WorkflowRejected({ code: 'NOT_RELEASABLE', detail: `${row.orderedTest.order.hmisOrderId} is a downtime order; reconcile it to the HMIS order before release` });
     }
+    // A-34: a test the lab added waits for the clinician's HMIS order line.
+    if (row.orderedTest.source === 'LAB_ADDED') {
+      throw new WorkflowRejected({
+        code: 'NOT_RELEASABLE',
+        detail: `${row.orderedTest.localTestCode ?? ''} was added by the lab; ask ${row.orderedTest.requestedBy ?? 'the clinician'} to order it in the HMIS, then match it to that line on the order page before release`,
+      });
+    }
     const r = unwrap(releaseResult(before.aggregate, gate));
     await requireCriticalCall(tx, resultId, r.aggregate.selectedVersionNo);
     const version = r.aggregate.versions.find((v) => v.versionNo === r.aggregate.selectedVersionNo) as ResultVersion;

@@ -184,6 +184,17 @@ the role table in [10](10-security-and-audit.md) §2, which lets an approver act
 alone). It only goes to the same local test on the scanned specimen, never to
 a different test, and an unmapped instrument code must be mapped first.
 
+"Add test to order" (A-34) is offered only for a result that was not ordered on
+a tube whose barcode the instrument read. It asks for that tube's accession
+(filled in from the barcode, and refused for any other tube), the clinician
+who asked for the test and how the request came. A second person confirms with
+their password. The result page then says the result is held from the HMIS,
+and the order page lists **Tests added by the lab**: who asked, who added and
+confirmed it, and either "waiting for the HMIS line" or, once the clinician's
+line has arrived, a choice of that line and a password to match it. The new
+line is shown unticked under "To collect", with a note to match it instead of
+collecting again.
+
 ## W-8 Failed transmissions
 
 ```
