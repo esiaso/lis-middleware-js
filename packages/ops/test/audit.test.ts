@@ -24,7 +24,8 @@ describe('lims audit keygen and verify-export', () => {
     expect(k.keyId).toMatch(/^[0-9a-f]{16}$/);
     const stored = readFileSync(join(dir, 'audit_signing_key'), 'utf8');
     expect(stored).toContain('-----BEGIN PRIVATE KEY-----');
-    expect(statSync(join(dir, 'audit_signing_key')).mode & 0o777).toBe(0o600);
+    // Windows has no POSIX modes; the secrets folder's ACL limits readers there.
+    if (process.platform !== 'win32') expect(statSync(join(dir, 'audit_signing_key')).mode & 0o777).toBe(0o600);
     expect(auditSignerFromPem(stored).keyId).toBe(k.keyId);
     expect(k.note).toMatch(/LoadCredential=audit_signing_key/);
     expect(() => generateAuditKey({ dir, platform: 'linux' })).toThrow(/--replace/);
