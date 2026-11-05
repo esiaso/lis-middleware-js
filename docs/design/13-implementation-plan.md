@@ -97,9 +97,11 @@ counts (A-31, W-22, W-23), including panels such as a urinalysis or malaria
 microscopy ordered as one code and resulted as several (A-32), and QC for
 manual tests, which warns or blocks entry on a lot without a passing control
 (A-33, W-24), and adding a test a clinician asked for to an order from an
-unmatched result, held until the HMIS order line arrives (A-34, W-7). Not
-built yet: assisted reconciliation when the HMIS returns (beyond the candidate
-list), and patient merge handling (D-6).
+unmatched result, held until the HMIS order line arrives (A-34, W-7), and
+patient merges recorded by two people, with the history of the MRN that stays
+including the merged one (A-35, W-13). Not built yet: assisted reconciliation
+when the HMIS returns (beyond the candidate list), merges signalled by the
+HMIS itself, and undoing a merge.
 
 ## Phase 3: Instrument verification and parallel run (3 to 6 weeks, calendar-bound)
 

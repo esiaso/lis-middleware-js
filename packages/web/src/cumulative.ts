@@ -12,7 +12,7 @@ export interface CumulativeCell {
 }
 
 export interface Cumulative {
-  columns: { label: string; collected: boolean }[];
+  columns: { label: string; collected: boolean; mrn: string }[];
   rows: { test: string; cells: CumulativeCell[][] }[];
   /** Collections not shown because only the newest `maxColumns` fit. */
   hidden: number;
@@ -47,7 +47,7 @@ export function cumulative(results: HistoryResult[], maxColumns = 12): Cumulativ
     return { test, cells };
   });
   return {
-    columns: shown.map((r) => ({ label: formatTime(r.at), collected: r.collected })),
+    columns: shown.map((r) => ({ label: formatTime(r.at), collected: r.collected, mrn: r.mrn })),
     rows,
     hidden: Math.max(0, times.length - shown.length),
   };

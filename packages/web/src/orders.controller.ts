@@ -104,6 +104,8 @@ export class OrdersController {
       title: `Order ${o.hmisOrderId}`,
       o: { id: o.id, downtime: o.source === 'MANUAL_DOWNTIME', reconciled: o.status === 'reconciled', provisional: o.patient.provisional, hmisOrderId: o.hmisOrderId, priority: o.priority, stat: o.priority === 'stat', status: o.status, encounter: o.hmisEncounterId ?? '', location: o.location ?? '', clinician: o.orderingClinician ?? '', orderedAt: formatTime(o.orderedAt) },
       patient: patientLine(o.patient),
+      // A-35: the order keeps the MRN it came with; say where the patient's history now is.
+      mergedInto: o.patient.mergedIntoId && !o.patient.provisional ? o.patient.mergedIntoId : '',
       groups: [...groups].map(([type, tests]) => ({
         type,
         tests: tests.map((t) => ({

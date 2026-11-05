@@ -283,6 +283,15 @@ It holds results from this middleware only. A reconciled provisional record
 points to the HMIS patient its results moved to. The result and order pages
 link to it.
 
+**Record a merge from the HMIS** (administrators and approvers, A-35): on the
+page of the MRN that goes, the MRN that stays, the HMIS or medical records
+reference and why. A second administrator or approver sees both records side
+by side (MRN, name, sex, date of birth, with any difference called out) and
+confirms with their password, or withdraws it. Afterwards the MRN that stays
+lists the merged MRN and shows its results too, each column marked with the
+MRN it came under; the merged MRN's page and its orders say where the history
+now is.
+
 ## W-14 Printed result report
 
 **Order → Print result report**: an A4 page for the browser's print dialog,

@@ -1,13 +1,52 @@
 <p><a href="/patients">&larr; Patients</a></p>
 <h1 class="h4">{{p.name}}</h1>
 <p>MRN {{p.mrn}}{{#if p.sex}} · {{p.sex}}{{/if}}{{#if p.birthDate}} · born {{p.birthDate}}{{/if}}{{#if p.provisional}} <span class="badge text-bg-warning">provisional</span>{{/if}}</p>
-{{#if p.mergedInto}}<div class="alert alert-secondary">This provisional record was reconciled. Its results moved with their orders to the <a href="{{p.mergedInto}}">HMIS patient</a>.</div>{{/if}}
+{{#if p.provisional}}{{#if p.mergedInto}}<div class="alert alert-secondary">This provisional record was reconciled. Its results moved with their orders to the <a href="{{p.mergedInto}}">HMIS patient</a>.</div>{{/if}}{{/if}}
+{{#if mergedAway}}<div class="alert alert-warning" role="alert"><strong>MRN {{p.mrn}} was merged</strong> into <a href="/patients/{{mergedAway.into.id}}">{{mergedAway.into.name}} (MRN {{mergedAway.into.mrn}})</a>, reference {{mergedAway.reference}}, recorded by {{mergedAway.by}} on {{mergedAway.at}}. Orders and results here keep this MRN; the full history is on that patient's page.</div>{{/if}}
+{{#if mergedIn}}<div class="alert alert-info" role="status">This history includes results under {{#each mergedIn}}<a href="/patients/{{id}}">MRN {{mrn}}</a> ({{name}}, merged {{at}}, reference {{reference}}){{#unless @last}}, {{/unless}}{{/each}}.</div>{{/if}}
+{{#if waiting}}
+<div class="card card-body mb-3">
+  <h2 class="h6">Merge waiting for a second person</h2>
+  <table class="table table-sm w-auto mb-2"><thead><tr><th></th><th>This record</th><th>Keeps</th></tr></thead><tbody>
+    <tr><th scope="row">MRN</th><td class="font-monospace">{{p.mrn}}</td><td class="font-monospace">{{waiting.into.mrn}}</td></tr>
+    <tr><th scope="row">Name</th><td>{{p.name}}</td><td>{{waiting.into.name}}</td></tr>
+    <tr><th scope="row">Sex</th><td>{{p.sex}}</td><td>{{waiting.into.sex}}</td></tr>
+    <tr><th scope="row">Born</th><td>{{p.birthDate}}</td><td>{{waiting.into.birthDate}}</td></tr>
+  </tbody></table>
+  {{#if waiting.differs}}<div class="alert alert-warning py-2">The two records differ in {{waiting.differs}}. Check with medical records before confirming.</div>{{/if}}
+  <p class="small text-body-secondary">Proposed by {{waiting.by}} at {{waiting.at}}, reference {{waiting.reference}}: {{waiting.reason}}</p>
+  {{#if canMerge}}
+  <div class="d-flex flex-wrap gap-3 align-items-end">
+    {{#if waiting.mine}}<p class="mb-0">A different person must confirm.</p>{{else}}
+    <form method="post" action="/patients/{{p.id}}/merge/{{waiting.id}}/confirm" class="d-flex gap-2 align-items-end">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <div>{{> confirm id="merge-password" label="I checked both records. Your password" labelClass="form-label small" inputClass="form-control form-control-sm"}}</div>
+      <button class="btn btn-primary btn-sm" type="submit">Confirm merge</button>
+    </form>{{/if}}
+    <form method="post" action="/patients/{{p.id}}/merge/{{waiting.id}}/withdraw"><input type="hidden" name="_csrf" value="{{csrf}}"><button class="btn btn-outline-secondary btn-sm" type="submit">Withdraw</button></form>
+  </div>
+  {{/if}}
+</div>
+{{else}}{{#if canMerge}}
+<details class="mb-3"{{#if issues}} open{{/if}}>
+  <summary class="small">Record a merge from the HMIS</summary>
+  <form method="post" action="/patients/{{p.id}}/merge" class="row g-2 mt-1 align-items-end">
+    <input type="hidden" name="_csrf" value="{{csrf}}">
+    {{#if issues}}<div class="col-12"><div class="alert alert-danger py-2" role="alert">{{#each issues}}<div>{{this}}</div>{{/each}}</div></div>{{/if}}
+    <p class="col-12 small text-body-secondary mb-0">When medical records have merged MRN {{p.mrn}} into another MRN in the HMIS. Orders and results keep the MRN they came with; the history of the MRN that stays will include this one. A different person confirms.</p>
+    <div class="col-md-3"><label class="form-label small" for="intoMrn">MRN that stays</label><input class="form-control font-monospace" id="intoMrn" name="intoMrn" value="{{v.intoMrn}}" required maxlength="64"></div>
+    <div class="col-md-3"><label class="form-label small" for="reference">HMIS or medical records reference</label><input class="form-control" id="reference" name="reference" value="{{v.reference}}" required maxlength="100"></div>
+    <div class="col-md-4"><label class="form-label small" for="merge-reason">Why</label><input class="form-control" id="merge-reason" name="reason" value="{{v.reason}}" required minlength="10" maxlength="500"></div>
+    <div class="col-md-2"><button class="btn btn-outline-primary" type="submit">Propose merge</button></div>
+  </form>
+</details>
+{{/if}}{{/if}}
 <p class="small text-body-secondary">Results from this middleware only, newest collection first. Values in italics are not yet approved. Each value links to its result. Results from before the middleware went live, or done elsewhere, are not here.</p>
 
 {{#if c.rows}}
 <div class="table-responsive">
 <table class="table table-sm table-bordered align-middle small">
-  <thead><tr><th>Test</th>{{#each c.columns}}<th class="text-nowrap">{{label}}{{#unless collected}}<br><span class="fw-normal text-body-secondary">ordered</span>{{/unless}}</th>{{/each}}</tr></thead>
+  <thead><tr><th>Test</th>{{#each c.columns}}<th class="text-nowrap">{{label}}{{#unless collected}}<br><span class="fw-normal text-body-secondary">ordered</span>{{/unless}}{{#unless (eq mrn @root.p.mrn)}}<br><span class="fw-normal text-body-secondary">MRN {{mrn}}</span>{{/unless}}</th>{{/each}}</tr></thead>
   <tbody>
     {{#each c.rows}}
     <tr><td class="font-monospace">{{test}}</td>{{#each cells}}<td class="text-nowrap">{{#each this}}<div><a href="{{href}}" class="font-monospace{{#unless approved}} fst-italic{{/unless}}">{{value}}</a> {{units}}{{#if flags}} <strong>{{flags}}</strong>{{/if}}{{#if critical}} <span class="badge text-bg-danger">{{critical}}</span>{{/if}}{{#if delta}} <span class="badge text-bg-warning">delta</span>{{/if}}{{#unless approved}} <span class="text-body-secondary">(not approved)</span>{{/unless}}</div>{{/each}}</td>{{/each}}</tr>

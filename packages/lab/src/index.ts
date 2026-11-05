@@ -25,3 +25,4 @@ export * from './catalogue.js';
 export * from './manual-results.js';
 export * from './manual-qc.js';
 export * from './added-tests.js';
+export * from './patient-merge.js';
