@@ -70,7 +70,7 @@ on a specimen (one person proposes with a reason, a different person sees
 the patient and confirms with their password; unmapped codes and rejected
 specimens are refused), and downtime registration with results held until
 the order is reconciled to the HMIS order (A-15), and W-10 audit search,
-export (A-16) and on-demand chain verification for auditors, and the W-9
+export, Ed25519-signed when hospital IT has made a key (A-16), and on-demand chain verification for auditors, and the W-9
 row-by-row mapping editor (the approver sees what a draft changes against
 the active set), and account management for administrators (create with a
 temporary password that must be replaced at first sign-in, change roles,

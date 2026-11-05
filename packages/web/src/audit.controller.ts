@@ -1,13 +1,13 @@
-import { createHash } from 'node:crypto';
 import { Controller, Get, Inject, Post, Query, Req, Res } from '@nestjs/common';
 import type { Db } from '@lis/db';
-import { appendAudit, InvalidInput, verifyAuditChain } from '@lis/lab';
+import { appendAudit, auditExportLine, auditExportTrailer, InvalidInput, verifyAuditChain } from '@lis/lab';
 import type { Response } from 'express';
 import { page } from './controllers.js';
 import { fromZonedLocal } from '@lis/domain';
 import { displayTimeZone, formatTime } from './format.js';
 import { Roles, type WebRequest } from './security.js';
-import { DB } from './tokens.js';
+import { auditSigner } from './audit-signing.js';
+import { DB, WEB_OPTIONS, type WebOptions } from './tokens.js';
 
 const PAGE = 100;
 /** One export at most; narrow the filters for more (keeps the web process responsive). */
@@ -60,7 +60,20 @@ const short = (v: unknown) => {
 /** W-10 audit search and export (10 §8). Auditors only (10 §2). */
 @Controller('audit')
 export class AuditController {
-  constructor(@Inject(DB) private readonly db: Db) {}
+  constructor(
+    @Inject(DB) private readonly db: Db,
+    @Inject(WEB_OPTIONS) private readonly opts: WebOptions,
+  ) {}
+
+  /** What the page says about signing; a key that cannot be used is shown, not hidden. */
+  private signing(): { keyId: string } | { error: string } | null {
+    try {
+      const s = auditSigner(this.opts.auditSigningKey);
+      return s ? { keyId: s.keyId } : null;
+    } catch (e) {
+      return { error: (e as Error).message };
+    }
+  }
 
   @Get()
   @Roles('auditor')
@@ -96,15 +109,16 @@ export class AuditController {
       })),
       next: more ? `/audit?${new URLSearchParams([...qs, ['before', String(shown[shown.length - 1]!.seq)]])}` : '',
       exportHref: `/audit/export${qs.size ? `?${qs}` : ''}`,
+      signing: this.signing(),
       check: lastCheck ? { at: formatTime(lastCheck.at), by: lastCheck.actor, ok: check?.ok === true, count: check?.count ?? 0, brokenAtSeq: check?.brokenAtSeq ?? '' } : null,
     });
   }
 
   /**
    * JSON lines, oldest first, each event with its prev_hash and hash so a
-   * contiguous range can be checked by anyone. The last line is a manifest
-   * with the SHA-256 of all the lines before it. ASSUMPTION A-16: not signed
-   * yet; signing needs a key the hospital holds (10 §8).
+   * contiguous range can be checked by anyone, then a manifest, then an
+   * Ed25519 signature line when the hospital has set a signing key (A-16,
+   * 10 §8; format in @lis/lab audit-export).
    */
   @Get('export')
   @Roles('auditor')
@@ -112,49 +126,44 @@ export class AuditController {
     const f = readFilters(q);
     const w = where(f);
     const total = await this.db.auditEvent.count({ where: w });
+    // Before anything is recorded: a key that is set but unusable refuses the export.
+    const signer = auditSigner(this.opts.auditSigningKey);
     if (total > EXPORT_LIMIT) throw new InvalidInput([`${total} events match; one export holds at most ${EXPORT_LIMIT}. Narrow the dates or filters.`]);
     const exportedAt = new Date();
     // Recorded before the file is built, so the export itself is in the trail it may later be compared with.
-    await this.db.$transaction((tx) => appendAudit(tx, { actor: req.user!.username, action: 'audit.export', entityType: 'audit', entityId: 'export', after: { filters: f, count: total } }));
-    const hash = createHash('sha256');
+    await this.db.$transaction((tx) => appendAudit(tx, { actor: req.user!.username, action: 'audit.export', entityType: 'audit', entityId: 'export', after: { filters: f, count: total, signed: signer !== null, ...(signer ? { keyId: signer.keyId } : {}) } }));
     const lines: string[] = [];
     let cursor: bigint | undefined;
-    let first: string | null = null;
-    let last: string | null = null;
     for (;;) {
       const batch = await this.db.auditEvent.findMany({ where: { ...w, ...(cursor !== undefined ? { seq: { gt: cursor } } : {}) }, orderBy: { seq: 'asc' }, take: 1000 });
       if (batch.length === 0) break;
       for (const r of batch) {
         if (lines.length >= total) break; // events written after the count belong to the next export
-        const line = JSON.stringify({
-          seq: String(r.seq), id: r.id, at: r.at.toISOString(), actor: r.actor, action: r.action, entityType: r.entityType, entityId: r.entityId,
-          reason: r.reason, correlationId: r.correlationId, before: r.before, after: r.after, prevHash: r.prevHash, hash: r.hash,
-        }) + '\n';
-        hash.update(line);
-        lines.push(line);
-        first ??= String(r.seq);
-        last = String(r.seq);
+        lines.push(auditExportLine(r));
       }
       cursor = batch[batch.length - 1]!.seq;
       if (lines.length >= total) break;
     }
-    const manifest = {
-      type: 'manifest',
-      format: 'lims-audit-export/1',
-      exportedAt: exportedAt.toISOString(),
-      exportedBy: req.user!.username,
-      filters: f,
-      count: lines.length,
-      firstSeq: first,
-      lastSeq: last,
-      sha256: hash.digest('hex'),
-      signed: false,
-    };
+    const trailer = auditExportTrailer(lines, { exportedAt, exportedBy: req.user!.username, filters: f }, signer);
     const stamp = exportedAt.toISOString().replace(/[-:]/g, '').slice(0, 15);
     res.setHeader('content-type', 'application/x-ndjson; charset=utf-8');
     res.setHeader('content-disposition', `attachment; filename="audit-${stamp}Z.jsonl"`);
     res.setHeader('cache-control', 'no-store');
-    res.send(lines.join('') + JSON.stringify(manifest) + '\n');
+    res.send(lines.join('') + trailer);
+  }
+
+  /** The public half of the signing key, for whoever checks exports. It is not a secret. */
+  @Get('signing-key.pem')
+  @Roles('auditor')
+  signingKey(@Res() res: Response): void {
+    const signer = auditSigner(this.opts.auditSigningKey);
+    if (!signer) {
+      res.status(404).type('text/plain').send('no audit signing key is set\n');
+      return;
+    }
+    res.setHeader('content-type', 'application/x-pem-file');
+    res.setHeader('content-disposition', `attachment; filename="lims-audit-${signer.keyId}.pem"`);
+    res.send(signer.publicKeyPem);
   }
 
   /** Recompute the whole chain now and record the outcome (the nightly job does the same). */

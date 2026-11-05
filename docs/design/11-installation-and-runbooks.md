@@ -93,7 +93,7 @@ WinSW XML), not `lims.yaml`.
   checks and the jobs worker's own HMIS link check. It warns on secrets kept in the settings, `NODE_ENV` not
   `production`, a non-loopback `BIND_HOST`, and `LIMS_TWO_PERSON_RULE=false`.
   Secret values are never printed. `lims verify` includes its summary.
-* `lims secrets set <name>` stores `database_url`, `oidc_client_secret`, `ldap_bind_password` or `hmis_client_secret` in
+* `lims secrets set <name>` stores `database_url`, `oidc_client_secret`, `ldap_bind_password`, `hmis_client_secret` or `audit_signing_key` in
   the secrets folder the installer made (`/etc/lims/secrets`, root only,
   mode 0600; `C:\ProgramData\LIMS Middleware\secrets`, readable by the
   services and administrators). The value is piped in or typed without
@@ -314,6 +314,7 @@ Web service (`lims-web`):
 | `LIMS_TWO_PERSON_RULE` | `true` | reviewer and approver must differ (10 §2) |
 | `LIMS_TIME_ZONE` | `UTC` | the lab's time zone as an IANA name, for example `Africa/Nairobi`: pages show times on this clock, typed collection times are read on it, and report and audit-search days start at its midnight. Times are stored in UTC either way (01 A-24). An unknown name stops the web service |
 | `LIMS_REPORT_HEADER` | `Laboratory report` | first line of a printed result report, for example the lab's name and address; at most 120 characters (W-14) |
+| `LIMS_AUDIT_SIGNING_KEY_FILE` | unset | Windows: the audit signing key file (below); on Linux the key is the systemd credential `audit_signing_key` |
 | `LIMS_INSECURE_COOKIES` | `false` | `true` drops the cookie `Secure` flag and HSTS; only for a loopback-only test setup |
 
 Hospital sign-in (OIDC, 10 §3). Leave `LIMS_OIDC_ISSUER` unset for local
@@ -407,6 +408,25 @@ the reason in the log until the HMIS fixes the entry. The HMIS link page
 (09 W-21) shows the same without the log: the last poll, its error, and
 results still on their way; the dashboard warns when polls keep failing or
 a result has waited more than 15 minutes.
+
+Signed audit exports (01 A-16, 10 §8.2). Hospital IT security makes the key
+on the server, once: `lims audit keygen`. It stores the private key in the
+secrets folder, never shows it, and prints the public key and its key id.
+Keep the public key with hospital IT security, away from the server. On
+Linux add `LoadCredential=audit_signing_key:/etc/lims/secrets/audit_signing_key`
+with `systemctl edit lims-web`; on Windows set `LIMS_AUDIT_SIGNING_KEY_FILE`
+in `lims-web.xml`. Restart `lims-web`; the audit page then says exports are
+signed. A key that is set but cannot be read stops the service at start and
+refuses exports, so an export never goes out unsigned by mistake. `lims
+audit keygen --replace` makes a new key; exports signed with the old one
+still need the old public key.
+
+To check an export: `lims audit verify-export audit-….jsonl --public-key
+lims-audit-<key id>.pem` checks the manifest, every event's hash, the links
+between consecutive events, and the signature. Without the middleware,
+OpenSSL 3 checks the signature: put every line except the last in `body`,
+decode the last line's `value` from base64 into `sig`, then
+`openssl pkeyutl -verify -pubin -inkey lims-audit-<key id>.pem -rawin -in body -sigfile sig`.
 
 First administrator, before the hospital IdP is connected (password on
 standard input, at least 12 characters, never on the command line):

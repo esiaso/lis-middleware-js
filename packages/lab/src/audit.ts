@@ -13,7 +13,9 @@ export interface AuditInput {
   after?: unknown;
 }
 
-const GENESIS = '0'.repeat(64);
+/** The prevHash of the first event. */
+export const AUDIT_GENESIS = '0'.repeat(64);
+const GENESIS = AUDIT_GENESIS;
 /** Serialises chain appends; any constant works as long as only audit uses it. */
 const AUDIT_LOCK = 724_101;
 
@@ -28,7 +30,8 @@ function canonical(v: unknown): string {
   });
 }
 
-function eventHash(prevHash: string, e: { id: string; at: string } & AuditInput): string {
+/** The hash of one event, from the previous event's hash and the event's fields (10 §8.2). */
+export function eventHash(prevHash: string, e: { id: string; at: string } & AuditInput): string {
   return createHash('sha256')
     .update(prevHash)
     .update('\n')

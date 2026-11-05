@@ -73,7 +73,7 @@ export interface CreateAppOptions extends Partial<WebOptions> {
  * the internet at runtime.
  */
 export async function createApp(db: Db, o: CreateAppOptions = {}): Promise<NestExpressApplication> {
-  const opts: WebOptions = { twoPersonRule: o.twoPersonRule ?? true, secureCookies: o.secureCookies ?? true, session: o.session ?? DEFAULT_SESSION_POLICY, ...(o.oidc ? { oidc: o.oidc } : {}), ...(o.directory ? { directory: o.directory } : {}), ...(o.reportHeader ? { reportHeader: o.reportHeader } : {}), timeZone: o.timeZone ?? 'UTC' };
+  const opts: WebOptions = { twoPersonRule: o.twoPersonRule ?? true, secureCookies: o.secureCookies ?? true, session: o.session ?? DEFAULT_SESSION_POLICY, ...(o.oidc ? { oidc: o.oidc } : {}), ...(o.directory ? { directory: o.directory } : {}), ...(o.reportHeader ? { reportHeader: o.reportHeader } : {}), ...(o.auditSigningKey ? { auditSigningKey: o.auditSigningKey } : {}), timeZone: o.timeZone ?? 'UTC' };
   if (!isTimeZone(opts.timeZone as string)) throw new Error(`LIMS_TIME_ZONE "${String(opts.timeZone).slice(0, 64)}" is not a time zone name such as Africa/Nairobi`);
   setDisplayTimeZone(opts.timeZone as string);
   setDirectory(opts.directory ?? null);

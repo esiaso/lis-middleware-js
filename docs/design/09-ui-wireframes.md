@@ -388,5 +388,9 @@ released result has waited more than 15 minutes.
 ```
 
 Export produces a signed bundle (JSON lines + hash manifest), see
-[10](10-security-and-audit.md) §8. As built: the manifest is there, the
-signature is not yet (A-16).
+[10](10-security-and-audit.md) §8. As built: event lines, then the
+manifest, then an Ed25519 signature line when a signing key is set (A-16).
+The page says whether exports are signed and with which key, and offers the
+public key (`/audit/signing-key.pem`); with a key that cannot be used it
+says so and refuses to export. `lims audit verify-export` checks a file on
+its own.
