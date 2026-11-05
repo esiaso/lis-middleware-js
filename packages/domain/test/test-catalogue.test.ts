@@ -30,6 +30,14 @@ describe('catalogue form', () => {
     expect(parseCatalogueForm(form({ unit: 'g/L' }))).toMatchObject({ ok: false, issues: ['Only a numeric result has a unit.'] });
   });
 
+  it('reads a panel as its component codes, and refuses a short or odd list', () => {
+    const panel = { resultType: 'PANEL', answers: '', localCode: 'UA', components: 'u-prot, U-GLU\nU-RBC' };
+    expect(parseCatalogueForm(form(panel))).toMatchObject({ ok: true, value: { resultType: 'PANEL', components: ['U-PROT', 'U-GLU', 'U-RBC'] } });
+    expect(parseCatalogueForm(form({ ...panel, components: 'U-PROT' }))).toMatchObject({ ok: false, issues: ['A panel lists at least two component tests by their local codes.'] });
+    expect(parseCatalogueForm(form({ ...panel, components: 'UA U-PROT U-PROT' }))).toMatchObject({ ok: false, issues: ['Listed twice: U-PROT.', 'A panel cannot list itself.'] });
+    expect(parseCatalogueForm(form({ components: 'U-PROT U-GLU' }))).toMatchObject({ ok: false, issues: ['Only a panel has component tests.'] });
+  });
+
   it('refuses bad answer lines and keeps a LOINC answer code', () => {
     const r = parseAnswers('NEG | Negative | LA6577-6\nPOS\nNEG | again\nX | Y | maybe');
     expect(r.answers[0]).toEqual({ code: 'NEG', display: 'Negative', loinc: 'LA6577-6' });

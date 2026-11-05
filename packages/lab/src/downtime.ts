@@ -2,6 +2,7 @@ import { TestMapping } from '@lis/contracts';
 import { z } from 'zod';
 import { uuidv7, type Db } from '@lis/db';
 import { appendAudit } from './audit.js';
+import { expandTest } from './catalogue.js';
 import { WorkflowRejected } from './results.js';
 
 /**
@@ -93,17 +94,23 @@ export async function registerDowntimeOrder(db: Db, input: DowntimeRegistration,
         sourceJson: { registeredBy: user, registeredAt: now.toISOString(), claimedMrn, tests },
       },
     });
-    await tx.orderedTest.createMany({
-      data: tests.map((code, i) => ({
-        id: uuidv7(),
-        orderId,
-        hmisLineId: String(i + 1),
-        hmisTestCode: `LOCAL:${code}`,
-        localTestCode: code,
-        specimenType: input.specimenType?.trim() || null,
-        status: 'active',
-      })),
-    });
+    const rows = [];
+    for (const [i, code] of tests.entries()) {
+      for (const t of await expandTest(tx, code)) {
+        rows.push({
+          id: uuidv7(),
+          orderId,
+          hmisLineId: String(i + 1),
+          hmisTestCode: `LOCAL:${code}`,
+          localTestCode: t.localTestCode,
+          componentCode: t.componentCode,
+          panelCode: t.panelCode,
+          specimenType: input.specimenType?.trim() || null,
+          status: 'active',
+        });
+      }
+    }
+    await tx.orderedTest.createMany({ data: rows });
     await appendAudit(tx, { actor: user, action: 'order.downtime-registered', entityType: 'lab_order', entityId: orderId, after: { downtimeId, tests, claimedMrn, priority: input.priority } });
     return { orderId, downtimeId };
   });

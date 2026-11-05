@@ -2,11 +2,11 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { createDb, uuidv7, type Db } from '@lis/db';
 import { FhirR4Hmis } from '@lis/hmis';
 import {
-  activeCatalogue, approve, approveCatalogueEntry, deliverOutbox, discardCatalogueDraft, downtimeTestCatalogue, enterManualResult, InvalidInput, manualPerformer,
-  manualWorksheet, proposeCatalogueEntry, release, retireCatalogueEntry, review, verifyAuditChain, WorkflowRejected,
+  accessionSpecimen, activeCatalogue, approve, approveCatalogueEntry, deliverOutbox, discardCatalogueDraft, downtimeTestCatalogue, enterManualPanel, enterManualResult, InvalidInput,
+  manualPerformer, manualWorksheet, proposeCatalogueEntry, pullOrders, receiveSpecimen, release, retireCatalogueEntry, review, verifyAuditChain, WorkflowRejected,
 } from '@lis/lab';
 import type { CatalogueForm } from '@lis/domain';
-import { startStubFhir, SYSTEMS, type StubFhir } from '../../hmis/test/fhir-stub.js';
+import { feedLine, startStubFhir, SYSTEMS, type StubFhir } from '../../hmis/test/fhir-stub.js';
 
 const url = process.env['TEST_DATABASE_URL'];
 const TABLES =
@@ -164,5 +164,122 @@ describe.skipIf(!url)('test catalogue and manual results', () => {
       expect((await db.outboxMessage.findFirstOrThrow()).payload).toMatchObject({ value: { type: 'coded', code: 'PF', display: 'P. falciparum positive' } });
       expect(((await db.outboxMessage.findFirstOrThrow()).payload as { value: { system?: string } }).value.system).toBeUndefined();
     });
+  });
+});
+
+// Panels (A-32). Codes are examples for the tests; the lab chooses its own.
+describe.skipIf(!url)('panels', () => {
+  let db: Db;
+  let stub: StubFhir;
+  let hmis: FhirR4Hmis;
+  const base = { loincDisplay: '', shaCode: '', specimenType: 'Urine', performedBy: 'MANUAL', answers: '', unit: '', decimals: '', section: 'Urinalysis' };
+  const PROT: CatalogueForm = { ...base, localCode: 'U-PROT', name: 'Urine protein (dipstick)', loincCode: '20454-5', resultType: 'ORDINAL', answers: 'NEG | Negative\nTR | Trace\n1P | 1+ | abnormal' };
+  const RBC: CatalogueForm = { ...base, localCode: 'U-RBC', name: 'Urine RBC per HPF', loincCode: '13945-1', resultType: 'NUMERIC', unit: '/[HPF]', decimals: '0' };
+  const PH: CatalogueForm = { ...base, localCode: 'U-PH', name: 'Urine pH (dipstick)', loincCode: '', resultType: 'NUMERIC', decimals: '1' };
+  const UA: CatalogueForm = { ...base, localCode: 'UA', name: 'Urinalysis', loincCode: '24356-8', resultType: 'PANEL', components: 'U-PROT\nU-RBC\nU-PH' };
+
+  beforeAll(() => {
+    db = createDb(url as string);
+  });
+  afterAll(async () => {
+    await db?.$executeRawUnsafe(`TRUNCATE ${TABLES} CASCADE`);
+    await db?.$disconnect();
+  });
+  beforeEach(async () => {
+    await db.$executeRawUnsafe(`TRUNCATE ${TABLES} CASCADE`);
+    stub = await startStubFhir();
+    hmis = new FhirR4Hmis({
+      baseUrl: new URL(stub.base), tokenUrl: new URL(stub.tokenUrl), clientId: stub.clientId, clientSecret: () => stub.clientSecret, scopes: 'system/*.*', pageSize: 10,
+      systems: SYSTEMS, limsSystemPrefix: 'urn:lims-middleware:', timeoutMs: 2000, allowHttp: true,
+    });
+    for (const f of [PROT, RBC, PH, UA]) await approveCatalogueEntry(db, 'dr.lab', (await proposeCatalogueEntry(db, 'lab.manager', f, 'urinalysis bench')).id);
+  });
+  afterEach(async () => {
+    await stub.close();
+  });
+
+  /** A urinalysis ordered in the HMIS, pulled, and its specimen received. */
+  async function orderedPanel() {
+    stub.feed.push(feedLine({ srId: 'sr1', order: 'ORD-UA', line: 'L-UA', test: '24356-8', mrn: 'MRN-UA' }));
+    await pullOrders(db, hmis);
+    const tests = await db.orderedTest.findMany({ orderBy: { componentCode: 'asc' } });
+    const { specimenId } = await accessionSpecimen(db, { orderId: tests[0]!.orderId, orderedTestIds: tests.map((t) => t.id), user: 'phleb' });
+    await receiveSpecimen(db, specimenId, 'tech.a');
+    const by = (c: string) => tests.find((t) => t.componentCode === c)!.id;
+    return { prot: by('U-PROT'), rbc: by('U-RBC'), ph: by('U-PH') };
+  }
+
+  it('a panel needs its components in the catalogue first, and its components cannot be retired or nested', async () => {
+    await expect(proposeCatalogueEntry(db, 'lab.manager', { ...UA, localCode: 'UA2', loincCode: '', components: 'U-PROT\nU-GLU' }, 'x2345')).rejects.toThrow(/before the panel: U-GLU/);
+    await expect(proposeCatalogueEntry(db, 'lab.manager', { ...UA, localCode: 'UA3', loincCode: '', components: 'UA\nU-PROT' }, 'x2345')).rejects.toThrow(/cannot contain another panel: UA/);
+    await expect(proposeCatalogueEntry(db, 'lab.manager', { ...PROT, resultType: 'PANEL', answers: '', components: 'U-RBC\nU-PH' }, 'x2345')).rejects.toThrow(/component of UA/);
+    await expect(retireCatalogueEntry(db, 'dr.lab', 'U-RBC', 'not done any more')).rejects.toThrow(/component of UA/);
+  });
+
+  it('an HMIS order line for a panel becomes one ordered test per component', async () => {
+    await orderedPanel();
+    const tests = await db.orderedTest.findMany({ orderBy: { componentCode: 'asc' } });
+    expect(tests.map((t) => [t.hmisLineId, t.hmisTestCode, t.panelCode, t.componentCode, t.localTestCode])).toEqual([
+      ['L-UA', '24356-8', 'UA', 'U-PH', 'U-PH'],
+      ['L-UA', '24356-8', 'UA', 'U-PROT', 'U-PROT'],
+      ['L-UA', '24356-8', 'UA', 'U-RBC', 'U-RBC'],
+    ]);
+    // Polled again (a cancellation), the line keeps its components and they all follow the status.
+    stub.feed.push(feedLine({ srId: 'sr1', order: 'ORD-UA', line: 'L-UA', test: '24356-8', mrn: 'MRN-UA', status: 'revoked' }));
+    await pullOrders(db, hmis);
+    expect((await db.orderedTest.findMany()).map((t) => t.status)).toEqual(['cancelled', 'cancelled', 'cancelled']);
+  });
+
+  it('enters the panel together: empty components wait, and one bad value saves nothing', async () => {
+    const t = await orderedPanel();
+    expect((await manualWorksheet(db)).map((r) => [r.panel?.code, r.test.localCode])).toEqual([['UA', 'U-PROT'], ['UA', 'U-RBC'], ['UA', 'U-PH']]);
+    await expect(enterManualPanel(db, 'tech.a', { values: [{ orderedTestId: t.prot, value: '' }, { orderedTestId: t.rbc, value: '' }] })).rejects.toThrow(/at least one/);
+    await expect(enterManualPanel(db, 'tech.a', { values: [{ orderedTestId: t.prot, value: '1P' }, { orderedTestId: t.rbc, value: '2.5' }] })).rejects.toThrow('U-RBC: Urine RBC per HPF is reported with no decimals.');
+    expect(await db.result.count()).toBe(0);
+    const ids = await enterManualPanel(db, 'tech.a', { values: [{ orderedTestId: t.prot, value: '1P' }, { orderedTestId: t.rbc, value: '3' }, { orderedTestId: t.ph, value: '' }], lot: 'STRIP-9' });
+    expect(ids).toHaveLength(2);
+    expect((await manualWorksheet(db)).map((r) => r.test.localCode)).toEqual(['U-PH']);
+    const other = await receivedOrder('U-PROT', 'X');
+    await expect(enterManualPanel(db, 'tech.a', { values: [{ orderedTestId: t.ph, value: '6.0' }, { orderedTestId: other.testId, value: 'NEG' }] })).rejects.toMatchObject({ error: { code: 'INVALID_STATE' } });
+  });
+
+  /** Same helper as the outer suite, for a single test outside the panel. */
+  async function receivedOrder(localTestCode: string, hmisTestCode: string) {
+    const patientId = uuidv7();
+    const orderId = uuidv7();
+    const specimenId = uuidv7();
+    const testId = uuidv7();
+    await db.patient.create({ data: { id: patientId, mrn: 'MRN-OTHER', familyName: 'Example' } });
+    await db.labOrder.create({ data: { id: orderId, hmisOrderId: 'ORD-OTHER', patientId, priority: 'routine', orderedAt: new Date(), status: 'active', sourceJson: {} } });
+    await db.specimen.create({ data: { id: specimenId, orderId, accessionNo: 'L-OTHER', barcode: 'L-OTHER', status: 'received', createdBy: 'test' } });
+    await db.orderedTest.create({ data: { id: testId, orderId, hmisLineId: '1', hmisTestCode, localTestCode, status: 'active', specimenId } });
+    return { testId };
+  }
+
+  it('each component goes to the HMIS under its own LOINC code, keyed apart from the others', async () => {
+    const t = await orderedPanel();
+    const [prot, rbc, ph] = await enterManualPanel(db, 'tech.a', { values: [{ orderedTestId: t.prot, value: 'NEG' }, { orderedTestId: t.rbc, value: '3' }, { orderedTestId: t.ph, value: '6.0' }] });
+    for (const id of [prot!, rbc!, ph!]) {
+      await review(db, id, 'tech.b', 1);
+      await approve(db, id, 'dr.lab', { twoPersonRule: true });
+    }
+    await release(db, prot!, { username: 'dr.lab', displayName: 'Dr Lab' });
+    await release(db, rbc!, { username: 'dr.lab', displayName: 'Dr Lab' });
+    // U-PH has no LOINC code in the catalogue, so it cannot be sent as a component.
+    await expect(release(db, ph!, { username: 'dr.lab', displayName: 'Dr Lab' })).rejects.toThrow(/no LOINC code in the catalogue/);
+    expect((await db.outboxMessage.findMany({ orderBy: { createdAt: 'asc' } })).map((o) => o.payload)).toMatchObject([
+      { hmisLineId: 'L-UA', testCode: '20454-5', component: { key: 'U-PROT', orderedCode: '24356-8' } },
+      { hmisLineId: 'L-UA', testCode: '13945-1', component: { key: 'U-RBC', orderedCode: '24356-8' } },
+    ]);
+    const d = await deliverOutbox(db, hmis, 'jobs:1');
+    expect(d.map((x) => x.resultStatus)).toEqual(['hmis_confirmed', 'hmis_confirmed']);
+    const stored = [...stub.store.entries()];
+    expect(stored.filter(([k]) => k.startsWith('DiagnosticReport/'))).toEqual([]);
+    const obs = stored.filter(([k]) => k.startsWith('Observation/')).map(([, r]) => r);
+    expect(obs).toHaveLength(2);
+    expect(obs).toMatchObject([
+      { code: { coding: [{ code: '20454-5' }] }, basedOn: [{ identifier: { value: 'L-UA' } }], identifier: [{ value: 'L-UA/U-PROT' }, {}] },
+      { code: { coding: [{ code: '13945-1' }] }, basedOn: [{ identifier: { value: 'L-UA' } }], identifier: [{ value: 'L-UA/U-RBC' }, {}], valueQuantity: { value: 3 } },
+    ]);
   });
 });

@@ -2,6 +2,7 @@ import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { createDb, uuidv7, type Db } from '@lis/db';
+import { approveCatalogueEntry, proposeCatalogueEntry } from '@lis/lab';
 import { createApp, createUser } from '@lis/web';
 import { pino } from 'pino';
 import { Browser, PW } from './browser.js';
@@ -102,5 +103,39 @@ describe.skipIf(!url)('test catalogue and manual worksheet over HTTP', () => {
     const detail = (await tech.get(`/results/${r.id}`)).html;
     expect(detail).toContain('manual entry: performed by Tech Two, lot STRIP-44, entered by tech');
     expect(detail).toContain('1+ (1P)');
+  });
+
+  it('a panel is entered on one card, and a component left empty stays for later', async () => {
+    const add = async (f: Record<string, string>) => approveCatalogueEntry(db, 'dr.lab', (await proposeCatalogueEntry(db, 'manager', { ...DIPSTICK, ...f } as never, 'urinalysis bench')).id);
+    await add({ localCode: 'U-PROT' });
+    await add({ localCode: 'U-RBC', name: 'Urine RBC per HPF', resultType: 'NUMERIC', answers: '', unit: '/[HPF]', decimals: '0' });
+    await add({ localCode: 'UA', name: 'Urinalysis', resultType: 'PANEL', answers: '', components: 'U-PROT U-RBC' });
+
+    const patientId = uuidv7();
+    const orderId = uuidv7();
+    const specimenId = uuidv7();
+    const prot = uuidv7();
+    const rbc = uuidv7();
+    await db.patient.create({ data: { id: patientId, mrn: 'MRN8', familyName: 'Example' } });
+    await db.labOrder.create({ data: { id: orderId, hmisOrderId: 'ORD-8', patientId, priority: 'routine', orderedAt: new Date(), status: 'active', sourceJson: {} } });
+    await db.specimen.create({ data: { id: specimenId, orderId, accessionNo: 'L26110500008', barcode: 'L26110500008', status: 'received', receivedAt: new Date(), createdBy: 'test' } });
+    for (const [id, code] of [[prot, 'U-PROT'], [rbc, 'U-RBC']] as const) {
+      await db.orderedTest.create({ data: { id, orderId, hmisLineId: '1', hmisTestCode: 'HMIS-UA', localTestCode: code, componentCode: code, panelCode: 'UA', status: 'active', specimenId } });
+    }
+    const tech = await as('tech');
+    const sheet = (await tech.get('/worksheet')).html;
+    expect(sheet.match(/action="\/worksheet\/panel"/g)).toHaveLength(1);
+    expect(sheet).toContain('Urinalysis');
+    expect(sheet).toContain('Urine RBC per HPF');
+    const csrf = await tech.csrf('/worksheet');
+    const bad = await tech.post('/worksheet/panel', { _csrf: csrf, [`value-${prot}`]: '1P', [`value-${rbc}`]: '2.5', performedBy: '', lot: 'S-1' });
+    expect(bad.status).toBe(422);
+    expect(bad.html).toContain('U-RBC: Urine RBC per HPF is reported with no decimals.');
+    expect(await db.result.count()).toBe(0);
+    expect((await tech.post('/worksheet/panel', { _csrf: csrf, [`value-${prot}`]: '1P', [`value-${rbc}`]: '', performedBy: '', lot: 'S-1' })).location).toBe('/worksheet?notice=manual-entered');
+    expect(await db.result.count()).toBe(1);
+    const after = (await tech.get('/worksheet')).html;
+    expect(after).toContain('Urine RBC per HPF');
+    expect(after).not.toContain(`value-${prot}`);
   });
 });
