@@ -408,7 +408,10 @@ function valueElement(v: HmisResultValue): Record<string, unknown> {
     case 'censored':
       return { valueQuantity: { value: decimal(v.value), comparator: v.comparator, ...(v.unit ? { unit: v.unit } : {}) } };
     case 'coded':
-      return { valueCodeableConcept: { text: v.code } };
+      // A code the lab chose without a system stays text only: no system is invented for it.
+      return v.system
+        ? { valueCodeableConcept: { coding: [{ system: v.system, code: v.code, ...(v.display ? { display: v.display } : {}) }], text: v.display ?? v.code } }
+        : { valueCodeableConcept: { text: v.display ?? v.code } };
     case 'text':
       return { valueString: v.text };
   }
@@ -423,7 +426,11 @@ function valueFrom(o: Resource): HmisResultValue {
     return { type: 'numeric', value, ...unit };
   }
   const c = o['valueCodeableConcept'] as { text?: string; coding?: Coding[] } | undefined;
-  if (c) return { type: 'coded', code: c.text ?? c.coding?.[0]?.code ?? '' };
+  if (c) {
+    const coding = c.coding?.[0];
+    if (coding?.code) return { type: 'coded', code: coding.code, ...(coding.system ? { system: coding.system } : {}), ...(coding.display ? { display: coding.display } : {}) };
+    return { type: 'coded', code: c.text ?? '' };
+  }
   return { type: 'text', text: typeof o['valueString'] === 'string' ? o['valueString'] : '' };
 }
 

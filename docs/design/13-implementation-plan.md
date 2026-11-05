@@ -70,7 +70,7 @@ on a specimen (one person proposes with a reason, a different person sees
 the patient and confirms with their password; unmapped codes and rejected
 specimens are refused), and downtime registration with results held until
 the order is reconciled to the HMIS order (A-15), and W-10 audit search,
-export (A-16) and on-demand chain verification for auditors, and the W-9
+export, Ed25519-signed when hospital IT has made a key (A-16), and on-demand chain verification for auditors, and the W-9
 row-by-row mapping editor (the approver sees what a draft changes against
 the active set), and account management for administrators (create with a
 temporary password that must be replaced at first sign-in, change roles,
@@ -90,9 +90,14 @@ the FHIR R4 HMIS connector in the jobs worker, built to the interface the lab
 proposed to the in-house HMIS team: polled order feed with a cursor, results
 as conditional-update transactions, read-back by submission key (A-30, 07 §6.6;
 tested against a stand-in FHIR server, not yet against the HMIS, which has no
-test environment), with an HMIS link page and dashboard warning (W-21). Not built yet: "add test to order" from an
+test environment), with an HMIS link page and dashboard warning (W-21), and
+the lab's own test catalogue with LOINC codes and a manual worksheet for tests
+read by a person, such as malaria rapid tests, dipstick urinalysis and smear
+counts (A-31, W-22, W-23). Not built yet: "add test to order" from an
 unmatched result, assisted reconciliation when the HMIS returns (beyond the candidate list),
-and patient merge handling (D-6).
+patient merge handling (D-6), panels (a urinalysis or malaria microscopy
+ordered as one code and resulted as several), and QC records for manual
+tests (A-31).
 
 ## Phase 3: Instrument verification and parallel run (3 to 6 weeks, calendar-bound)
 

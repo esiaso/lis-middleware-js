@@ -6,6 +6,7 @@ import { createApp } from './app.js';
 import { createUser, ROLES, type Role } from './auth.js';
 import { LdapDirectory, ldapSettingsFromEnv } from './ldap.js';
 import { oidcSettingsFromEnv } from './oidc.js';
+import { auditKeySourceFromEnv, auditSigner } from './audit-signing.js';
 
 async function readPassword(): Promise<string> {
   const rl = createInterface({ input: process.stdin });
@@ -35,8 +36,13 @@ async function main(): Promise<void> {
   if (oidc) logger.info({ issuer: oidc.issuer.href, clientId: oidc.clientId, groups: [...oidc.roleMap.keys()] }, 'hospital sign-in configured');
   const ldap = ldapSettingsFromEnv();
   if (ldap) logger.info({ url: ldap.url.href, baseDn: ldap.baseDn, groups: [...ldap.roleMap.keys()] }, 'directory sign-in configured');
+  const auditKey = auditKeySourceFromEnv();
+  // A key that is set but unusable stops the start, rather than exports going out unsigned.
+  const signer = auditSigner(auditKey);
+  logger.info(signer ? { keyId: signer.keyId } : {}, signer ? 'audit exports are signed' : 'audit exports are not signed (no audit signing key)');
   const app = await createApp(db, {
     logger,
+    ...(auditKey ? { auditSigningKey: auditKey } : {}),
     ...(oidc ? { oidc } : {}),
     ...(ldap ? { directory: new LdapDirectory(ldap) } : {}),
     twoPersonRule: process.env['LIMS_TWO_PERSON_RULE'] !== 'false',

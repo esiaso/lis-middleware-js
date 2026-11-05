@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { encodeSecret, type DpapiRunner } from '@lis/db';
+import { auditSignerFromPem } from '@lis/lab';
 
 /**
  * `lims secrets set <name>` (11 §3 step 4, §4): store a credential in the
@@ -20,6 +21,21 @@ export const SECRETS: Record<string, { readers: string; check: (v: string) => st
       platform === 'win32'
         ? 'Set LIMS_LDAP_BIND_PASSWORD_FILE to this path in lims-web.xml if it is not set yet.'
         : 'If not done yet: systemctl edit lims-web, add "LoadCredential=ldap_bind_password:<this path>" under [Service] (11 §11).',
+  },
+  audit_signing_key: {
+    readers: 'lims-web (signed audit exports)',
+    check: (v) => {
+      try {
+        auditSignerFromPem(v);
+        return undefined;
+      } catch (e) {
+        return `must be an Ed25519 private key in PEM (lims audit keygen makes one): ${(e as Error).message}`;
+      }
+    },
+    after: (platform) =>
+      platform === 'win32'
+        ? 'Set LIMS_AUDIT_SIGNING_KEY_FILE to this path in lims-web.xml if it is not set yet.'
+        : 'If not done yet: systemctl edit lims-web, add "LoadCredential=audit_signing_key:<this path>" under [Service] (11 §11).',
   },
   hmis_client_secret: {
     readers: 'lims-jobs (HMIS link)',

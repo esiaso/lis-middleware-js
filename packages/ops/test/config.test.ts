@@ -72,6 +72,7 @@ describe('lims config validate', () => {
     expect(statuses('NODE_ENV=production\nNODE_EXTRA_CA_CERTS=/ca.pem', o)['NODE_EXTRA_CA_CERTS']).toMatch(/is not a PEM certificate file/);
     expect(statuses('NODE_ENV=production\nNODE_EXTRA_CA_CERTS=/ok.pem', o)['NODE_EXTRA_CA_CERTS']).toBeUndefined();
     expect(statuses('NODE_ENV=production\nDATABASE_URL_FILE=/gone', o)['DATABASE_URL_FILE']).toMatch(/^fail: \/gone does not exist/);
+    expect(statuses('NODE_ENV=production\nLIMS_AUDIT_SIGNING_KEY_FILE=/gone', o)['LIMS_AUDIT_SIGNING_KEY_FILE']).toMatch(/^fail: \/gone does not exist \(lims audit keygen\)/);
   });
 
   it('runs the web service\'s own directory sign-in check', () => {

@@ -372,6 +372,42 @@ The dashboard shows an HMIS warning, linking here, when the last three or
 more polls failed, when no poll was attempted for two hours, or when a
 released result has waited more than 15 minutes.
 
+## W-22 Test catalogue
+
+**Catalogue** (top menu; any signed-in user can read it; administrators and
+approvers change it): the lab's own tests (A-31).
+
+* **Waiting for approval**: drafts with code, version, test, LOINC code,
+  result type and answers, why, and who proposed them. Another administrator
+  or approver approves (password or hospital sign-in again) or discards with
+  a reason; the proposer sees "Another person approves this."
+* **Tests in use**: the active version of each test, with bench, LOINC code
+  and name, SHA code if any, result type with unit or answers (abnormal
+  answers marked *), specimen, and who approved it. "Change" fills the form
+  from the active version; "Retire" takes a reason and the password.
+* **Add a test / Change**: local code, name, bench, specimen, LOINC code
+  (check digit checked) and name, SHA code, performed by (a person or an
+  instrument), result type, unit (UCUM) and decimals for numbers, answers one
+  per line as `code | words`, then `| abnormal` and a LOINC answer code if
+  any, and why. Saving makes a draft.
+
+## W-23 Manual worksheet
+
+**Worksheet** (top menu; technologists and approvers enter results): received
+specimens waiting for a test performed by a person, STAT first, then oldest
+first, filtered by bench (A-31).
+
+* Each row shows the test, its code and LOINC code, the accession, the
+  patient, STAT, the ward and when the specimen was received.
+* The result field is a list of the catalogue's answers (abnormal ones
+  marked), a number box with the unit, or a text box. Nothing is chosen in
+  advance. "Performed by" defaults to the person entering, and the kit or
+  strip lot is optional.
+* A refused value stays on the row with the reason. A saved result leaves
+  the worksheet and waits on the results list for review; its result page
+  says who performed it, the lot and who entered it, and shows each answer's
+  words next to its code.
+
 ## W-10 Audit search and export
 
 ```
@@ -388,5 +424,9 @@ released result has waited more than 15 minutes.
 ```
 
 Export produces a signed bundle (JSON lines + hash manifest), see
-[10](10-security-and-audit.md) §8. As built: the manifest is there, the
-signature is not yet (A-16).
+[10](10-security-and-audit.md) §8. As built: event lines, then the
+manifest, then an Ed25519 signature line when a signing key is set (A-16).
+The page says whether exports are signed and with which key, and offers the
+public key (`/audit/signing-key.pem`); with a key that cannot be used it
+says so and refuses to export. `lims audit verify-export` checks a file on
+its own.

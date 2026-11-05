@@ -189,9 +189,14 @@ what is needed to understand the change.
   1. **Streaming export**: each audit event is also sent (from the outbox,
      at-least-once) to a protected external destination: syslog over TLS to
      the hospital SIEM, or a write-once (WORM) share.
-  2. **Signed periodic exports**: daily JSON-lines file + manifest with the
-     chain head, signed with a key held by the auditor role; stored on media
-     the DB admins cannot modify.
+  2. **Signed exports**: the auditor's JSON-lines export with its manifest,
+     signed with Ed25519 by a key hospital IT made on the server
+     (`lims audit keygen`, 01 A-16), and stored on media the DB admins cannot
+     modify. A later export of the same range that differs from a stored one,
+     or a stored one whose signature no longer checks, shows tampering. As
+     built, exports are made on demand, not daily, and the key is on the
+     server, so it proves the file left the server unchanged; it does not
+     stop an administrator who can read the key.
 * Audit records are excluded from retention purges.
 
 ### 8.3 Operational logs (Pino)

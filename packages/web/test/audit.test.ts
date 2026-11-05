@@ -1,9 +1,9 @@
-import { createHash } from 'node:crypto';
+import { createHash, generateKeyPairSync } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { createDb, type Db } from '@lis/db';
-import { appendAudit } from '@lis/lab';
+import { appendAudit, verifyAuditExport } from '@lis/lab';
 import { createApp, createUser } from '@lis/web';
 import { pino } from 'pino';
 import { Browser, PW } from './browser.js';
@@ -100,6 +100,34 @@ describe.skipIf(!url)('audit search and export over HTTP', () => {
     // The range is contiguous here, so each event links to the one before it.
     for (let i = 1; i < events.length; i++) expect(events[i].prevHash).toBe(events[i - 1].hash);
     expect(await db.auditEvent.count({ where: { action: 'audit.export', actor: 'aud' } })).toBe(1);
+  });
+
+  it('signs the export when a key is set, offers the public key, and refuses to export with an unusable key', async () => {
+    expect((await (await as('aud')).get('/audit')).html).toContain('Exports are not signed');
+    let pem: string | undefined = generateKeyPairSync('ed25519').privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+    const signed = await createApp(db, { secureCookies: false, logger: pino({ level: 'silent' }), auditSigningKey: () => pem });
+    await signed.listen(0, '127.0.0.1');
+    try {
+      const b = new Browser(`http://127.0.0.1:${(signed.getHttpServer().address() as AddressInfo).port}`);
+      expect((await b.signIn('aud')).status).toBe(303);
+      const pageHtml = (await b.get('/audit')).html;
+      const keyId = /signed with key <span class="font-monospace">([0-9a-f]{16})</.exec(pageHtml)?.[1];
+      expect(keyId).toBeDefined();
+      const pub = await b.get('/audit/signing-key.pem');
+      expect(pub.html).toContain('-----BEGIN PUBLIC KEY-----');
+      const file = (await b.get('/audit/export?entityType=result')).html;
+      expect(verifyAuditExport(file, { publicKeyPem: pub.html })).toMatchObject({ ok: true, checks: [{ status: 'pass' }, { status: 'pass' }, { name: 'signature', status: 'pass', detail: `valid, key ${keyId}` }] });
+      expect(verifyAuditExport(file.replace('"n7"', '"n8"'), { publicKeyPem: pub.html }).ok).toBe(false);
+      expect(await db.auditEvent.findFirst({ where: { action: 'audit.export' }, orderBy: { seq: 'desc' } })).toMatchObject({ after: { signed: true, keyId } });
+
+      pem = 'not a key';
+      expect((await b.get('/audit')).html).toContain('Exports are refused');
+      const before = await db.auditEvent.count({ where: { action: 'audit.export' } });
+      expect((await b.get('/audit/export')).status).toBe(500);
+      expect(await db.auditEvent.count({ where: { action: 'audit.export' } })).toBe(before);
+    } finally {
+      await signed.close();
+    }
   });
 
   it('verifies the chain on demand and shows a break plainly', async () => {

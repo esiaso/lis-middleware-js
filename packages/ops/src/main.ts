@@ -5,6 +5,7 @@ import { hostname, tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import { basename, join } from 'node:path';
 import { createDb, databaseUrlFromEnv, SCHEMA_PATH, type Db } from '@lis/db';
+import { generateAuditKey, verifyExportFile } from './audit.js';
 import { createBackup, verifyBackup } from './backup.js';
 import { defaultSources, formatChecks, parseEnvFile, parseServiceXml, summariseConfig, validateConfig, type ConfigSource } from './config.js';
 import { buildDiagBundle, collectLogs } from './diag.js';
@@ -26,6 +27,9 @@ const USAGE = `usage:
                                 a database dump from one snapshot, with a manifest (11 §9 step 2)
   lims backup verify <file> [--scratch-url-file <file>] [--keep] [--pg-bin <dir>] [--out <dir>]
                                 check a backup; with an EMPTY scratch database, restore it there and check the audit chain
+  lims audit keygen [--replace] make the key that signs audit exports; prints the public key to keep (11 §11)
+  lims audit verify-export <file> [--public-key <file>]
+                                check an audit export on its own: manifest, every event's hash, the signature
   lims version                  show the bundle version`;
 
 function flag(argv: string[], name: string): string | undefined {
@@ -185,6 +189,28 @@ async function main(argv: string[]): Promise<number> {
       const r = await tcpProbe(host, Number(port));
       process.stdout.write(`${r.ok ? 'OK' : 'FAILED'}: ${r.detail}\n`);
       return r.ok ? 0 : 1;
+    }
+    case 'audit': {
+      if (sub === 'keygen') {
+        try {
+          const k = generateAuditKey({ replace: argv.includes('--replace') });
+          process.stdout.write(`stored the private key in ${k.path} (never shown). Key id ${k.keyId}.\nKeep this public key with hospital IT security; it checks every export this key signs:\n\n${k.publicKeyPem}\n${k.note ? `${k.note}\n` : ''}Then restart lims-web.\n`);
+          return 0;
+        } catch (e) {
+          process.stderr.write(`${(e as Error).message}\n`);
+          return 1;
+        }
+      }
+      const [file] = rest;
+      if (sub !== 'verify-export' || !file || file.startsWith('--')) break;
+      try {
+        const r = verifyExportFile(file, flag(argv, '--public-key'));
+        process.stdout.write(formatChecks(`lims audit verify-export ${basename(file)}`, r.checks, r.ok));
+        return r.ok ? 0 : 1;
+      } catch (e) {
+        process.stderr.write(`${(e as Error).message}\n`);
+        return 1;
+      }
     }
     case 'version': {
       const root = findBundleRoot();

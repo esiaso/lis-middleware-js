@@ -22,4 +22,6 @@ export interface WebOptions {
   reportHeader?: string;
   /** IANA time zone for showing and entering times (LIMS_TIME_ZONE, A-24). Default UTC. */
   timeZone?: string;
+  /** The audit export signing key (A-16), read at each use; absent means exports are unsigned. */
+  auditSigningKey?: () => string | undefined;
 }

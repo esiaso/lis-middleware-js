@@ -92,7 +92,7 @@ const HMIS_KEYS = [
   'LIMS_HMIS_PAGE_SIZE', 'LIMS_HMIS_TIMEOUT_MS', 'LIMS_HMIS_POLL_SECONDS', 'LIMS_HMIS_MRN_SYSTEM', 'LIMS_HMIS_ORDER_SYSTEM', 'LIMS_HMIS_ORDER_LINE_SYSTEM', 'LIMS_HMIS_TEST_SYSTEM',
   'LIMS_HMIS_LIMS_SYSTEM_PREFIX',
 ];
-export const KNOWN_LIMS_KEYS = ['LIMS_TWO_PERSON_RULE', 'LIMS_INSECURE_COOKIES', 'LIMS_HOME', 'LIMS_REPORT_HEADER', 'LIMS_TIME_ZONE', ...OIDC_KEYS, ...LDAP_KEYS, ...HMIS_KEYS];
+export const KNOWN_LIMS_KEYS = ['LIMS_TWO_PERSON_RULE', 'LIMS_INSECURE_COOKIES', 'LIMS_HOME', 'LIMS_REPORT_HEADER', 'LIMS_TIME_ZONE', 'LIMS_AUDIT_SIGNING_KEY_FILE', ...OIDC_KEYS, ...LDAP_KEYS, ...HMIS_KEYS];
 /** Keys whose values are never shown. */
 export const SECRET_KEY = /SECRET|PASSWORD|TOKEN|PRIVATE|^DATABASE_URL$/i;
 
@@ -163,6 +163,9 @@ export function validateSource(src: ConfigSource, o: { exists?: (p: string) => b
       if (LOOPBACK(host)) add('warn', 'LIMS_INSECURE_COOKIES', 'is true: cookies are sent without TLS protection; for a loopback-only test setup only');
       else add('fail', 'LIMS_INSECURE_COOKIES', `is true while listening on ${host}: session cookies would cross the network unprotected`);
     }
+    const keyFile = v.get('LIMS_AUDIT_SIGNING_KEY_FILE');
+    if (keyFile !== undefined && !exists(keyFile)) add('fail', 'LIMS_AUDIT_SIGNING_KEY_FILE', `${keyFile} does not exist (lims audit keygen); the web service will not start`);
+    plainSecret('LIMS_AUDIT_SIGNING_KEY_FILE', 'audit_signing_key', keyFile);
     if (v.get('LIMS_TWO_PERSON_RULE') === 'false') add('warn', 'LIMS_TWO_PERSON_RULE', 'is false: one person may review and approve the same result (10 §2); needs the lab director\'s written agreement');
     const anyOidc = OIDC_KEYS.some((k) => v.has(k));
     if (anyOidc && !v.has('LIMS_OIDC_ISSUER')) add('fail', 'LIMS_OIDC_ISSUER', 'other LIMS_OIDC_ settings are present but LIMS_OIDC_ISSUER is not, so hospital sign-in stays off');
