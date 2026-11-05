@@ -96,9 +96,10 @@ read by a person, such as malaria rapid tests, dipstick urinalysis and smear
 counts (A-31, W-22, W-23), including panels such as a urinalysis or malaria
 microscopy ordered as one code and resulted as several (A-32), and QC for
 manual tests, which warns or blocks entry on a lot without a passing control
-(A-33, W-24). Not built yet: "add test to order" from an unmatched result,
-assisted reconciliation when the HMIS returns (beyond the candidate list), and
-patient merge handling (D-6).
+(A-33, W-24), and adding a test a clinician asked for to an order from an
+unmatched result, held until the HMIS order line arrives (A-34, W-7). Not
+built yet: assisted reconciliation when the HMIS returns (beyond the candidate
+list), and patient merge handling (D-6).
 
 ## Phase 3: Instrument verification and parallel run (3 to 6 weeks, calendar-bound)
 

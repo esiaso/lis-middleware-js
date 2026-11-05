@@ -12,8 +12,8 @@
   <p class="mb-2"><strong>{{type}}</strong></p>
   {{#each tests}}
   <div class="form-check">
-    <input class="form-check-input" type="checkbox" name="testIds" value="{{id}}" id="t-{{id}}" {{#if cancelled}}disabled{{else}}checked{{/if}}>
-    <label class="form-check-label font-monospace" for="t-{{id}}">{{code}}{{#if unmapped}} <span class="badge text-bg-warning">not mapped</span>{{/if}}{{#if cancelled}} (cancelled){{/if}}</label>
+    <input class="form-check-input" type="checkbox" name="testIds" value="{{id}}" id="t-{{id}}" {{#if cancelled}}disabled{{else}}{{#unless matchesAdded}}checked{{/unless}}{{/if}}>
+    <label class="form-check-label font-monospace" for="t-{{id}}">{{code}}{{#if unmapped}} <span class="badge text-bg-warning">not mapped</span>{{/if}}{{#if cancelled}} (cancelled){{/if}}</label>{{#if matchesAdded}} <span class="small text-warning-emphasis">The lab already ran this as an added test; match it below instead of collecting again.</span>{{/if}}
   </div>
   {{/each}}
   {{#if collectable}}{{#if ../can.collect}}
@@ -29,6 +29,36 @@
 {{else}}
 <p class="text-body-secondary">Nothing left to collect.</p>
 {{/each}}
+
+{{#if added}}
+<h2 class="h6">Tests added by the lab</h2>
+<p class="small text-body-secondary">Run on a specimen already in the lab because a clinician asked, before the HMIS had the order line. Their results are held from the HMIS until the clinician's line arrives and is matched here.</p>
+<table class="table table-sm align-middle">
+  <thead><tr><th>Test</th><th>Asked for by</th><th>Added</th><th>HMIS line</th></tr></thead>
+  <tbody>
+    {{#each added}}
+    <tr>
+      <td class="font-monospace">{{code}}{{#if resultId}} <a class="small" href="/results/{{resultId}}">result</a>{{/if}}</td>
+      <td>{{requestedBy}}<div class="small text-body-secondary">{{reason}}</div></td>
+      <td class="small">{{at}}, by {{addedBy}}, confirmed by {{confirmedBy}}</td>
+      <td>
+        {{#if matched}}<span class="small">Matched to line <span class="font-monospace">{{matched.line}}</span> by {{matched.by}}, {{matched.at}}</span>
+        {{else}}{{#if candidates}}{{#if ../can.review}}
+        <form method="post" action="/orders/{{../o.id}}/match-added" class="d-flex flex-wrap gap-2 align-items-end">
+          <input type="hidden" name="_csrf" value="{{../csrf}}">
+          <input type="hidden" name="addedTestId" value="{{id}}">
+          <div><label class="form-label small" for="line-{{id}}">HMIS line</label><select class="form-select form-select-sm" id="line-{{id}}" name="hmisTestId">{{#each candidates}}<option value="{{id}}">{{line}} ({{code}})</option>{{/each}}</select></div>
+          <div>{{> confirm inputClass="form-control form-control-sm"}}</div>
+          <button class="btn btn-primary btn-sm" type="submit">Match</button>
+        </form>
+        {{else}}<span class="small">The HMIS line has arrived; a technologist or approver matches it.</span>{{/if}}
+        {{else}}<span class="badge text-bg-warning">waiting for the HMIS line</span>{{/if}}{{/if}}
+      </td>
+    </tr>
+    {{/each}}
+  </tbody>
+</table>
+{{/if}}
 
 <h2 class="h6">Specimens</h2>
 <table class="table table-sm align-middle">

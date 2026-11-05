@@ -6,6 +6,7 @@
 
 {{#if notClinical}}<div class="alert alert-warning" role="alert"><strong>Not for clinical use.</strong> This instrument is not cleared: {{notClinical}}. The result cannot be released.</div>{{/if}}
 {{#if downtime}}<div class="alert alert-warning" role="alert"><strong>Downtime order {{downtime.id}}.</strong> This result can be reviewed and approved, but it is held from the HMIS until the order is <a href="/downtime/{{downtime.orderId}}">reconciled to the HMIS order</a>.</div>{{/if}}
+{{#if addedByLab}}<div class="alert alert-warning" role="alert"><strong>Added by the lab</strong> at the request of {{addedByLab.requestedBy}}. This result can be reviewed and approved, but it is held from the HMIS until the clinician orders the test in the HMIS and it is <a href="/orders/{{addedByLab.orderId}}">matched to that line on the order page</a>.</div>{{/if}}
 {{#if r.newDataAfterApproval}}<div class="alert alert-warning" role="alert">A new value arrived from the instrument after approval. Decide whether a correction is needed.</div>{{/if}}
 {{#if r.needsConfirmation}}<div class="alert alert-info" role="status">The last delivery had no clear answer. The middleware is checking with the HMIS before any resend.</div>{{/if}}
 

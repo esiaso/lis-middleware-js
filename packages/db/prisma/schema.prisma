@@ -324,6 +324,20 @@ model OrderedTest {
   componentCode String   @default("") @map("component_code")
   /// The panel's local code when this row is one of its components.
   panelCode     String?  @map("panel_code")
+  /// HMIS, or LAB_ADDED for a test added by the lab from an unmatched result (A-34).
+  source        String   @default("HMIS")
+  /// For a LAB_ADDED test: the clinician who asked for it, who proposed and confirmed it, and why.
+  requestedBy   String?  @map("requested_by")
+  addedBy       String?  @map("added_by")
+  addedConfirmedBy String? @map("added_confirmed_by")
+  addedReason   String?  @map("added_reason")
+  addedAt       DateTime? @map("added_at") @db.Timestamptz
+  /// The HMIS line's test this added test's specimen and result moved to.
+  matchedToId   String?  @map("matched_to_id") @db.Uuid
+  matchedBy     String?  @map("matched_by")
+  matchedAt     DateTime? @map("matched_at") @db.Timestamptz
+  matchedTo     OrderedTest? @relation("AddedTestMatch", fields: [matchedToId], references: [id], onDelete: Restrict)
+  matchedFrom   OrderedTest[] @relation("AddedTestMatch")
   order         LabOrder @relation(fields: [orderId], references: [id])
   specimen      Specimen? @relation(fields: [specimenId], references: [id])
   result        Result?
@@ -474,6 +488,11 @@ model UnmatchedResult {
   proposedBy    String?   @map("proposed_by")
   proposedAt    DateTime? @map("proposed_at") @db.Timestamptz
   proposalReason String?  @map("proposal_reason")
+  /// LINK (to proposedTestId) or ADD_TEST (a new test on proposedSpecimenId, A-34).
+  proposedAction String?  @map("proposed_action")
+  proposedSpecimenId String? @map("proposed_specimen_id") @db.Uuid
+  /// For ADD_TEST: the clinician who asked for the test.
+  proposedRequestedBy String? @map("proposed_requested_by")
   /// The result the observation became once the link was confirmed.
   linkedResultId String?  @map("linked_result_id") @db.Uuid
 

@@ -17,8 +17,14 @@
 
 {{#if proposal}}
 <div class="card card-body mb-3">
+  {{#if proposal.add}}
+  <h2 class="h6">Proposed added test, waiting for a second person</h2>
+  <p class="mb-1">Add {{proposal.test}} to order {{proposal.hmisOrderId}} on <a class="font-monospace" href="/specimens/{{proposal.specimenId}}">{{proposal.accessionNo}}</a>, asked for by <strong>{{proposal.requestedBy}}</strong></p>
+  <p class="small mb-1">The result stays out of the HMIS until the clinician orders {{proposal.test}} in the HMIS and that line is matched on the order page.</p>
+  {{else}}
   <h2 class="h6">Proposed link, waiting for a second person</h2>
   <p class="mb-1">To <a class="font-monospace" href="/specimens/{{proposal.specimenId}}">{{proposal.accessionNo}}</a> {{proposal.test}} · order {{proposal.hmisOrderId}}</p>
+  {{/if}}
   <p class="mb-1 fs-5"><strong>{{proposal.patient}}</strong></p>
   <p class="small text-body-secondary">Proposed by {{proposal.by}} at {{proposal.at}}: {{proposal.reason}}</p>
   {{#if can.dismiss}}
@@ -31,7 +37,7 @@
       <div>
         {{> confirm id="confirm-password" label="I checked the specimen and the patient. Your password" labelClass="form-label small" inputClass="form-control form-control-sm"}}
       </div>
-      <button class="btn btn-primary btn-sm" type="submit">Confirm link</button>
+      <button class="btn btn-primary btn-sm" type="submit">{{#if proposal.add}}Confirm added test{{else}}Confirm link{{/if}}</button>
     </form>
     {{/if}}
     <form method="post" action="/unmatched/{{u.id}}/withdraw">
@@ -56,6 +62,20 @@
       <input class="form-control mb-2" id="link-reason" name="reason" minlength="10" required>
       <button class="btn btn-primary" type="submit">Propose link</button>
     </form>
+    {{#if obs.canAdd}}
+    <form method="post" action="/unmatched/{{u.id}}/add-test" class="card card-body mt-3">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <h2 class="h6">Add {{obs.local}} to the order</h2>
+      <p class="small text-body-secondary">When a clinician asked for {{obs.local}} on a specimen already in the lab and it is not on the order yet. A different person confirms. The result can be reviewed and approved, but is held from the HMIS until the clinician orders it in the HMIS and that line is matched on the order page.</p>
+      <label class="form-label" for="add-accessionNo">Accession number (scan the tube)</label>
+      <input class="form-control mb-2 font-monospace" id="add-accessionNo" name="accessionNo" required maxlength="40" value="{{obs.accession}}">
+      <label class="form-label" for="requestedBy">Asked for by (clinician)</label>
+      <input class="form-control mb-2" id="requestedBy" name="requestedBy" required minlength="2" maxlength="100">
+      <label class="form-label" for="add-reason">How the request came (at least 10 characters)</label>
+      <input class="form-control mb-2" id="add-reason" name="reason" minlength="10" required placeholder="phoned the lab at 10:15, ward 3">
+      <button class="btn btn-outline-primary" type="submit">Propose added test</button>
+    </form>
+    {{/if}}
     {{else}}
     <div class="alert alert-warning">The instrument code {{obs.code}} has no active mapping, so this result cannot be linked. Fix the test mapping first, or close it.</div>
     {{/if}}

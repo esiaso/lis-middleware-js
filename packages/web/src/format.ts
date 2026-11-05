@@ -112,6 +112,8 @@ export const NOTICES: Record<string, string> = {
   'catalogue-retired': 'Test retired. Results already made with it are unchanged.',
   'manual-entered': 'Result saved. It is waiting for review on the results list.',
   'manual-qc-recorded': 'Control recorded.',
+  'add-test-proposed': 'Added test proposed. A different person confirms it.',
+  'added-test-matched': 'Added test matched to the HMIS line. Its result can now be released.',
   'standard-comment-added': 'Standard comment saved. It is offered on result pages from now on.',
   'standard-comment-retired': 'Standard comment retired. Comments already made with it are unchanged.',
   'qc-range-added': 'QC range saved. It applies to QC results that arrive from now on.',
