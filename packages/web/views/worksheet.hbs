@@ -8,31 +8,34 @@
 </form>
 {{/if}}
 
-{{#each rows}}
+{{#each cards}}
 <div class="card mb-3{{#if stat}} border-danger{{/if}}">
   <div class="card-body">
     <div class="d-flex flex-wrap gap-3 align-items-baseline mb-2">
-      <span class="fw-semibold">{{test}}</span><span class="font-monospace small">{{code}}{{#if loinc}}, LOINC {{loinc}}{{/if}}</span>
+      {{#if panel}}<span class="fw-semibold">{{panel.name}}</span><span class="font-monospace small">{{panel.code}}</span>{{else}}{{#each fields}}<span class="fw-semibold">{{test}}</span><span class="font-monospace small">{{code}}{{#if loinc}}, LOINC {{loinc}}{{/if}}</span>{{/each}}{{/if}}
       <span class="font-monospace">{{accessionNo}}</span><span>{{patient}}</span>
       {{#if stat}}<span class="badge text-bg-danger">STAT</span>{{/if}}
       <span class="small text-body-secondary">{{location}}{{#if received}}, received {{received}}{{/if}}</span>
     </div>
     {{#if issues}}<div class="alert alert-danger py-2" role="alert">{{#each issues}}<div>{{this}}</div>{{/each}}</div>{{/if}}
-    <form method="post" action="/worksheet/{{id}}" class="row g-2 align-items-end">
+    <form method="post" action="{{action}}" class="row g-2 align-items-end">
       <input type="hidden" name="_csrf" value="{{@root.csrf}}">
       <input type="hidden" name="section" value="{{@root.section}}">
-      <div class="col-md-4"><label class="form-label small" for="value-{{id}}">Result</label>
+      {{#each fields}}
+      <div class="{{#if ../panel}}col-md-6 col-lg-4{{else}}col-md-4{{/if}}"><label class="form-label small" for="value-{{id}}">{{#if ../panel}}{{test}}{{#if loinc}} <span class="font-monospace text-body-secondary">{{loinc}}</span>{{/if}}{{else}}Result{{/if}}</label>
         {{#if choice}}
-        <select class="form-select" id="value-{{id}}" name="value" required><option value="">Pick an answer</option>{{#each answers}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{display}}{{#if abnormal}} (abnormal){{/if}}</option>{{/each}}</select>
+        <select class="form-select" id="value-{{id}}" name="{{#if ../panel}}value-{{id}}{{else}}value{{/if}}"{{#unless ../panel}} required{{/unless}}><option value="">{{#if ../panel}}Not read yet{{else}}Pick an answer{{/if}}</option>{{#each answers}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{display}}{{#if abnormal}} (abnormal){{/if}}</option>{{/each}}</select>
         {{else}}{{#if text}}
-        <textarea class="form-control" id="value-{{id}}" name="value" rows="2" required maxlength="4000">{{value}}</textarea>
+        <textarea class="form-control" id="value-{{id}}" name="{{#if ../panel}}value-{{id}}{{else}}value{{/if}}" rows="2"{{#unless ../panel}} required{{/unless}} maxlength="4000">{{value}}</textarea>
         {{else}}
-        <div class="input-group"><input class="form-control" id="value-{{id}}" name="value" value="{{value}}" required inputmode="decimal" maxlength="20">{{#if unit}}<span class="input-group-text">{{unit}}</span>{{/if}}</div>
+        <div class="input-group"><input class="form-control" id="value-{{id}}" name="{{#if ../panel}}value-{{id}}{{else}}value{{/if}}" value="{{value}}"{{#unless ../panel}} required{{/unless}} inputmode="decimal" maxlength="20">{{#if unit}}<span class="input-group-text">{{unit}}</span>{{/if}}</div>
         {{/if}}{{/if}}
       </div>
-      <div class="col-md-3"><label class="form-label small" for="by-{{id}}">Performed by</label><input class="form-control" id="by-{{id}}" name="performedBy" value="{{performedBy}}" maxlength="100" placeholder="You, if left empty"></div>
-      <div class="col-md-2"><label class="form-label small" for="lot-{{id}}">Kit or strip lot</label><input class="form-control" id="lot-{{id}}" name="lot" value="{{lot}}" maxlength="40"></div>
-      <div class="col-md-2">{{#if @root.can.review}}<button class="btn btn-primary" type="submit">Save result</button>{{/if}}</div>
+      {{/each}}
+      {{#if panel}}<div class="col-12 small text-body-secondary">Leave a test empty if it has not been read yet; it stays here. Every test you fill is checked before any is saved.</div>{{/if}}
+      <div class="col-md-3"><label class="form-label small" for="by-{{@index}}">Performed by</label><input class="form-control" id="by-{{@index}}" name="performedBy" value="{{performedBy}}" maxlength="100" placeholder="You, if left empty"></div>
+      <div class="col-md-2"><label class="form-label small" for="lot-{{@index}}">Kit or strip lot</label><input class="form-control" id="lot-{{@index}}" name="lot" value="{{lot}}" maxlength="40"></div>
+      <div class="col-md-2">{{#if @root.can.review}}<button class="btn btn-primary" type="submit">Save {{#if panel}}results{{else}}result{{/if}}</button>{{/if}}</div>
     </form>
   </div>
 </div>

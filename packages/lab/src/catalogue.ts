@@ -42,6 +42,7 @@ export function toEntry(r: Row): CatalogueEntry {
     answers: r.answers as unknown as CatalogueAnswer[],
     ...(r.unit ? { unit: r.unit } : {}),
     ...(r.decimals !== null ? { decimals: r.decimals } : {}),
+    ...(r.resultType === 'PANEL' ? { components: r.components as unknown as string[] } : {}),
     changeReason: r.changeReason,
     createdBy: r.createdBy,
     createdAt: r.createdAt,
@@ -77,6 +78,7 @@ export async function proposeCatalogueEntry(db: Db, actor: string, form: Catalog
   if (!p.ok || issues.length) throw new InvalidInput(issues);
   const d = p.value;
   return db.$transaction(async (tx) => {
+    await checkComponents(tx, d);
     if (await tx.testCatalogueEntry.findFirst({ where: { localCode: d.localCode, status: 'DRAFT' } })) {
       throw new InvalidInput([`${d.localCode} already has a change waiting for approval. Approve or discard it first.`]);
     }
@@ -98,6 +100,7 @@ export async function proposeCatalogueEntry(db: Db, actor: string, form: Catalog
         answers: d.answers as unknown as JsonInput,
         unit: d.unit ?? null,
         decimals: d.decimals ?? null,
+        components: (d.components ?? []) as unknown as JsonInput,
         changeReason: reason.trim(),
         createdBy: actor,
       },
@@ -117,6 +120,7 @@ export async function approveCatalogueEntry(db: Db, actor: string, id: string): 
     const draft = await tx.testCatalogueEntry.findUnique({ where: { id } });
     if (!draft || draft.status !== 'DRAFT') throw new WorkflowRejected({ code: 'INVALID_STATE', detail: 'only a draft waiting for approval can be approved' });
     if (draft.createdBy === actor) throw new WorkflowRejected({ code: 'SAME_PERSON', detail: 'a catalogue change is approved by someone other than the person who proposed it' });
+    await checkComponents(tx, toEntry(draft));
     if (draft.loincCode) {
       const mapped = await tx.hmisCodeMap.findUnique({ where: { hmisTestCode: draft.loincCode } });
       if (mapped && mapped.localTestCode !== draft.localCode) {
@@ -161,7 +165,45 @@ export async function retireCatalogueEntry(db: Db, actor: string, localCode: str
   await db.$transaction(async (tx) => {
     const active = await tx.testCatalogueEntry.findFirst({ where: { localCode, status: 'ACTIVE' } });
     if (!active) throw new WorkflowRejected({ code: 'INVALID_STATE', detail: `${localCode} has no active version` });
+    const using = await panelsUsing(tx, localCode);
+    if (using.length) throw new InvalidInput([`${localCode} is a component of ${using.join(', ')}. Change or retire the panel first.`]);
     await tx.testCatalogueEntry.update({ where: { id: active.id }, data: { status: 'RETIRED', retiredBy: actor, retiredAt: new Date(), retireReason: reason.trim() } });
     await appendAudit(tx, { actor, action: 'catalogue.retire', entityType: 'test_catalogue', entityId: active.id, reason: reason.trim(), before: { localCode, versionNo: active.versionNo, status: 'ACTIVE' } });
   });
+}
+
+/** Panels in use that list this test as a component. */
+async function panelsUsing(tx: Tx, localCode: string): Promise<string[]> {
+  const panels = await tx.testCatalogueEntry.findMany({ where: { status: 'ACTIVE', resultType: 'PANEL' } });
+  return panels.filter((e) => e.localCode !== localCode && (e.components as unknown as string[]).includes(localCode)).map((e) => e.localCode);
+}
+
+/** A panel's components must each be an active test that is not itself a panel; a component cannot become a panel. */
+async function checkComponents(tx: Tx, d: CatalogueDefinition): Promise<void> {
+  if (d.resultType !== 'PANEL') return;
+  const issues: string[] = [];
+  const using = await panelsUsing(tx, d.localCode);
+  if (using.length) issues.push(`${d.localCode} is a component of ${using.join(', ')}, so it cannot be a panel itself.`);
+  const found = await tx.testCatalogueEntry.findMany({ where: { localCode: { in: d.components ?? [] }, status: 'ACTIVE' } });
+  const byCode = new Map(found.map((e) => [e.localCode, e]));
+  const missing = (d.components ?? []).filter((c) => !byCode.has(c));
+  const nested = found.filter((e) => e.resultType === 'PANEL').map((e) => e.localCode);
+  if (missing.length) issues.push(`Add these tests to the catalogue before the panel: ${missing.join(', ')}.`);
+  if (nested.length) issues.push(`A panel cannot contain another panel: ${nested.join(', ')}.`);
+  if (issues.length) throw new InvalidInput(issues);
+}
+
+export interface ExpandedTest {
+  localTestCode: string | null;
+  /** '' for an ordinary test. */
+  componentCode: string;
+  panelCode: string | null;
+}
+
+/** What one ordered code becomes: its components for an active panel, otherwise the test itself. */
+export async function expandTest(tx: Db | Tx, localCode: string | null): Promise<ExpandedTest[]> {
+  if (!localCode) return [{ localTestCode: null, componentCode: '', panelCode: null }];
+  const e = await tx.testCatalogueEntry.findFirst({ where: { localCode, status: 'ACTIVE' } });
+  if (!e || e.resultType !== 'PANEL') return [{ localTestCode: localCode, componentCode: '', panelCode: null }];
+  return (e.components as unknown as string[]).map((c) => ({ localTestCode: c, componentCode: c, panelCode: localCode }));
 }

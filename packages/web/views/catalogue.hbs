@@ -11,7 +11,7 @@
       <td class="font-monospace">{{localCode}}</td><td>{{versionNo}}</td>
       <td>{{name}} <span class="small text-body-secondary">{{section}}{{#if manual}}, by hand{{/if}}</span></td>
       <td class="font-monospace">{{loinc}}</td>
-      <td>{{type}}{{#if unit}} ({{unit}}){{/if}}{{#each answers}}<span class="badge text-bg-light border ms-1">{{code}} {{display}}{{#if abnormal}} *{{/if}}</span>{{/each}}</td>
+      <td>{{type}}{{#if unit}} ({{unit}}){{/if}}{{#each components}}<span class="badge text-bg-light border ms-1 font-monospace">{{this}}</span>{{/each}}{{#each answers}}<span class="badge text-bg-light border ms-1">{{code}} {{display}}{{#if abnormal}} *{{/if}}</span>{{/each}}</td>
       <td class="small">{{reason}}</td><td class="small">{{by}}, {{at}}</td>
       {{#if @root.canEdit}}
       <td>
@@ -46,7 +46,7 @@
       <td>{{name}}{{#if manual}} <span class="badge text-bg-secondary">by hand</span>{{/if}}</td>
       <td>{{section}}</td>
       <td>{{#if loinc}}<span class="font-monospace">{{loinc}}</span>{{#if loincDisplay}}<div class="small text-body-secondary">{{loincDisplay}}</div>{{/if}}{{else}}<span class="text-body-secondary">none</span>{{/if}}{{#if sha}}<div class="small">SHA {{sha}}</div>{{/if}}</td>
-      <td>{{type}}{{#if unit}} ({{unit}}){{/if}}{{#each answers}}<span class="badge text-bg-light border ms-1">{{code}} {{display}}{{#if abnormal}} *{{/if}}</span>{{/each}}</td>
+      <td>{{type}}{{#if unit}} ({{unit}}){{/if}}{{#each components}}<span class="badge text-bg-light border ms-1 font-monospace">{{this}}</span>{{/each}}{{#each answers}}<span class="badge text-bg-light border ms-1">{{code}} {{display}}{{#if abnormal}} *{{/if}}</span>{{/each}}</td>
       <td>{{specimenType}}</td>
       <td class="small">{{approvedBy}}, {{approvedAt}}</td>
       {{#if @root.canEdit}}
@@ -85,9 +85,10 @@
   <div class="col-md-6"><label class="form-label" for="loincDisplay">LOINC name</label><input class="form-control" id="loincDisplay" name="loincDisplay" value="{{v.loincDisplay}}" maxlength="255"></div>
   <div class="col-md-2"><label class="form-label" for="shaCode">SHA code</label><input class="form-control" id="shaCode" name="shaCode" value="{{v.shaCode}}" maxlength="40"><div class="form-text">Only from SHA's own list.</div></div>
   <div class="col-md-2"><label class="form-label" for="performedBy">Performed by</label><select class="form-select" id="performedBy" name="performedBy">{{#each performed}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></div>
-  <div class="col-md-3"><label class="form-label" for="resultType">Result type</label><select class="form-select" id="resultType" name="resultType">{{#each types}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select><div class="form-text">Ordered choice keeps the answers in order (Negative, Trace, 1+, ...).</div></div>
+  <div class="col-md-3"><label class="form-label" for="resultType">Result type</label><select class="form-select" id="resultType" name="resultType">{{#each types}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select><div class="form-text">Ordered choice keeps the answers in order (Negative, Trace, 1+, ...). A panel is ordered as one code and resulted as its component tests.</div></div>
   <div class="col-md-2"><label class="form-label" for="unit">Unit (UCUM)</label><input class="form-control" id="unit" name="unit" value="{{v.unit}}" maxlength="40"></div>
   <div class="col-md-2"><label class="form-label" for="decimals">Decimals</label><input class="form-control" id="decimals" name="decimals" value="{{v.decimals}}" inputmode="numeric" maxlength="1"></div>
+  <div class="col-md-3"><label class="form-label" for="components">Component tests (panels)</label><textarea class="form-control font-monospace text-uppercase" id="components" name="components" rows="5">{{v.components}}</textarea><div class="form-text">Local codes, one per line, in report order. Each must already be in the catalogue.</div></div>
   <div class="col-md-5"><label class="form-label" for="answers">Answers (choice results)</label><textarea class="form-control font-monospace" id="answers" name="answers" rows="5">{{v.answers}}</textarea><div class="form-text">One per line: <code>code | words</code>, then <code>| abnormal</code> if it is outside normal, and <code>| LA code</code> if the lab has chosen a LOINC answer code.</div></div>
   <div class="col-md-7"><label class="form-label" for="reason">Why</label><input class="form-control" id="reason" name="reason" value="{{reason}}" required minlength="5" maxlength="500"></div>
   <div class="col-12"><button class="btn btn-primary" type="submit">Save draft</button></div>

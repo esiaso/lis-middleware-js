@@ -70,6 +70,12 @@ export const HmisResultSubmission = z
     /** The patient the order is for, so the HMIS can check the result lands on the right record. Absent in rows written before it was added. */
     patient: z.object({ mrn: z.string().min(1).max(64) }).strict().optional(),
     testCode: z.string(),
+    /**
+     * For one component of a panel order line (A-32): the component's local code,
+     * which keys this result apart from the line's other components, and the
+     * code the HMIS ordered. testCode is then the component's own LOINC code.
+     */
+    component: z.object({ key: z.string().regex(/^[A-Z0-9][A-Z0-9._-]{0,19}$/), orderedCode: z.string().min(1).max(40) }).strict().optional(),
     status: z.enum(['final', 'corrected']),
     value: HmisResultValue,
     referenceRange: z.string().max(90).optional(),

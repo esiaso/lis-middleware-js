@@ -389,7 +389,8 @@ approvers change it): the lab's own tests (A-31).
   (check digit checked) and name, SHA code, performed by (a person or an
   instrument), result type, unit (UCUM) and decimals for numbers, answers one
   per line as `code | words`, then `| abnormal` and a LOINC answer code if
-  any, and why. Saving makes a draft.
+  any, and why. Saving makes a draft. A panel lists its component tests'
+  local codes, one per line, in report order (A-32).
 
 ## W-23 Manual worksheet
 
@@ -403,6 +404,9 @@ first, filtered by bench (A-31).
   marked), a number box with the unit, or a text box. Nothing is chosen in
   advance. "Performed by" defaults to the person entering, and the kit or
   strip lot is optional.
+* A panel order line is one card with a field per component waiting for a
+  person. Fields left empty stay on the worksheet; every filled field is
+  checked first and one bad value saves none of them (A-32).
 * A refused value stays on the row with the reason. A saved result leaves
   the worksheet and waits on the results list for review; its result page
   says who performed it, the lot and who entered it, and shows each answer's

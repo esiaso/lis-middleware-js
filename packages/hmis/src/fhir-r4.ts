@@ -303,10 +303,12 @@ export class FhirR4Hmis implements HmisConnector {
     const basedOn = { basedOn: [{ identifier: { system: s.orderLine, value: r.hmisLineId } }] };
     const code = { code: { coding: [{ system: s.test, code: r.testCode }] } };
     const notes = [...r.comments, ...(r.status === 'corrected' && r.reason ? [`Corrected: ${r.reason}`] : [])];
+    // A panel component is keyed by its line and its own code, so the line's components never overwrite each other (A-32).
+    const resultKey = r.component ? `${r.hmisLineId}/${r.component.key}` : r.hmisLineId;
     const observation = {
       resourceType: 'Observation',
       identifier: [
-        { system: this.sys('result'), value: r.hmisLineId },
+        { system: this.sys('result'), value: resultKey },
         { system: this.sys('submission'), value: idempotencyKey },
       ],
       status: r.status,
@@ -335,13 +337,15 @@ export class FhirR4Hmis implements HmisConnector {
       issued: r.approvedAt,
       result: [{ reference: obsUrl }],
     };
+    const obsEntry = { fullUrl: obsUrl, resource: observation, request: { method: 'PUT', url: `Observation?identifier=${encodeURIComponent(token(this.sys('result'), resultKey))}` } };
+    // A component goes without a DiagnosticReport: one report per line would be overwritten by each component
+    // in turn. The HMIS groups a panel's results by the order line they are based on (A-32, to agree).
     return stringifyWithDecimals({
       resourceType: 'Bundle',
       type: 'transaction',
-      entry: [
-        { fullUrl: obsUrl, resource: observation, request: { method: 'PUT', url: `Observation?identifier=${encodeURIComponent(token(this.sys('result'), r.hmisLineId))}` } },
-        { fullUrl: `urn:uuid:${randomUUID()}`, resource: report, request: { method: 'PUT', url: `DiagnosticReport?identifier=${encodeURIComponent(token(this.sys('report'), r.hmisLineId))}` } },
-      ],
+      entry: r.component
+        ? [obsEntry]
+        : [obsEntry, { fullUrl: `urn:uuid:${randomUUID()}`, resource: report, request: { method: 'PUT', url: `DiagnosticReport?identifier=${encodeURIComponent(token(this.sys('report'), r.hmisLineId))}` } }],
     });
   }
 

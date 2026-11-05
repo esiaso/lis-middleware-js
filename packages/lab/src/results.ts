@@ -208,12 +208,17 @@ export async function release(db: Db, resultId: string, user: { username: string
     const version = r.aggregate.versions.find((v) => v.versionNo === r.aggregate.selectedVersionNo) as ResultVersion;
     const t = row.orderedTest;
     const def = t.localTestCode ? await activeEntry(tx, t.localTestCode) : null;
+    // A panel component goes to the HMIS under its own LOINC code (A-32); without one there is nothing to send it as.
+    if (t.componentCode && !def?.loincCode) {
+      throw new WorkflowRejected({ code: 'NOT_RELEASABLE', detail: `${t.componentCode} is part of panel ${t.panelCode ?? ''} and has no LOINC code in the catalogue; add one before release` });
+    }
     const submission: HmisResultSubmission = {
       idempotencyKey: r.idempotencyKey,
       hmisOrderId: t.order.hmisOrderId,
       hmisLineId: t.hmisLineId,
       patient: { mrn: t.order.patient.mrn },
-      testCode: t.hmisTestCode,
+      testCode: t.componentCode ? (def?.loincCode as string) : t.hmisTestCode,
+      ...(t.componentCode ? { component: { key: t.componentCode, orderedCode: t.hmisTestCode } } : {}),
       status: r.correctionOf ? 'corrected' : 'final',
       value: toHmisValue(version.value, version.units, (code) => def?.answers.find((x) => x.code === code)),
       approvedBy: { username: user.username, displayName: user.displayName },

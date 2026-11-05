@@ -2,6 +2,7 @@ import type { HmisOrder } from '@lis/contracts';
 import { uuidv7, type Db, type JsonInput } from '@lis/db';
 import type { HmisConnector } from '@lis/hmis';
 import { appendAudit } from './audit.js';
+import { expandTest } from './catalogue.js';
 import type { Tx } from './tx.js';
 
 /**
@@ -57,19 +58,24 @@ export async function ingestOrder(tx: Tx, order: HmisOrder, actor = 'system:hmis
   const local = new Map(codes.map((c) => [c.hmisTestCode, c.localTestCode]));
   for (const line of order.lines) {
     const status = order.status === 'cancelled' ? 'cancelled' : line.status;
-    await tx.orderedTest.upsert({
-      where: { orderId_hmisLineId: { orderId, hmisLineId: line.hmisLineId } },
-      create: {
-        id: uuidv7(),
-        orderId,
-        hmisLineId: line.hmisLineId,
-        hmisTestCode: line.testCode,
-        localTestCode: local.get(line.testCode) ?? null,
-        specimenType: line.specimenType ?? null,
-        status,
-      },
-      update: { status },
-    });
+    const rows = await tx.orderedTest.updateMany({ where: { orderId, hmisLineId: line.hmisLineId }, data: { status } });
+    if (rows.count > 0) continue;
+    // A panel line becomes one ordered test per component (A-32); the split is fixed when the line first arrives.
+    for (const t of await expandTest(tx, local.get(line.testCode) ?? null)) {
+      await tx.orderedTest.create({
+        data: {
+          id: uuidv7(),
+          orderId,
+          hmisLineId: line.hmisLineId,
+          hmisTestCode: line.testCode,
+          localTestCode: t.localTestCode,
+          componentCode: t.componentCode,
+          panelCode: t.panelCode,
+          specimenType: line.specimenType ?? null,
+          status,
+        },
+      });
+    }
   }
   if (!existing) {
     await appendAudit(tx, { actor, action: 'order.received', entityType: 'lab_order', entityId: orderId, after: { hmisOrderId: order.hmisOrderId, lines: order.lines.length } });

@@ -320,11 +320,15 @@ model OrderedTest {
   specimenType  String?  @map("specimen_type")
   status        String
   specimenId    String?  @map("specimen_id") @db.Uuid
+  /// For one component of a panel order line: the component's local code; '' for an ordinary line (A-32).
+  componentCode String   @default("") @map("component_code")
+  /// The panel's local code when this row is one of its components.
+  panelCode     String?  @map("panel_code")
   order         LabOrder @relation(fields: [orderId], references: [id])
   specimen      Specimen? @relation(fields: [specimenId], references: [id])
   result        Result?
 
-  @@unique([orderId, hmisLineId])
+  @@unique([orderId, hmisLineId, componentCode])
   @@map("ordered_test")
 }
 
@@ -683,10 +687,12 @@ model TestCatalogueEntry {
   specimenType String?   @map("specimen_type")
   /// INSTRUMENT or MANUAL (entered on the worksheet).
   performedBy  String    @map("performed_by")
-  /// NUMERIC, ORDINAL, NOMINAL or TEXT.
+  /// NUMERIC, ORDINAL, NOMINAL, TEXT or PANEL.
   resultType   String    @map("result_type")
   /// For ORDINAL and NOMINAL: [{ code, display, abnormal?, loinc? }], in rank order for ORDINAL.
   answers      Json      @default("[]")
+  /// For PANEL: the component tests' local codes, in report order (A-32).
+  components   Json      @default("[]")
   /// UCUM unit for NUMERIC.
   unit         String?
   decimals     Int?

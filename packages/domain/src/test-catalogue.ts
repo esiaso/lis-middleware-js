@@ -8,7 +8,7 @@ import { canonicalDecimal } from './value-parser.js';
  * entry, LOINC code and answer list comes from the lab.
  */
 
-export const RESULT_TYPES = ['NUMERIC', 'ORDINAL', 'NOMINAL', 'TEXT'] as const;
+export const RESULT_TYPES = ['NUMERIC', 'ORDINAL', 'NOMINAL', 'TEXT', 'PANEL'] as const;
 export type CatalogueResultType = (typeof RESULT_TYPES)[number];
 export const PERFORMED_BY = ['INSTRUMENT', 'MANUAL'] as const;
 export type PerformedBy = (typeof PERFORMED_BY)[number];
@@ -37,6 +37,8 @@ export interface CatalogueDefinition {
   answers: CatalogueAnswer[];
   unit?: string;
   decimals?: number;
+  /** For a PANEL: its component tests' local codes, in report order. */
+  components?: string[];
 }
 
 /** What a person types on the catalogue form, as text. */
@@ -54,6 +56,8 @@ export interface CatalogueForm {
   answers: string;
   unit: string;
   decimals: string;
+  /** For a panel: component local codes, one per line or separated by commas. */
+  components?: string;
 }
 
 const CODE = /^[A-Z0-9][A-Z0-9._-]{0,19}$/;
@@ -135,6 +139,15 @@ export function parseCatalogueForm(f: CatalogueForm): { ok: true; value: Catalog
     issues.push(...answerIssues);
     if (answers.length < 2 && answerIssues.length === 0) issues.push('A choice result needs at least two answers, one per line.');
   } else if (f.answers.trim()) issues.push('Only ordinal and nominal results have an answer list.');
+  const components = (f.components ?? '').split(/[\s,]+/).map((c) => c.trim().toUpperCase()).filter(Boolean);
+  if (resultType === 'PANEL') {
+    if (components.length < 2) issues.push('A panel lists at least two component tests by their local codes.');
+    const bad = components.filter((c) => !CODE.test(c));
+    if (bad.length) issues.push(`Not a local code: ${bad.join(', ')}.`);
+    const twice = components.filter((c, i) => components.indexOf(c) !== i);
+    if (twice.length) issues.push(`Listed twice: ${[...new Set(twice)].join(', ')}.`);
+    if (components.includes(localCode)) issues.push('A panel cannot list itself.');
+  } else if (components.length) issues.push('Only a panel has component tests.');
   const unit = f.unit.trim();
   if (unit.length > 40) issues.push('The unit is at most 40 characters.');
   if (unit && resultType !== 'NUMERIC') issues.push('Only a numeric result has a unit.');
@@ -160,6 +173,7 @@ export function parseCatalogueForm(f: CatalogueForm): { ok: true; value: Catalog
       answers: coded ? answers : [],
       ...(unit ? { unit } : {}),
       ...(decimals !== undefined ? { decimals } : {}),
+      ...(resultType === 'PANEL' ? { components } : {}),
     },
   };
 }
@@ -195,6 +209,8 @@ export function readManualValue(def: CatalogueDefinition, raw: string): ManualVa
       if (!a) return { ok: false, issue: `Pick one of the answers for ${def.name}.` };
       return { ok: true, value: { kind: 'qualitative', code: a.code }, abnormalFlags: a.abnormal ? ['A'] : [] };
     }
+    case 'PANEL':
+      return { ok: false, issue: `${def.name} is a panel: enter each of its tests.` };
     case 'TEXT':
       if (s.length > 4000) return { ok: false, issue: 'A text result is at most 4000 characters.' };
       return { ok: true, value: { kind: 'text', text: s }, abnormalFlags: [] };
