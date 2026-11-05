@@ -20,13 +20,14 @@ export const DOWNTIME = 'MANUAL_DOWNTIME';
 
 const reject = (code: 'INVALID_STATE' | 'REASON_REQUIRED', detail: string) => new WorkflowRejected({ code, detail });
 
-/** Local test codes the lab can order by hand: those known from HMIS code mappings and active instrument mappings. */
+/** Local test codes the lab can order by hand: the active catalogue, plus those known from HMIS code mappings and active instrument mappings. */
 export async function downtimeTestCatalogue(db: Db): Promise<string[]> {
-  const [codeMap, sets] = await Promise.all([
+  const [codeMap, sets, catalogue] = await Promise.all([
     db.hmisCodeMap.findMany({ select: { localTestCode: true } }),
     db.testMappingSet.findMany({ where: { status: 'ACTIVE' }, select: { mappingsJson: true } }),
+    db.testCatalogueEntry.findMany({ where: { status: 'ACTIVE' }, select: { localCode: true } }),
   ]);
-  const codes = new Set(codeMap.map((c) => c.localTestCode));
+  const codes = new Set([...codeMap.map((c) => c.localTestCode), ...catalogue.map((c) => c.localCode)]);
   for (const s of sets) {
     const parsed = z.array(TestMapping).safeParse(s.mappingsJson);
     if (parsed.success) for (const m of parsed.data) codes.add(m.localTestCode);

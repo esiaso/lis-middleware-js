@@ -3,7 +3,7 @@ import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, P
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
 import { migrationStatus, type Db } from '@lis/db';
 import { AUTOVERIFY_ACTOR, clinicalGateFor } from '@lis/domain';
-import { addResultComment, approve, confirmLink, decisionsFor, failingQc, hmisLinkStatus, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, standardCommentsFor, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
+import { activeEntry, addResultComment, approve, confirmLink, decisionsFor, failingQc, hmisLinkStatus, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeLink, release, replay, review, standardCommentsFor, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
 import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS, type LoginResult } from './auth.js';
 import { directory } from './ldap.js';
@@ -329,7 +329,17 @@ export class ResultsController {
     const refs = await labReferences(this.db, r.versions.map((v) => ({ localTestCode: t.localTestCode, sex: p.sex, birthDate: p.birthDate, collectedAt: t.specimen?.collectedAt ?? null, storedAt: v.createdAt, value: v.value as unknown as ResultValue, units: v.units })));
     const shownVersion = r.versions.find((v) => v.versionNo === r.selectedVersionNo) ?? r.versions[r.versions.length - 1];
     const shownRef = shownVersion ? refs[r.versions.indexOf(shownVersion)] : null;
+    const entry = r.events.find((e) => e.kind === 'enter');
+    const entryDetail = (entry?.detail ?? {}) as { performedBy?: string; lot?: string };
+    const def = t.localTestCode ? await activeEntry(this.db, t.localTestCode) : null;
+    // A coded answer is shown with the catalogue's words next to its code.
+    const shown = (v: ResultValue) => {
+      if (v.kind !== 'qualitative') return formatValue(v);
+      const words = def?.answers.find((a) => a.code === v.code)?.display;
+      return words ? `${words} (${v.code})` : v.code;
+    };
     page(req, res, 'result', {
+      manual: entry ? { performedBy: entryDetail.performedBy ?? entry.actor, enteredBy: entry.actor, lot: entryDetail.lot ?? '' } : null,
       reference: shownRef ? { lab: true, text: shownRef.text, who: shownRef.who, source: shownRef.source } : shownVersion ? { lab: false, text: (await instrumentReferenceText(this.db, shownVersion.observationId)) ?? '' } : null,
       title: `Result ${t.localTestCode ?? t.hmisTestCode}`,
       r: {
@@ -352,7 +362,7 @@ export class ResultsController {
       versions: r.versions.map((v) => ({
         no: v.versionNo,
         kind: v.kind,
-        value: formatValue(v.value as unknown as ResultValue),
+        value: shown(v.value as unknown as ResultValue),
         units: v.units ?? '',
         flags: v.abnormalFlags.join(' '),
         reason: v.reason,

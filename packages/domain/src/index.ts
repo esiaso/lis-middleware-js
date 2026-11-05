@@ -11,3 +11,4 @@ export * from './time-zone.js';
 export * from './reference-ranges.js';
 export * from './tat-targets.js';
 export * from './qc-statistics.js';
+export * from './test-catalogue.js';

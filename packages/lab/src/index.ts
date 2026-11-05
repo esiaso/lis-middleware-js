@@ -21,3 +21,5 @@ export * from './order-report.js';
 export * from './qc-summary.js';
 export * from './hmis-status.js';
 export * from './audit-export.js';
+export * from './catalogue.js';
+export * from './manual-results.js';

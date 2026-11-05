@@ -5,6 +5,7 @@ import {
   type ResultAggregate, type ResultStatus, type ResultVersion, type VersionKind, type WorkflowError, type WorkflowPolicy,
 } from '@lis/domain';
 import { appendAudit } from './audit.js';
+import { activeEntry } from './catalogue.js';
 import { reportComments } from './comments.js';
 import { criticalFor, requireCriticalCall } from './critical.js';
 import { deltaColumns, deltaFor } from './delta.js';
@@ -135,7 +136,15 @@ export const review = (db: Db, resultId: string, user: string, versionNo: number
   command(db, resultId, user, 'review', (a) => unwrap(reviewResult(a, user, versionNo)));
 
 export const approve = (db: Db, resultId: string, user: string, policy: WorkflowPolicy) =>
-  command(db, resultId, user, 'approve', (a) => unwrap(approveResult(a, user, policy)), undefined, (tx, a) => requireCriticalCall(tx, resultId, a.selectedVersionNo));
+  command(db, resultId, user, 'approve', (a) => unwrap(approveResult(a, user, policy)), undefined, async (tx, a) => {
+    if (policy.twoPersonRule) {
+      // A manual result is approved by someone other than the person who read it.
+      const entry = await tx.resultEvent.findFirst({ where: { resultId, kind: 'enter' }, orderBy: { at: 'asc' } });
+      const performedBy = (entry?.detail as { performedBy?: string } | null)?.performedBy ?? entry?.actor;
+      if (performedBy === user) throw new WorkflowRejected({ code: 'SAME_PERSON', detail: 'the person who performed a manual test does not approve it' });
+    }
+    await requireCriticalCall(tx, resultId, a.selectedVersionNo);
+  });
 
 export const replay = (db: Db, resultId: string, user: string, reason: string) =>
   command(db, resultId, user, 'replay', (a) => unwrap(replayDelivery(a, reason)), reason).then(async (a) => {
@@ -147,15 +156,21 @@ export const replay = (db: Db, resultId: string, user: string, reason: string) =
 export const correct = (db: Db, resultId: string, user: string, value: ResultValue, reason: string, units?: string) =>
   command(db, resultId, user, 'correct', (a) => unwrap(correctResult(a, user, value, reason, units ? { units } : {})), reason);
 
-function toHmisValue(v: ResultValue, units?: string): HmisResultValue {
+/** An answer from the catalogue, so a coded result goes out with its words and LOINC answer code. */
+type AnswerLookup = (code: string) => { display: string; loinc?: string } | undefined;
+
+function toHmisValue(v: ResultValue, units?: string, answer: AnswerLookup = () => undefined): HmisResultValue {
   const unit = units ? { unit: units } : {};
   switch (v.kind) {
     case 'numeric':
       return { type: 'numeric', value: v.value, ...unit };
     case 'censored':
       return { type: 'censored', comparator: v.comparator, value: v.limit, ...unit };
-    case 'qualitative':
-      return { type: 'coded', code: v.code };
+    case 'qualitative': {
+      const a = answer(v.code);
+      if (!a) return { type: 'coded', code: v.code };
+      return a.loinc ? { type: 'coded', code: a.loinc, system: 'http://loinc.org', display: a.display } : { type: 'coded', code: v.code, display: a.display };
+    }
     case 'text':
       return { type: 'text', text: v.text };
     case 'absent':
@@ -192,6 +207,7 @@ export async function release(db: Db, resultId: string, user: { username: string
     await requireCriticalCall(tx, resultId, r.aggregate.selectedVersionNo);
     const version = r.aggregate.versions.find((v) => v.versionNo === r.aggregate.selectedVersionNo) as ResultVersion;
     const t = row.orderedTest;
+    const def = t.localTestCode ? await activeEntry(tx, t.localTestCode) : null;
     const submission: HmisResultSubmission = {
       idempotencyKey: r.idempotencyKey,
       hmisOrderId: t.order.hmisOrderId,
@@ -199,7 +215,7 @@ export async function release(db: Db, resultId: string, user: { username: string
       patient: { mrn: t.order.patient.mrn },
       testCode: t.hmisTestCode,
       status: r.correctionOf ? 'corrected' : 'final',
-      value: toHmisValue(version.value, version.units),
+      value: toHmisValue(version.value, version.units, (code) => def?.answers.find((x) => x.code === code)),
       approvedBy: { username: user.username, displayName: user.displayName },
       approvedAt: new Date().toISOString(),
       specimen: { accessionNo: t.specimen?.accessionNo ?? '', ...(t.specimen?.collectedAt ? { collectedAt: t.specimen.collectedAt.toISOString() } : {}) },

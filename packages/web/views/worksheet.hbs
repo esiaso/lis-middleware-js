@@ -1,0 +1,41 @@
+<div class="d-flex align-items-baseline gap-3"><h1 class="h4">Manual worksheet</h1><a href="/catalogue">Test catalogue</a><a href="/results">Results</a></div>
+<p class="text-body-secondary">Tests read by a person, such as malaria smears and rapid tests, urinalysis and microscopy, for specimens received in the lab. STAT first, then oldest first. Nothing is filled in for you: pick or type every result, including a negative. A saved result waits for review and approval like an instrument result, and with the two-person rule on, whoever performed the test cannot approve it.</p>
+
+{{#if anyManual}}
+<form method="get" action="/worksheet" class="row g-2 align-items-end mb-3">
+  <div class="col-auto"><label class="form-label" for="section">Bench</label><select class="form-select" id="section" name="section"><option value="">Every bench</option>{{#each sections}}<option value="{{name}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></div>
+  <div class="col-auto"><button class="btn btn-outline-secondary" type="submit">Show</button></div>
+</form>
+{{/if}}
+
+{{#each rows}}
+<div class="card mb-3{{#if stat}} border-danger{{/if}}">
+  <div class="card-body">
+    <div class="d-flex flex-wrap gap-3 align-items-baseline mb-2">
+      <span class="fw-semibold">{{test}}</span><span class="font-monospace small">{{code}}{{#if loinc}}, LOINC {{loinc}}{{/if}}</span>
+      <span class="font-monospace">{{accessionNo}}</span><span>{{patient}}</span>
+      {{#if stat}}<span class="badge text-bg-danger">STAT</span>{{/if}}
+      <span class="small text-body-secondary">{{location}}{{#if received}}, received {{received}}{{/if}}</span>
+    </div>
+    {{#if issues}}<div class="alert alert-danger py-2" role="alert">{{#each issues}}<div>{{this}}</div>{{/each}}</div>{{/if}}
+    <form method="post" action="/worksheet/{{id}}" class="row g-2 align-items-end">
+      <input type="hidden" name="_csrf" value="{{@root.csrf}}">
+      <input type="hidden" name="section" value="{{@root.section}}">
+      <div class="col-md-4"><label class="form-label small" for="value-{{id}}">Result</label>
+        {{#if choice}}
+        <select class="form-select" id="value-{{id}}" name="value" required><option value="">Pick an answer</option>{{#each answers}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{display}}{{#if abnormal}} (abnormal){{/if}}</option>{{/each}}</select>
+        {{else}}{{#if text}}
+        <textarea class="form-control" id="value-{{id}}" name="value" rows="2" required maxlength="4000">{{value}}</textarea>
+        {{else}}
+        <div class="input-group"><input class="form-control" id="value-{{id}}" name="value" value="{{value}}" required inputmode="decimal" maxlength="20">{{#if unit}}<span class="input-group-text">{{unit}}</span>{{/if}}</div>
+        {{/if}}{{/if}}
+      </div>
+      <div class="col-md-3"><label class="form-label small" for="by-{{id}}">Performed by</label><input class="form-control" id="by-{{id}}" name="performedBy" value="{{performedBy}}" maxlength="100" placeholder="You, if left empty"></div>
+      <div class="col-md-2"><label class="form-label small" for="lot-{{id}}">Kit or strip lot</label><input class="form-control" id="lot-{{id}}" name="lot" value="{{lot}}" maxlength="40"></div>
+      <div class="col-md-2">{{#if @root.can.review}}<button class="btn btn-primary" type="submit">Save result</button>{{/if}}</div>
+    </form>
+  </div>
+</div>
+{{else}}
+<p class="text-body-secondary">{{#if anyManual}}No received specimens are waiting for a manual test{{#if section}} on this bench{{/if}}.{{else}}The catalogue has no tests performed by hand yet. Add them on the <a href="/catalogue">test catalogue</a> page.{{/if}}</p>
+{{/each}}

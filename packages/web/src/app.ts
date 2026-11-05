@@ -26,6 +26,7 @@ import { QcController } from './qc.controller.js';
 import { ReferenceRangesController } from './reference-ranges.controller.js';
 import { StandardCommentsController } from './standard-comments.controller.js';
 import { HmisController } from './hmis.controller.js';
+import { CatalogueController, WorksheetController } from './catalogue.controller.js';
 import { ReportsController } from './reports.controller.js';
 import { CriticalCallController, CriticalController } from './critical.controller.js';
 import { AccountController, UsersController } from './users.controller.js';
@@ -43,7 +44,7 @@ class WebModule {
   static with(db: Db, opts: WebOptions, logger: Logger): DynamicModule {
     return {
       module: WebModule,
-      controllers: [AuthController, DashboardController, ResultsController, UnmatchedController, FailedController, HmisController, InstrumentsController, OrdersController, DowntimeController, AuditController, CriticalController, CriticalCallController, AutoverificationController, DeltaController, QcController, ReferenceRangesController, StandardCommentsController, PatientsController, OrderReportController, ReportsController, UsersController, AccountController, HealthController],
+      controllers: [AuthController, DashboardController, ResultsController, UnmatchedController, FailedController, HmisController, InstrumentsController, OrdersController, DowntimeController, AuditController, CriticalController, CriticalCallController, AutoverificationController, DeltaController, QcController, ReferenceRangesController, StandardCommentsController, CatalogueController, WorksheetController, PatientsController, OrderReportController, ReportsController, UsersController, AccountController, HealthController],
       providers: [
         { provide: DB, useValue: db },
         { provide: WEB_OPTIONS, useValue: opts },

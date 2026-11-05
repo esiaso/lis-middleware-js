@@ -664,6 +664,45 @@ model StandardComment {
   @@map("standard_comment")
 }
 
+/// One version of a test in the lab's own catalogue (design: "Test catalogue and LOINC"). None shipped.
+/// A change is a new DRAFT version that a second person makes ACTIVE; the old one is then RETIRED.
+model TestCatalogueEntry {
+  id           String    @id @db.Uuid
+  localCode    String    @map("local_code")
+  versionNo    Int       @map("version_no")
+  /// DRAFT, ACTIVE, RETIRED or DISCARDED (a draft not taken up).
+  status       String    @default("DRAFT")
+  name         String
+  /// The bench: chemistry, haematology, parasitology, urinalysis, ...
+  section      String
+  /// The LOINC term for this method and specimen, chosen and approved by the lab.
+  loincCode    String?   @map("loinc_code")
+  loincDisplay String?   @map("loinc_display")
+  /// Optional SHA code, filled only from the official SHA and DHA publications.
+  shaCode      String?   @map("sha_code")
+  specimenType String?   @map("specimen_type")
+  /// INSTRUMENT or MANUAL (entered on the worksheet).
+  performedBy  String    @map("performed_by")
+  /// NUMERIC, ORDINAL, NOMINAL or TEXT.
+  resultType   String    @map("result_type")
+  /// For ORDINAL and NOMINAL: [{ code, display, abnormal?, loinc? }], in rank order for ORDINAL.
+  answers      Json      @default("[]")
+  /// UCUM unit for NUMERIC.
+  unit         String?
+  decimals     Int?
+  changeReason String    @map("change_reason")
+  createdBy    String    @map("created_by")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  approvedBy   String?   @map("approved_by")
+  approvedAt   DateTime? @map("approved_at") @db.Timestamptz
+  retiredBy    String?   @map("retired_by")
+  retiredAt    DateTime? @map("retired_at") @db.Timestamptz
+  retireReason String?   @map("retire_reason")
+
+  @@unique([localCode, versionNo], map: "test_catalogue_code_version")
+  @@map("test_catalogue")
+}
+
 /// Who was told about a critical result, and that they read it back. Append-only.
 model CriticalCall {
   id         String   @id @db.Uuid

@@ -48,7 +48,16 @@ export type HmisOrder = z.infer<typeof HmisOrder>;
 export const HmisResultValue = z.discriminatedUnion('type', [
   z.object({ type: z.literal('numeric'), value: z.string().regex(/^[+-]?\d+(\.\d+)?$/), unit: z.string().max(40).optional() }).strict(),
   z.object({ type: z.literal('censored'), comparator: z.enum(['<', '<=', '>', '>=']), value: z.string(), unit: z.string().max(40).optional() }).strict(),
-  z.object({ type: z.literal('coded'), code: z.string().min(1).max(40) }).strict(),
+  z
+    .object({
+      type: z.literal('coded'),
+      code: z.string().min(1).max(40),
+      /** The code system, such as http://loinc.org for a LOINC answer code; absent for a lab code. */
+      system: z.string().max(200).optional(),
+      /** The answer's words, from the lab's catalogue. */
+      display: z.string().max(80).optional(),
+    })
+    .strict(),
   z.object({ type: z.literal('text'), text: z.string().max(4000) }).strict(),
 ]);
 export type HmisResultValue = z.infer<typeof HmisResultValue>;
