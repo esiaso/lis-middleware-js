@@ -3,7 +3,7 @@ import type { Db } from '@lis/db';
 import { answersText, type CatalogueForm } from '@lis/domain';
 import {
   activeCatalogue, activeEntry, approveCatalogueEntry, catalogueDrafts, discardCatalogueDraft, enterManualPanel, enterManualResult, InvalidInput, manualWorksheet,
-  proposeCatalogueEntry, retireCatalogueEntry, type CatalogueEntry, type WorksheetRow,
+  passingLots, proposeCatalogueEntry, qcGoverning, recentManualQc, recordManualQc, retireCatalogueEntry, type CatalogueEntry, type WorksheetRow,
 } from '@lis/lab';
 import type { Response } from 'express';
 import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
@@ -11,7 +11,7 @@ import { formatTime } from './format.js';
 import { Roles, type WebRequest } from './security.js';
 import { DB } from './tokens.js';
 
-const FIELDS = ['localCode', 'name', 'section', 'loincCode', 'loincDisplay', 'shaCode', 'specimenType', 'performedBy', 'resultType', 'answers', 'unit', 'decimals', 'components'] as const;
+const FIELDS = ['localCode', 'name', 'section', 'loincCode', 'loincDisplay', 'shaCode', 'specimenType', 'performedBy', 'resultType', 'answers', 'unit', 'decimals', 'components', 'qcRule', 'qcValidHours'] as const;
 const TYPE_WORDS: Record<string, string> = { NUMERIC: 'Number', ORDINAL: 'Ordered choice', NOMINAL: 'Choice', TEXT: 'Text', PANEL: 'Panel' };
 
 const formFrom = (body: Form): CatalogueForm => Object.fromEntries(FIELDS.map((k) => [k, str(body, k)])) as unknown as CatalogueForm;
@@ -29,7 +29,12 @@ const formOf = (e: CatalogueEntry): CatalogueForm => ({
   unit: e.unit ?? '',
   decimals: e.decimals === undefined ? '' : String(e.decimals),
   components: (e.components ?? []).join('\n'),
+  qcRule: e.qcRule ?? 'NONE',
+  qcValidHours: e.qcValidHours === undefined ? '' : String(e.qcValidHours),
 });
+const QC_WORDS: Record<string, string> = { NONE: 'No check', WARN: 'Warn without a passing control', BLOCK: 'Block without a passing control' };
+const qcText = (e: CatalogueEntry) =>
+  e.qcRule ? `${e.qcRule === 'BLOCK' ? 'blocks' : 'warns'} without a passing control for the lot${e.qcValidHours ? `, each ${e.qcValidHours} h` : ''}` : '';
 
 const view = (e: CatalogueEntry) => ({
   id: e.id,
@@ -47,6 +52,7 @@ const view = (e: CatalogueEntry) => ({
   unit: e.unit ?? '',
   decimals: e.decimals ?? '',
   components: e.components ?? [],
+  qc: qcText(e),
   reason: e.changeReason,
   by: e.createdBy,
   at: formatTime(e.createdAt),
@@ -67,7 +73,7 @@ export class CatalogueController {
 
   private async render(req: WebRequest, res: Response, f: CatalogueForm | undefined, issues: string[], reason: string | undefined, status = 200): Promise<void> {
     const [active, drafts] = await Promise.all([activeCatalogue(this.db), catalogueDrafts(this.db)]);
-    const v = f ?? { localCode: '', name: '', section: '', loincCode: '', loincDisplay: '', shaCode: '', specimenType: '', performedBy: 'MANUAL', resultType: 'NUMERIC', answers: '', unit: '', decimals: '', components: '' };
+    const v = f ?? { localCode: '', name: '', section: '', loincCode: '', loincDisplay: '', shaCode: '', specimenType: '', performedBy: 'MANUAL', resultType: 'NUMERIC', answers: '', unit: '', decimals: '', components: '', qcRule: 'NONE', qcValidHours: '' };
     const roles = req.user?.roles ?? [];
     res.status(status);
     page(req, res, 'catalogue', {
@@ -82,6 +88,7 @@ export class CatalogueController {
         { value: 'MANUAL', label: 'A person (worksheet)', selected: v.performedBy === 'MANUAL' },
         { value: 'INSTRUMENT', label: 'An instrument', selected: v.performedBy === 'INSTRUMENT' },
       ],
+      qcRules: Object.entries(QC_WORDS).map(([value, label]) => ({ value, label, selected: (v.qcRule || 'NONE') === value })),
       types: Object.entries(TYPE_WORDS).map(([value, label]) => ({ value, label, selected: v.resultType === value })),
       issues,
     });
@@ -134,7 +141,10 @@ interface Failed {
 }
 
 /** One card per ordinary test, and one per panel order line holding its components waiting for a person. */
-function cardsOf(rows: WorksheetRow[], failed: Failed) {
+/** What QC a card needs: the governing test or panel, its rule, and the lots that may be used now (A-33). */
+type CardQc = (r: WorksheetRow) => { code: string; block: boolean; lots: string[] } | null;
+
+function cardsOf(rows: WorksheetRow[], failed: Failed, qcOf: CardQc = () => null) {
   const field = (r: WorksheetRow) => {
     const value = failed.values?.get(r.orderedTestId) ?? '';
     return {
@@ -166,6 +176,7 @@ function cardsOf(rows: WorksheetRow[], failed: Failed) {
         action: r.panel ? '/worksheet/panel' : `/worksheet/${r.orderedTestId}`,
         performedBy: '',
         lot: '',
+        qc: qcOf(r),
         issues: [] as string[],
         fields: [],
       };
@@ -189,7 +200,12 @@ export class WorksheetController {
   }
 
   private async render(req: WebRequest, res: Response, section: string, failed: Failed, status: number): Promise<void> {
-    const [all, rows] = await Promise.all([activeCatalogue(this.db), manualWorksheet(this.db, section ? { section } : {})]);
+    const [all, rows, lots] = await Promise.all([activeCatalogue(this.db), manualWorksheet(this.db, section ? { section } : {}), passingLots(this.db)]);
+    const byCode = new Map(all.map((e) => [e.localCode, e]));
+    const qcOf: CardQc = (r) => {
+      const g = qcGoverning(r.test, r.panel ? (byCode.get(r.panel.code) ?? null) : null);
+      return g ? { code: g.localCode, block: g.qcRule === 'BLOCK', lots: lots.get(g.localCode) ?? [] } : null;
+    };
     const sections = [...new Set(all.filter((e) => e.performedBy === 'MANUAL').map((e) => e.section))].sort();
     res.status(status);
     page(req, res, 'worksheet', {
@@ -197,8 +213,54 @@ export class WorksheetController {
       sections: sections.map((s) => ({ name: s, selected: s === section })),
       section,
       anyManual: sections.length > 0,
-      cards: cardsOf(rows, failed),
+      cards: cardsOf(rows, failed, qcOf),
     });
+  }
+
+  @Get('qc')
+  async qc(@Req() req: WebRequest, @Res() res: Response, @Query('test') test?: string): Promise<void> {
+    await this.renderQc(req, res, typeof test === 'string' ? test : '', {}, [], 200);
+  }
+
+  private async renderQc(req: WebRequest, res: Response, code: string, v: Record<string, string>, issues: string[], status: number): Promise<void> {
+    const [all, recent, lots] = await Promise.all([activeCatalogue(this.db), recentManualQc(this.db, { take: 100 }), passingLots(this.db)]);
+    const manual = all.filter((e) => e.performedBy === 'MANUAL');
+    const def = manual.find((e) => e.localCode === code) ?? null;
+    const coded = def ? def.resultType === 'ORDINAL' || def.resultType === 'NOMINAL' : false;
+    const names = new Map(all.map((e) => [e.localCode, e.name]));
+    const answers = (sel: string) => (def?.answers ?? []).map((a) => ({ code: a.code, display: a.display, selected: sel === a.code }));
+    res.status(status);
+    page(req, res, 'manual-qc', {
+      title: 'Manual QC',
+      tests: manual.map((e) => ({ code: e.localCode, name: e.name, rule: e.qcRule ? (e.qcRule === 'BLOCK' ? 'blocks' : 'warns') : '', selected: e.localCode === code })),
+      def: def ? { code: def.localCode, name: def.name, coded, panel: def.resultType === 'PANEL', rule: def.qcRule ?? '', hours: def.qcValidHours ?? '' } : null,
+      expected: answers(v['expected'] ?? ''),
+      observed: answers(v['observed'] ?? ''),
+      v,
+      issues,
+      usable: manual.filter((e) => e.qcRule).map((e) => ({ code: e.localCode, name: e.name, block: e.qcRule === 'BLOCK', hours: e.qcValidHours ?? '', lots: lots.get(e.localCode) ?? [] })),
+      recent: recent.map((r) => ({
+        ...r,
+        name: names.get(r.localCode) ?? r.localCode,
+        pass: r.outcome === 'PASS',
+        at: formatTime(r.at),
+        lotExpiry: r.lotExpiry ? r.lotExpiry.toISOString().slice(0, 10) : '',
+      })),
+    });
+  }
+
+  @Post('qc')
+  @Roles('technologist', 'approver')
+  async recordQc(@Req() req: WebRequest, @Res() res: Response, @Body() body: Form): Promise<void> {
+    const keys = ['localCode', 'lot', 'lotExpiry', 'control', 'expected', 'observed', 'outcome', 'performedBy', 'comment'] as const;
+    const v = Object.fromEntries(keys.map((k) => [k, str(body, k)])) as Record<(typeof keys)[number], string>;
+    try {
+      await recordManualQc(this.db, req.user!.username, v);
+    } catch (e) {
+      if (e instanceof InvalidInput) return this.renderQc(req, res, v.localCode, v, e.issues, 422);
+      throw e;
+    }
+    res.redirect(303, `/worksheet/qc?notice=manual-qc-recorded&test=${encodeURIComponent(v.localCode)}`);
   }
 
   @Post('panel')

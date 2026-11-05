@@ -1,0 +1,61 @@
+<div class="d-flex align-items-baseline gap-3"><h1 class="h4">Manual QC</h1><a href="/worksheet">Worksheet</a><a href="/catalogue">Test catalogue</a></div>
+<p class="text-body-secondary">Controls for tests read by a person: a positive and a negative control on each new rapid test kit lot, a known slide for a stain batch, a control strip for a dipstick lot. Record every run, including a failed one. A failed control stays in force until that control passes again on the same lot. Whether results can be entered without a passing control is set per test in the catalogue.</p>
+
+{{#if usable}}
+<h2 class="h6">Lots that may be used now</h2>
+<ul class="mb-4">
+  {{#each usable}}<li><span class="font-monospace">{{code}}</span> {{name}} ({{#if block}}blocks{{else}}warns{{/if}} without QC{{#if hours}}, counts {{hours}} h{{/if}}): {{#if lots}}{{#each lots}}<span class="badge text-bg-success ms-1 font-monospace">{{this}}</span>{{/each}}{{else}}<span class="text-danger">no lot has a passing control</span>{{/if}}</li>{{/each}}
+</ul>
+{{/if}}
+
+{{#if @root.can.review}}
+<form method="get" action="/worksheet/qc" class="row g-2 align-items-end mb-3">
+  <div class="col-auto"><label class="form-label" for="test">Test</label><select class="form-select" id="test" name="test"><option value="">Pick a test</option>{{#each tests}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{code}} {{name}}{{#if rule}} (QC {{rule}}){{/if}}</option>{{/each}}</select></div>
+  <div class="col-auto"><button class="btn btn-outline-secondary" type="submit">Record a control</button></div>
+</form>
+
+{{#if def}}
+<div class="card mb-4"><div class="card-body">
+<h2 class="h6">{{def.name}} <span class="font-monospace small">{{def.code}}</span></h2>
+{{#if issues}}<div class="alert alert-danger py-2" role="alert">{{#each issues}}<div>{{this}}</div>{{/each}}</div>{{/if}}
+<form method="post" action="/worksheet/qc" class="row g-2 align-items-end">
+  <input type="hidden" name="_csrf" value="{{@root.csrf}}">
+  <input type="hidden" name="localCode" value="{{def.code}}">
+  <div class="col-md-3"><label class="form-label small" for="lot">Kit, strip or stain lot</label><input class="form-control" id="lot" name="lot" value="{{v.lot}}" required maxlength="40"></div>
+  <div class="col-md-2"><label class="form-label small" for="lotExpiry">Lot expiry</label><input class="form-control" type="date" id="lotExpiry" name="lotExpiry" value="{{v.lotExpiry}}"></div>
+  <div class="col-md-3"><label class="form-label small" for="control">Control</label><input class="form-control" id="control" name="control" value="{{v.control}}" required maxlength="60" placeholder="positive control" list="controls"><datalist id="controls"><option value="positive control"><option value="negative control"><option value="known positive slide"><option value="known negative slide"></datalist></div>
+  {{#if def.coded}}
+  <div class="col-md-2"><label class="form-label small" for="expected">Should read</label><select class="form-select" id="expected" name="expected" required><option value="">Pick</option>{{#each expected}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{display}}</option>{{/each}}</select></div>
+  <div class="col-md-2"><label class="form-label small" for="observed">Read</label><select class="form-select" id="observed" name="observed" required><option value="">Pick</option>{{#each observed}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{display}}</option>{{/each}}</select></div>
+  <div class="col-12 small text-body-secondary">Passes when the control reads what it should.</div>
+  {{else}}
+  <div class="col-md-3"><label class="form-label small" for="expected">Should read</label><input class="form-control" id="expected" name="expected" value="{{v.expected}}" required maxlength="200" placeholder="{{#if def.panel}}as on the control insert{{else}}the control's stated range{{/if}}"></div>
+  <div class="col-md-3"><label class="form-label small" for="observed">Read</label><input class="form-control" id="observed" name="observed" value="{{v.observed}}" required maxlength="200"></div>
+  <div class="col-md-2"><label class="form-label small" for="outcome">Outcome</label><select class="form-select" id="outcome" name="outcome" required><option value="">Pick</option><option value="PASS" {{#if (eq v.outcome "PASS")}}selected{{/if}}>Passed</option><option value="FAIL" {{#if (eq v.outcome "FAIL")}}selected{{/if}}>Failed</option></select></div>
+  {{/if}}
+  <div class="col-md-3"><label class="form-label small" for="qcBy">Run by</label><input class="form-control" id="qcBy" name="performedBy" value="{{v.performedBy}}" maxlength="100" placeholder="You, if left empty"></div>
+  <div class="col-md-5"><label class="form-label small" for="comment">Comment</label><input class="form-control" id="comment" name="comment" value="{{v.comment}}" maxlength="500"></div>
+  <div class="col-md-2"><button class="btn btn-primary" type="submit">Record control</button></div>
+</form>
+</div></div>
+{{/if}}
+{{/if}}
+
+<h2 class="h6">Recent controls</h2>
+<table class="table table-sm align-middle">
+  <thead><tr><th>When</th><th>Test</th><th>Lot</th><th>Control</th><th>Should read</th><th>Read</th><th>Outcome</th><th>Run by</th></tr></thead>
+  <tbody>
+    {{#each recent}}
+    <tr>
+      <td class="small">{{at}}</td>
+      <td><span class="font-monospace">{{localCode}}</span> <span class="small">{{name}}</span></td>
+      <td class="font-monospace">{{lot}}{{#if lotExpiry}}<div class="small text-body-secondary">expires {{lotExpiry}}</div>{{/if}}</td>
+      <td>{{control}}</td><td>{{expected}}</td><td>{{observed}}</td>
+      <td>{{#if pass}}<span class="badge text-bg-success">Pass</span>{{else}}<span class="badge text-bg-danger">Fail</span>{{/if}}</td>
+      <td class="small">{{performedBy}}{{#if comment}}<div class="text-body-secondary">{{comment}}</div>{{/if}}</td>
+    </tr>
+    {{else}}
+    <tr><td colspan="8" class="text-body-secondary">No controls recorded yet.</td></tr>
+    {{/each}}
+  </tbody>
+</table>

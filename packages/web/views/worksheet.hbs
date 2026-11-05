@@ -1,4 +1,4 @@
-<div class="d-flex align-items-baseline gap-3"><h1 class="h4">Manual worksheet</h1><a href="/catalogue">Test catalogue</a><a href="/results">Results</a></div>
+<div class="d-flex align-items-baseline gap-3"><h1 class="h4">Manual worksheet</h1><a href="/worksheet/qc">Manual QC</a><a href="/catalogue">Test catalogue</a><a href="/results">Results</a></div>
 <p class="text-body-secondary">Tests read by a person, such as malaria smears and rapid tests, urinalysis and microscopy, for specimens received in the lab. STAT first, then oldest first. Nothing is filled in for you: pick or type every result, including a negative. A saved result waits for review and approval like an instrument result, and with the two-person rule on, whoever performed the test cannot approve it.</p>
 
 {{#if anyManual}}
@@ -17,6 +17,7 @@
       {{#if stat}}<span class="badge text-bg-danger">STAT</span>{{/if}}
       <span class="small text-body-secondary">{{location}}{{#if received}}, received {{received}}{{/if}}</span>
     </div>
+    {{#if qc}}<div class="small mb-2">QC: {{#if qc.lots}}lots with a passing control now {{#each qc.lots}}<span class="badge text-bg-success ms-1 font-monospace">{{this}}</span>{{/each}}{{else}}<span class="{{#if qc.block}}text-danger{{else}}text-warning-emphasis{{/if}}">no lot of {{qc.code}} has a passing control</span>{{/if}}. {{#if qc.block}}A result is refused without one.{{else}}A result saved without one is marked QC missing.{{/if}} <a href="/worksheet/qc?test={{qc.code}}">Record a control</a></div>{{/if}}
     {{#if issues}}<div class="alert alert-danger py-2" role="alert">{{#each issues}}<div>{{this}}</div>{{/each}}</div>{{/if}}
     <form method="post" action="{{action}}" class="row g-2 align-items-end">
       <input type="hidden" name="_csrf" value="{{@root.csrf}}">
@@ -34,7 +35,7 @@
       {{/each}}
       {{#if panel}}<div class="col-12 small text-body-secondary">Leave a test empty if it has not been read yet; it stays here. Every test you fill is checked before any is saved.</div>{{/if}}
       <div class="col-md-3"><label class="form-label small" for="by-{{@index}}">Performed by</label><input class="form-control" id="by-{{@index}}" name="performedBy" value="{{performedBy}}" maxlength="100" placeholder="You, if left empty"></div>
-      <div class="col-md-2"><label class="form-label small" for="lot-{{@index}}">Kit or strip lot</label><input class="form-control" id="lot-{{@index}}" name="lot" value="{{lot}}" maxlength="40"></div>
+      <div class="col-md-2"><label class="form-label small" for="lot-{{@index}}">Kit or strip lot</label><input class="form-control" id="lot-{{@index}}" name="lot" value="{{lot}}" maxlength="40"{{#if qc.block}} required{{/if}}{{#if qc.lots}} list="lots-{{@index}}"{{/if}}>{{#if qc.lots}}<datalist id="lots-{{@index}}">{{#each qc.lots}}<option value="{{this}}">{{/each}}</datalist>{{/if}}</div>
       <div class="col-md-2">{{#if @root.can.review}}<button class="btn btn-primary" type="submit">Save {{#if panel}}results{{else}}result{{/if}}</button>{{/if}}</div>
     </form>
   </div>

@@ -2,7 +2,7 @@
 <h1 class="h4">{{test.local}} <span class="text-body-secondary small">HMIS {{test.hmis}}</span></h1>
 <p class="mb-1"><strong><a href="/patients/{{patientId}}">{{patient}}</a></strong> · order {{order.hmisOrderId}} ({{order.priority}}, {{order.orderedAt}})</p>
 <p class="mb-3">{{#if specimen}}Accession {{specimen.accessionNo}}{{#if specimen.collectedAt}}, collected {{specimen.collectedAt}}{{/if}}{{/if}}
-  {{#if instrument}} · {{instrument.name}} ({{instrument.model}}){{else}} · manual entry{{#if manual}}: performed by {{manual.performedBy}}{{#if manual.lot}}, lot {{manual.lot}}{{/if}}, entered by {{manual.enteredBy}}{{/if}}{{/if}}</p>
+  {{#if instrument}} · {{instrument.name}} ({{instrument.model}}){{else}} · manual entry{{#if manual}}: performed by {{manual.performedBy}}{{#if manual.lot}}, lot {{manual.lot}}{{/if}}, entered by {{manual.enteredBy}}{{#if manual.qcProblem}} · <span class="badge text-bg-warning">QC {{manual.qcProblem}}</span>{{/if}}{{#if manual.qcPassed}} · QC passed{{/if}}{{/if}}{{/if}}</p>
 
 {{#if notClinical}}<div class="alert alert-warning" role="alert"><strong>Not for clinical use.</strong> This instrument is not cleared: {{notClinical}}. The result cannot be released.</div>{{/if}}
 {{#if downtime}}<div class="alert alert-warning" role="alert"><strong>Downtime order {{downtime.id}}.</strong> This result can be reviewed and approved, but it is held from the HMIS until the order is <a href="/downtime/{{downtime.orderId}}">reconciled to the HMIS order</a>.</div>{{/if}}

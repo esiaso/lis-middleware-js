@@ -390,7 +390,9 @@ approvers change it): the lab's own tests (A-31).
   instrument), result type, unit (UCUM) and decimals for numbers, answers one
   per line as `code | words`, then `| abnormal` and a LOINC answer code if
   any, and why. Saving makes a draft. A panel lists its component tests'
-  local codes, one per line, in report order (A-32).
+  local codes, one per line, in report order (A-32). A test read by a person
+  also says what QC entering a result needs (no check, warn or block) and how
+  many hours a passing control counts, empty for the whole lot (A-33).
 
 ## W-23 Manual worksheet
 
@@ -411,6 +413,24 @@ first, filtered by bench (A-31).
   the worksheet and waits on the results list for review; its result page
   says who performed it, the lot and who entered it, and shows each answer's
   words next to its code.
+* A card for a test that needs QC lists the lots with a passing control now
+  and links to the manual QC page. With block, the lot is required and a
+  result on a lot without passing QC is refused with the reason; with warn,
+  it is saved and its result page says "QC missing for the lot" (A-33).
+
+## W-24 Manual QC
+
+**Manual QC** (from the worksheet; technologists and approvers record):
+
+* **Lots that may be used now**: each test with a QC rule, the rule and window,
+  and the lots whose controls all passed, or "no lot has a passing control".
+* **Record a control**: pick the test, then the lot and its expiry date, the
+  control's name, what it should read and what it read (lists of the test's
+  answers for a choice test, where the outcome follows; otherwise text and a
+  pass or fail), who ran it and a comment. A failed control is recorded too.
+* **Recent controls**: when, test, lot and expiry, control, readings,
+  pass or fail, and who ran it. Records are never changed; a mistake is
+  corrected by running the control again.
 
 ## W-10 Audit search and export
 

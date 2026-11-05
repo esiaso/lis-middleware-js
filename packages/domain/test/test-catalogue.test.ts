@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { answersText, loincCheckDigitOk, parseAnswers, parseCatalogueForm, readManualValue, type CatalogueDefinition, type CatalogueForm } from '@lis/domain';
+import { answersText, judgeManualQc, loincCheckDigitOk, manualQcStatus, parseAnswers, parseCatalogueForm, readManualValue, type CatalogueDefinition, type CatalogueForm } from '@lis/domain';
 
 // Codes below are examples for the tests only; the lab chooses its own from the LOINC release the HMIS uses.
 const form = (over: Partial<CatalogueForm> = {}): CatalogueForm => ({
@@ -67,5 +67,50 @@ describe('a value typed on the worksheet', () => {
     expect(readManualValue(count, '< 50')).toEqual({ ok: true, value: { kind: 'censored', comparator: '<', limit: '50' }, units: '/uL', abnormalFlags: [] });
     expect(readManualValue(count, '12.5')).toEqual({ ok: false, issue: 'Parasite density is reported with no decimals.' });
     expect(readManualValue(count, 'many')).toMatchObject({ ok: false });
+  });
+});
+
+describe('QC for manual tests (A-33)', () => {
+  const rdt = (over: Partial<CatalogueForm> = {}) => parseCatalogueForm(form(over));
+  const def = (): CatalogueDefinition => {
+    const p = rdt({ qcRule: 'BLOCK' });
+    if (!p.ok) throw new Error('bad form');
+    return p.value;
+  };
+
+  it('keeps a QC rule only for a manual test, with an optional window in hours', () => {
+    expect((rdt() as { value: object }).value).not.toHaveProperty('qcRule');
+    expect(rdt({ qcRule: 'WARN', qcValidHours: '24' })).toMatchObject({ ok: true, value: { qcRule: 'WARN', qcValidHours: 24 } });
+    expect(rdt({ qcRule: 'BLOCK', performedBy: 'INSTRUMENT' })).toMatchObject({ ok: false, issues: ['Instrument QC is set on the QC pages; the QC rule here is for tests read by a person.'] });
+    expect(rdt({ qcRule: 'SOMETIMES' })).toMatchObject({ ok: false, issues: ['Pick what QC the test needs: none, warn or block.'] });
+    expect(rdt({ qcValidHours: '24' })).toMatchObject({ ok: false, issues: ['Set how long QC counts only when the test needs QC.'] });
+    expect(rdt({ qcRule: 'WARN', qcValidHours: '0' })).toMatchObject({ ok: false, issues: ['QC counts for 1 to 8760 hours, or leave it empty for the whole lot.'] });
+  });
+
+  it('judges a control on a choice test by its answers, and asks the person otherwise', () => {
+    expect(judgeManualQc(def(), { control: 'positive control', expected: 'PF', observed: 'PF' })).toMatchObject({ ok: true, outcome: 'PASS' });
+    expect(judgeManualQc(def(), { control: 'negative control', expected: 'NEG', observed: 'INV', outcome: 'PASS' })).toMatchObject({ ok: true, outcome: 'FAIL' });
+    expect(judgeManualQc(def(), { control: 'positive control', expected: 'PF', observed: 'POS' })).toEqual({ ok: false, issues: ['Pick the observed reading from the answers for Malaria rapid test.'] });
+    expect(judgeManualQc(def(), { control: '', expected: 'PF', observed: '' })).toMatchObject({ ok: false, issues: [expect.stringMatching(/Name the control/), 'Say what the control read. An empty field is never taken as a pass.'] });
+    const num = { ...def(), resultType: 'NUMERIC' as const, answers: [] };
+    expect(judgeManualQc(num, { control: 'level 1', expected: '5.0-7.0', observed: '6.1' })).toEqual({ ok: false, issues: ['Say whether the control passed or failed.'] });
+    expect(judgeManualQc(num, { control: 'level 1', expected: '5.0-7.0', observed: '6.1', outcome: 'pass' })).toMatchObject({ ok: true, outcome: 'PASS' });
+  });
+
+  it('passes a lot only when the latest run of each control passed, inside the window and before expiry', () => {
+    const now = new Date('2026-11-05T10:00:00Z');
+    const h = (n: number) => new Date(now.getTime() - n * 3600 * 1000);
+    const run = (control: string, outcome: 'PASS' | 'FAIL', hoursAgo: number, lotExpiry: Date | null = null) => ({ control, outcome, at: h(hoursAgo), lotExpiry });
+    expect(manualQcStatus([], now)).toEqual({ status: 'missing', failed: [] });
+    expect(manualQcStatus([run('Positive control', 'PASS', 2), run('negative control', 'PASS', 1)], now)).toMatchObject({ status: 'pass', lastPass: h(1) });
+    // A failure stays until that control passes again.
+    expect(manualQcStatus([run('positive control', 'PASS', 3), run('negative control', 'FAIL', 2)], now)).toEqual({ status: 'failed', failed: ['negative control'] });
+    expect(manualQcStatus([run('negative control', 'FAIL', 2), run('Negative control', 'PASS', 1)], now)).toMatchObject({ status: 'pass' });
+    // With a window, an old pass no longer counts; without one it does.
+    expect(manualQcStatus([run('positive control', 'PASS', 30)], now, 24)).toMatchObject({ status: 'missing' });
+    expect(manualQcStatus([run('positive control', 'PASS', 30)], now)).toMatchObject({ status: 'pass' });
+    // The expiry date is the last day of use.
+    expect(manualQcStatus([run('positive control', 'PASS', 1, new Date('2026-11-05T00:00:00Z'))], now)).toMatchObject({ status: 'pass' });
+    expect(manualQcStatus([run('positive control', 'PASS', 1, new Date('2026-11-04T00:00:00Z'))], now)).toEqual({ status: 'expired', failed: [] });
   });
 });

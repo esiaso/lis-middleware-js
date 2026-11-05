@@ -111,6 +111,7 @@ export const NOTICES: Record<string, string> = {
   'catalogue-discarded': 'Draft discarded. The catalogue is unchanged.',
   'catalogue-retired': 'Test retired. Results already made with it are unchanged.',
   'manual-entered': 'Result saved. It is waiting for review on the results list.',
+  'manual-qc-recorded': 'Control recorded.',
   'standard-comment-added': 'Standard comment saved. It is offered on result pages from now on.',
   'standard-comment-retired': 'Standard comment retired. Comments already made with it are unchanged.',
   'qc-range-added': 'QC range saved. It applies to QC results that arrive from now on.',

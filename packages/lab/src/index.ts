@@ -23,3 +23,4 @@ export * from './hmis-status.js';
 export * from './audit-export.js';
 export * from './catalogue.js';
 export * from './manual-results.js';
+export * from './manual-qc.js';
