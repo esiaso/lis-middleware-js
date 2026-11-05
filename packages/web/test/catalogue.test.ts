@@ -9,7 +9,7 @@ import { Browser, PW } from './browser.js';
 
 const url = process.env['TEST_DATABASE_URL'];
 const TABLES =
-  'user_session, app_user, audit_event, delivery_attempt, outbox_message, result_event, result_comment, result_version, result, unmatched_result, specimen, ordered_test, lab_order, patient, hmis_code_map, test_catalogue';
+  'user_session, app_user, audit_event, delivery_attempt, outbox_message, result_event, result_comment, result_version, result, unmatched_result, specimen, ordered_test, lab_order, patient, hmis_code_map, test_catalogue, manual_qc';
 
 // Example codes and answers for the test; the lab chooses its own.
 const DIPSTICK = {
@@ -137,5 +137,52 @@ describe.skipIf(!url)('test catalogue and manual worksheet over HTTP', () => {
     const after = (await tech.get('/worksheet')).html;
     expect(after).toContain('Urine RBC per HPF');
     expect(after).not.toContain(`value-${prot}`);
+  });
+
+  it('a test that needs QC is refused on the worksheet until a control on the lot passes (A-33)', async () => {
+    const mgr = await as('manager');
+    const bad = await mgr.post('/catalogue', { ...DIPSTICK, performedBy: 'INSTRUMENT', qcRule: 'BLOCK', qcValidHours: '', _csrf: await mgr.csrf('/catalogue') });
+    expect(bad.status).toBe(422);
+    expect(bad.html).toContain('the QC rule here is for tests read by a person');
+    await mgr.post('/catalogue', { ...DIPSTICK, qcRule: 'BLOCK', qcValidHours: '24', _csrf: await mgr.csrf('/catalogue') });
+    const dr = await as('dr.lab');
+    await dr.post(`/catalogue/${(await db.testCatalogueEntry.findFirstOrThrow()).id}/approve`, { _csrf: await dr.csrf('/catalogue'), password: PW });
+    expect((await dr.get('/catalogue')).html).toContain('blocks without a passing control for the lot, each 24 h');
+
+    const patientId = uuidv7();
+    const orderId = uuidv7();
+    const specimenId = uuidv7();
+    const testId = uuidv7();
+    await db.patient.create({ data: { id: patientId, mrn: 'MRN8', familyName: 'Example', givenName: 'Ben', sex: 'M' } });
+    await db.labOrder.create({ data: { id: orderId, hmisOrderId: 'ORD-8', patientId, priority: 'routine', orderedAt: new Date(), status: 'active', sourceJson: {} } });
+    await db.specimen.create({ data: { id: specimenId, orderId, accessionNo: 'L26110500008', barcode: 'L26110500008', status: 'received', receivedAt: new Date(), createdBy: 'test' } });
+    await db.orderedTest.create({ data: { id: testId, orderId, hmisLineId: '1', hmisTestCode: 'HMIS-UPROT', localTestCode: 'U-PROT', status: 'active', specimenId } });
+
+    const tech = await as('tech');
+    const sheet = (await tech.get('/worksheet')).html;
+    expect(sheet).toContain('no lot of U-PROT has a passing control');
+    expect(sheet).toContain('A result is refused without one.');
+    const csrf = await tech.csrf('/worksheet');
+    const refused = await tech.post(`/worksheet/${testId}`, { _csrf: csrf, value: 'NEG', performedBy: '', lot: 'STRIP-50' });
+    expect(refused.status).toBe(422);
+    expect(refused.html).toContain('QC for U-PROT lot STRIP-50 has no control recorded. Run and record the control on the manual QC page first.');
+
+    // The form for a choice test offers its answers, and the outcome follows from them.
+    const qcPage = (await tech.get('/worksheet/qc?test=U-PROT')).html;
+    expect(qcPage).toContain('Passes when the control reads what it should.');
+    const qcCsrf = await tech.csrf('/worksheet/qc');
+    const empty = await tech.post('/worksheet/qc', { _csrf: qcCsrf, localCode: 'U-PROT', lot: 'STRIP-50', lotExpiry: '', control: 'positive control', expected: '1P', observed: '', outcome: '', performedBy: '', comment: '' });
+    expect(empty.status).toBe(422);
+    expect(empty.html).toContain('An empty field is never taken as a pass.');
+    const ok = await tech.post('/worksheet/qc', { _csrf: qcCsrf, localCode: 'U-PROT', lot: 'STRIP-50', lotExpiry: '2099-01-31', control: 'positive control', expected: '1P', observed: '1P', outcome: '', performedBy: '', comment: '' });
+    expect(ok.location).toBe('/worksheet/qc?notice=manual-qc-recorded&test=U-PROT');
+    const after = (await tech.get('/worksheet/qc')).html;
+    expect(after).toContain('expires 2099-01-31');
+    expect(after).toContain('<span class="badge text-bg-success">Pass</span>');
+    expect((await tech.get('/worksheet')).html).toContain('lots with a passing control now <span class="badge text-bg-success ms-1 font-monospace">STRIP-50</span>');
+
+    expect((await tech.post(`/worksheet/${testId}`, { _csrf: csrf, value: 'NEG', performedBy: '', lot: 'STRIP-50' })).status).toBe(303);
+    const r = await db.result.findFirstOrThrow();
+    expect((await tech.get(`/results/${r.id}`)).html).toContain('lot STRIP-50, entered by tech · QC passed');
   });
 });

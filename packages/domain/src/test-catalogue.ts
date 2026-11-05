@@ -12,6 +12,9 @@ export const RESULT_TYPES = ['NUMERIC', 'ORDINAL', 'NOMINAL', 'TEXT', 'PANEL'] a
 export type CatalogueResultType = (typeof RESULT_TYPES)[number];
 export const PERFORMED_BY = ['INSTRUMENT', 'MANUAL'] as const;
 export type PerformedBy = (typeof PERFORMED_BY)[number];
+/** What entering a manual result needs from QC for the lot used (A-33). */
+export const QC_RULES = ['NONE', 'WARN', 'BLOCK'] as const;
+export type QcRule = (typeof QC_RULES)[number];
 
 export interface CatalogueAnswer {
   /** Short code stored on the result, such as NEG or 2+. */
@@ -39,6 +42,10 @@ export interface CatalogueDefinition {
   decimals?: number;
   /** For a PANEL: its component tests' local codes, in report order. */
   components?: string[];
+  /** For a manual test or panel: WARN or BLOCK entry without a passing control for the lot; absent means none (A-33). */
+  qcRule?: Exclude<QcRule, 'NONE'>;
+  /** How long a passing control counts, in hours; absent means for the whole lot. */
+  qcValidHours?: number;
 }
 
 /** What a person types on the catalogue form, as text. */
@@ -58,6 +65,10 @@ export interface CatalogueForm {
   decimals: string;
   /** For a panel: component local codes, one per line or separated by commas. */
   components?: string;
+  /** NONE, WARN or BLOCK; empty means NONE. */
+  qcRule?: string;
+  /** Whole hours, or empty for the whole lot. */
+  qcValidHours?: string;
 }
 
 const CODE = /^[A-Z0-9][A-Z0-9._-]{0,19}$/;
@@ -157,6 +168,16 @@ export function parseCatalogueForm(f: CatalogueForm): { ok: true; value: Catalog
     else decimals = Number(f.decimals);
     if (resultType !== 'NUMERIC') issues.push('Only a numeric result has decimals.');
   }
+  const qcRule = ((f.qcRule ?? '').trim() || 'NONE') as QcRule;
+  if (!QC_RULES.includes(qcRule)) issues.push('Pick what QC the test needs: none, warn or block.');
+  else if (qcRule !== 'NONE' && performedBy === 'INSTRUMENT') issues.push('Instrument QC is set on the QC pages; the QC rule here is for tests read by a person.');
+  let qcValidHours: number | undefined;
+  const hoursText = (f.qcValidHours ?? '').trim();
+  if (hoursText) {
+    if (!/^\d{1,4}$/.test(hoursText) || Number(hoursText) < 1 || Number(hoursText) > 8760) issues.push('QC counts for 1 to 8760 hours, or leave it empty for the whole lot.');
+    else qcValidHours = Number(hoursText);
+    if (qcRule === 'NONE') issues.push('Set how long QC counts only when the test needs QC.');
+  }
   if (issues.length) return { ok: false, issues };
   return {
     ok: true,
@@ -174,6 +195,8 @@ export function parseCatalogueForm(f: CatalogueForm): { ok: true; value: Catalog
       ...(unit ? { unit } : {}),
       ...(decimals !== undefined ? { decimals } : {}),
       ...(resultType === 'PANEL' ? { components } : {}),
+      ...(qcRule !== 'NONE' ? { qcRule } : {}),
+      ...(qcValidHours !== undefined ? { qcValidHours } : {}),
     },
   };
 }
@@ -215,4 +238,76 @@ export function readManualValue(def: CatalogueDefinition, raw: string): ManualVa
       if (s.length > 4000) return { ok: false, issue: 'A text result is at most 4000 characters.' };
       return { ok: true, value: { kind: 'text', text: s }, abnormalFlags: [] };
   }
+}
+
+/** A control run as typed on the QC form. */
+export interface ManualQcForm {
+  control: string;
+  expected: string;
+  observed: string;
+  /** PASS or FAIL, said by the person; only for tests without an answer list. */
+  outcome?: string;
+}
+
+export type ManualQcJudgement = { ok: true; control: string; expected: string; observed: string; outcome: 'PASS' | 'FAIL' } | { ok: false; issues: string[] };
+
+/**
+ * One control run on a lot, checked against the catalogue entry. For a choice
+ * test the expected and observed readings are answers and the outcome follows
+ * from them; for a number, text or a whole panel the person says PASS or FAIL.
+ */
+export function judgeManualQc(def: CatalogueDefinition, f: ManualQcForm): ManualQcJudgement {
+  const issues: string[] = [];
+  const control = f.control.trim();
+  const expected = f.expected.trim();
+  const observed = f.observed.trim();
+  if (control.length < 1 || control.length > 60) issues.push('Name the control, such as "positive control" or "known positive slide", in up to 60 characters.');
+  if (!expected) issues.push('Say what the control should read.');
+  if (!observed) issues.push('Say what the control read. An empty field is never taken as a pass.');
+  if (expected.length > 200 || observed.length > 200) issues.push('The expected and observed readings are at most 200 characters each.');
+  const coded = def.resultType === 'ORDINAL' || def.resultType === 'NOMINAL';
+  if (coded) {
+    for (const [what, v] of [['expected', expected], ['observed', observed]] as const) {
+      if (v && !def.answers.some((a) => a.code === v)) issues.push(`Pick the ${what} reading from the answers for ${def.name}.`);
+    }
+  }
+  const said = (f.outcome ?? '').trim().toUpperCase();
+  if (!coded && said !== 'PASS' && said !== 'FAIL') issues.push('Say whether the control passed or failed.');
+  if (issues.length) return { ok: false, issues };
+  const outcome = coded ? (expected === observed ? 'PASS' : 'FAIL') : (said as 'PASS' | 'FAIL');
+  return { ok: true, control, expected, observed, outcome };
+}
+
+export interface ManualQcRun {
+  control: string;
+  outcome: 'PASS' | 'FAIL';
+  at: Date;
+  lotExpiry: Date | null;
+}
+
+export type ManualQcStatus = 'pass' | 'failed' | 'missing' | 'expired';
+
+/**
+ * Whether a lot may be used now: the latest run of each control within the
+ * window must have passed, and the lot must not be past its expiry date. With
+ * no window, every run on the lot counts. A failure stays until that control
+ * passes again.
+ */
+export function manualQcStatus(runs: ManualQcRun[], now: Date, validHours?: number): { status: ManualQcStatus; failed: string[]; lastPass?: Date } {
+  const expiry = runs.map((r) => r.lotExpiry).filter((d): d is Date => d !== null).sort((a, b) => b.getTime() - a.getTime())[0];
+  // The expiry date is the last day the lot may be used.
+  if (expiry && now.getTime() >= expiry.getTime() + 24 * 3600 * 1000) return { status: 'expired', failed: [] };
+  const from = validHours === undefined ? -Infinity : now.getTime() - validHours * 3600 * 1000;
+  const latest = new Map<string, ManualQcRun>();
+  for (const r of runs) {
+    if (r.at.getTime() < from || r.at.getTime() > now.getTime()) continue;
+    const key = r.control.toLowerCase();
+    const seen = latest.get(key);
+    if (!seen || r.at.getTime() >= seen.at.getTime()) latest.set(key, r);
+  }
+  if (latest.size === 0) return { status: 'missing', failed: [] };
+  const failed = [...latest.values()].filter((r) => r.outcome === 'FAIL').map((r) => r.control);
+  if (failed.length) return { status: 'failed', failed };
+  const lastPass = new Date(Math.max(...[...latest.values()].map((r) => r.at.getTime())));
+  return { status: 'pass', failed: [], lastPass };
 }

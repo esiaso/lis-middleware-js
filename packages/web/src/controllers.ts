@@ -330,7 +330,8 @@ export class ResultsController {
     const shownVersion = r.versions.find((v) => v.versionNo === r.selectedVersionNo) ?? r.versions[r.versions.length - 1];
     const shownRef = shownVersion ? refs[r.versions.indexOf(shownVersion)] : null;
     const entry = r.events.find((e) => e.kind === 'enter');
-    const entryDetail = (entry?.detail ?? {}) as { performedBy?: string; lot?: string };
+    const entryDetail = (entry?.detail ?? {}) as { performedBy?: string; lot?: string; qc?: { status: string } };
+    const QC_PROBLEM: Record<string, string> = { missing: 'missing for the lot', failed: 'failed for the lot', expired: 'lot past expiry' };
     const def = t.localTestCode ? await activeEntry(this.db, t.localTestCode) : null;
     // A coded answer is shown with the catalogue's words next to its code.
     const shown = (v: ResultValue) => {
@@ -339,7 +340,7 @@ export class ResultsController {
       return words ? `${words} (${v.code})` : v.code;
     };
     page(req, res, 'result', {
-      manual: entry ? { performedBy: entryDetail.performedBy ?? entry.actor, enteredBy: entry.actor, lot: entryDetail.lot ?? '' } : null,
+      manual: entry ? { performedBy: entryDetail.performedBy ?? entry.actor, enteredBy: entry.actor, lot: entryDetail.lot ?? '', qcProblem: entryDetail.qc && entryDetail.qc.status !== 'pass' ? (QC_PROBLEM[entryDetail.qc.status] ?? entryDetail.qc.status) : '', qcPassed: entryDetail.qc?.status === 'pass' } : null,
       reference: shownRef ? { lab: true, text: shownRef.text, who: shownRef.who, source: shownRef.source } : shownVersion ? { lab: false, text: (await instrumentReferenceText(this.db, shownVersion.observationId)) ?? '' } : null,
       title: `Result ${t.localTestCode ?? t.hmisTestCode}`,
       r: {

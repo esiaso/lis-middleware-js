@@ -696,6 +696,10 @@ model TestCatalogueEntry {
   /// UCUM unit for NUMERIC.
   unit         String?
   decimals     Int?
+  /// For a manual test or panel: NONE, WARN or BLOCK without a passing control for the lot (A-33).
+  qcRule       String    @default("NONE") @map("qc_rule")
+  /// How long a passing control counts, in hours; null for the whole lot.
+  qcValidHours Int?      @map("qc_valid_hours")
   changeReason String    @map("change_reason")
   createdBy    String    @map("created_by")
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
@@ -707,6 +711,30 @@ model TestCatalogueEntry {
 
   @@unique([localCode, versionNo], map: "test_catalogue_code_version")
   @@map("test_catalogue")
+}
+
+/// A control run on a manual test's kit, strip or stain lot (A-33). Append-only.
+model ManualQc {
+  id               String    @id @db.Uuid
+  localCode        String    @map("local_code")
+  catalogueVersion Int       @map("catalogue_version")
+  lot              String
+  lotExpiry        DateTime? @map("lot_expiry") @db.Date
+  /// Which control: positive control, negative control, known positive slide, ...
+  control          String
+  /// The answer code expected (choice tests) or the expected reading as words.
+  expected         String
+  observed         String
+  /// PASS or FAIL.
+  outcome          String
+  comment          String?
+  performedBy      String    @map("performed_by")
+  enteredBy        String    @map("entered_by")
+  at               DateTime  @default(now()) @db.Timestamptz
+
+  @@index([localCode, lot, at], map: "manual_qc_code_lot_at")
+  @@index([at], map: "manual_qc_at")
+  @@map("manual_qc")
 }
 
 /// Who was told about a critical result, and that they read it back. Append-only.

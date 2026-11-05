@@ -5,6 +5,7 @@ import { activeCatalogue, activeEntry, type CatalogueEntry } from './catalogue.j
 import { criticalFor } from './critical.js';
 import { deltaColumns, deltaFor } from './delta.js';
 import { InvalidInput } from './instruments.js';
+import { lotQc, lotQcProblem, QcBlocked, qcGoverning } from './manual-qc.js';
 import { WorkflowRejected } from './results.js';
 import type { Tx } from './tx.js';
 
@@ -122,11 +123,15 @@ export async function enterManualPanel(db: Db, actor: string, input: { values: {
         ids.push(await enterOne(tx, actor, v, who));
       } catch (e) {
         if (!(e instanceof InvalidInput)) throw e;
+        if (e instanceof QcBlocked) {
+          issues.push(...e.issues);
+          continue;
+        }
         const t = tests.find((x) => x.id === v.orderedTestId);
         issues.push(...e.issues.map((i) => `${t?.localTestCode ?? ''}: ${i}`));
       }
     }
-    if (issues.length) throw new InvalidInput(issues); // rolls back the ones that passed
+    if (issues.length) throw new InvalidInput([...new Set(issues)]); // rolls back the ones that passed
     return ids;
   });
 }
@@ -142,6 +147,10 @@ async function enterOne(tx: Tx, actor: string, input: { orderedTestId: string; v
   if (!def || def.performedBy !== 'MANUAL') throw new WorkflowRejected({ code: 'INVALID_STATE', detail: `${t.localTestCode ?? 'this test'} is not a manual test in the catalogue` });
   const v = readManualValue(def, input.value);
   if (!v.ok) throw new InvalidInput([v.issue]);
+  // QC for the lot used, by the panel's rule when it sets one (A-33).
+  const governing = qcGoverning(def, t.panelCode ? await activeEntry(tx, t.panelCode) : null);
+  const q = governing ? await lotQc(tx, governing, lot) : null;
+  if (q && q.status !== 'pass' && q.rule === 'BLOCK') throw new QcBlocked([lotQcProblem(q)]);
 
   const resultId = uuidv7();
   const version = { kind: 'manual' as const, value: v.value, abnormalFlags: v.abnormalFlags, createdBy: actor, ...(v.units ? { units: v.units } : {}) };
@@ -156,16 +165,16 @@ async function enterOne(tx: Tx, actor: string, input: { orderedTestId: string; v
       ...deltaColumns(delta),
     },
   });
-  const detail = { performedBy, ...(lot ? { lot } : {}), catalogueVersion: def.versionNo };
+  const detail = { performedBy, ...(lot ? { lot } : {}), catalogueVersion: def.versionNo, ...(q ? { qc: { status: q.status, localCode: q.localCode, rule: q.rule } } : {}) };
   await tx.resultEvent.create({ data: { id: uuidv7(), resultId, kind: 'enter', versionNo: 1, actor, detail } });
   await appendAudit(tx, { actor, action: 'result.enter', entityType: 'result', entityId: resultId, after: { orderedTestId: t.id, localTestCode: def.localCode, value: v.value, ...detail } });
   return resultId;
 }
 
 /** Who performed a manual result, from its entry event; null for an instrument result. */
-export async function manualPerformer(db: Db | Tx, resultId: string): Promise<{ performedBy: string; enteredBy: string; lot?: string } | null> {
+export async function manualPerformer(db: Db | Tx, resultId: string): Promise<{ performedBy: string; enteredBy: string; lot?: string; qc?: { status: string; localCode: string; rule: string } } | null> {
   const e = await db.resultEvent.findFirst({ where: { resultId, kind: 'enter' }, orderBy: { at: 'asc' } });
   if (!e) return null;
-  const d = (e.detail ?? {}) as { performedBy?: string; lot?: string };
-  return { performedBy: d.performedBy ?? e.actor, enteredBy: e.actor, ...(d.lot ? { lot: d.lot } : {}) };
+  const d = (e.detail ?? {}) as { performedBy?: string; lot?: string; qc?: { status: string; localCode: string; rule: string } };
+  return { performedBy: d.performedBy ?? e.actor, enteredBy: e.actor, ...(d.lot ? { lot: d.lot } : {}), ...(d.qc ? { qc: d.qc } : {}) };
 }
