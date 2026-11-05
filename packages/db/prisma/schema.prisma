@@ -280,8 +280,31 @@ model Patient {
   /// The HMIS patient this provisional record was reconciled to. Never deleted.
   mergedIntoId String?  @map("merged_into_id") @db.Uuid
   orders     LabOrder[]
+  mergesFrom PatientMerge[] @relation("MergeFrom")
+  mergesInto PatientMerge[] @relation("MergeInto")
 
   @@map("patient")
+}
+
+/// A merge of two MRNs recorded by the lab, after medical records merged them in the HMIS (A-35).
+model PatientMerge {
+  id            String    @id @db.Uuid
+  fromPatientId String    @map("from_patient_id") @db.Uuid
+  intoPatientId String    @map("into_patient_id") @db.Uuid
+  /// PROPOSED, CONFIRMED or WITHDRAWN.
+  status        String    @default("PROPOSED")
+  /// The HMIS or medical records reference for the merge.
+  reference     String
+  reason        String
+  proposedBy    String    @map("proposed_by")
+  proposedAt    DateTime  @default(now()) @map("proposed_at") @db.Timestamptz
+  decidedBy     String?   @map("decided_by")
+  decidedAt     DateTime? @map("decided_at") @db.Timestamptz
+  from          Patient   @relation("MergeFrom", fields: [fromPatientId], references: [id], onDelete: Restrict, map: "patient_merge_from_fkey")
+  into          Patient   @relation("MergeInto", fields: [intoPatientId], references: [id], onDelete: Restrict, map: "patient_merge_into_fkey")
+
+  @@index([intoPatientId], map: "patient_merge_into")
+  @@map("patient_merge")
 }
 
 model LabOrder {

@@ -2,7 +2,7 @@ import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { createDb, uuidv7, type Db } from '@lis/db';
-import type { HistoryResult } from '@lis/lab';
+import { deltaFor, samePerson, verifyAuditChain, type HistoryResult } from '@lis/lab';
 import { createApp, createUser } from '@lis/web';
 import { pino } from 'pino';
 import { cumulative } from '../src/cumulative.js';
@@ -10,7 +10,7 @@ import { Browser, PW } from './browser.js';
 
 const h = (over: Partial<HistoryResult>): HistoryResult => ({
   resultId: uuidv7(), orderId: 'o', hmisOrderId: 'ORD', test: 'K', status: 'sent', at: new Date('2026-11-03T08:00:00Z'), collected: true,
-  value: { kind: 'numeric', value: '4.2', scale: 1 }, units: 'mmol/L', abnormalFlags: [], criticalFlag: null, deltaFlag: null, ...over,
+  value: { kind: 'numeric', value: '4.2', scale: 1 }, units: 'mmol/L', abnormalFlags: [], criticalFlag: null, deltaFlag: null, mrn: 'MRN1', ...over,
 });
 
 describe('cumulative', () => {
@@ -36,13 +36,18 @@ describe('cumulative', () => {
 });
 
 const url = process.env['TEST_DATABASE_URL'];
-const TABLES = 'user_session, app_user, audit_event, result_event, result_version, result, specimen, ordered_test, lab_order, patient';
+const TABLES = 'user_session, app_user, audit_event, result_event, result_version, result, specimen, ordered_test, lab_order, patient_merge, patient, delta_rule';
 
 describe.skipIf(!url)('patient history over HTTP', () => {
   let db: Db;
   let app: NestExpressApplication;
   let base: string;
   let n = 0;
+  const as = async (username: string) => {
+    const b = new Browser(base);
+    expect((await b.signIn(username)).status).toBe(303);
+    return b;
+  };
 
   const add = async (patientId: string, test: string, value: string, collectedAt: Date, status = 'sent') => {
     n++;
@@ -65,6 +70,7 @@ describe.skipIf(!url)('patient history over HTTP', () => {
     base = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`;
   });
   afterAll(async () => {
+    await db?.$executeRawUnsafe(`TRUNCATE ${TABLES} CASCADE`);
     await app?.close();
     await db?.$disconnect();
   });
@@ -98,5 +104,65 @@ describe.skipIf(!url)('patient history over HTTP', () => {
 
     expect((await b.get(`/results/${old}`)).html).toContain(`href="/patients/${ben}"`);
     expect((await b.get(`/patients/${uuidv7()}`)).status).toBe(404);
+  });
+
+  it('records a merge from the HMIS with two people, and the MRN that stays shows both histories (A-35)', async () => {
+    for (const u of ['dr.a', 'dr.b']) await createUser(db, { username: u, displayName: u, password: PW, roles: ['approver'] }, 'test');
+    const old = uuidv7();
+    const keep = uuidv7();
+    await db.patient.create({ data: { id: old, mrn: 'MRN20', familyName: 'Example', givenName: 'Ben', sex: 'M', birthDate: new Date('1980-01-01') } });
+    await db.patient.create({ data: { id: keep, mrn: 'MRN21', familyName: 'Example', givenName: 'Benjamin', sex: 'M', birthDate: new Date('1980-01-01') } });
+    await add(old, 'K', '3.9', new Date('2026-10-01T08:00:00Z'));
+    await add(keep, 'K', '4.4', new Date('2026-11-01T08:00:00Z'));
+
+    const tech = await as('tech');
+    expect((await tech.get(`/patients/${old}`)).html).not.toContain('Record a merge');
+    expect((await tech.post(`/patients/${old}/merge`, { _csrf: await tech.csrf(`/patients/${old}`), intoMrn: 'MRN21', reference: 'MR-2026-117', reason: 'duplicate registration at outpatients' })).status).toBe(403);
+
+    const a = await as('dr.a');
+    const csrf = await a.csrf(`/patients/${old}`);
+    const bad = await a.post(`/patients/${old}/merge`, { _csrf: csrf, intoMrn: 'MRN99', reference: 'MR-2026-117', reason: 'duplicate registration at outpatients' });
+    expect(bad.status).toBe(422);
+    expect(bad.html).toContain('No patient with MRN MRN99 has come from the HMIS yet.');
+    expect((await a.post(`/patients/${old}/merge`, { _csrf: csrf, intoMrn: 'MRN20', reference: 'MR-2026-117', reason: 'duplicate registration at outpatients' })).html).toContain('cannot be merged into itself');
+    expect((await a.post(`/patients/${old}/merge`, { _csrf: csrf, intoMrn: 'mrn21', reference: 'MR-2026-117', reason: 'duplicate registration at outpatients' })).location).toBe(`/patients/${old}?notice=merge-proposed`);
+    const waiting = (await a.get(`/patients/${old}`)).html;
+    expect(waiting).toContain('The two records differ in name. Check with medical records before confirming.');
+    expect(waiting).toContain('A different person must confirm.');
+    const m = await db.patientMerge.findFirstOrThrow();
+    expect((await a.post(`/patients/${old}/merge/${m.id}/confirm`, { _csrf: csrf, password: PW })).status).toBe(409);
+    expect(await db.patient.findUniqueOrThrow({ where: { id: old } })).toMatchObject({ mergedIntoId: null });
+
+    const b = await as('dr.b');
+    const csrf2 = await b.csrf(`/patients/${old}`);
+    expect((await b.post(`/patients/${old}/merge/${m.id}/confirm`, { _csrf: csrf2, password: 'wrong password!!' })).status).toBe(403);
+    expect((await b.post(`/patients/${old}/merge/${m.id}/confirm`, { _csrf: csrf2, password: PW })).location).toBe(`/patients/${old}?notice=merge-confirmed`);
+    expect(await db.patient.findUniqueOrThrow({ where: { id: old } })).toMatchObject({ mergedIntoId: keep });
+
+    // The MRN that stays shows both; the merged one points to it; nothing moved.
+    const kept = (await b.get(`/patients/${keep}`)).html;
+    expect(kept).toContain('This history includes results under');
+    expect(kept).toContain('MRN MRN20</span>');
+    expect(kept).toContain('3.9');
+    expect(kept).toContain('4.4');
+    const gone = (await b.get(`/patients/${old}`)).html;
+    expect(gone).toContain('<strong>MRN MRN20 was merged</strong>');
+    expect(gone).not.toContain('Record a merge');
+    expect(await db.labOrder.count({ where: { patientId: old } })).toBe(1);
+    const order = await db.labOrder.findFirstOrThrow({ where: { patientId: old } });
+    expect((await b.get(`/orders/${order.id}`)).html).toContain('MRN MRN20 has been merged in the HMIS.');
+    expect((await samePerson(db, old)).sort()).toEqual([old, keep].sort());
+    // A delta check on the MRN that stays compares with the merged MRN's earlier result too.
+    await db.deltaRule.create({ data: { id: uuidv7(), localTestCode: 'K', maxAbs: '0.3', windowDays: 60, units: 'mmol/L', reference: 'test', createdBy: 'test' } });
+    const keepK = (await db.result.findFirstOrThrow({ where: { orderedTest: { order: { patientId: keep } } } })).id;
+    // A new order still under the merged MRN finds the earlier result recorded under the MRN that stays.
+    const fresh = await add(old, 'K', '5.0', new Date('2026-11-02T08:00:00Z'), 'received');
+    const d = await db.$transaction((tx) => deltaFor(tx, fresh, { kind: 'numeric', value: '5.0', scale: 1 }, 'mmol/L'));
+    expect(d).toMatchObject({ flag: 'EXCEEDED', previousResultId: keepK });
+
+    // A merged MRN is not merged again, and the one that stays cannot be merged into it.
+    await expect(b.post(`/patients/${keep}/merge`, { _csrf: csrf2, intoMrn: 'MRN20', reference: 'MR-2026-118', reason: 'merge the wrong way round' }).then((r) => r.html)).resolves.toContain('was itself merged');
+    expect(await db.auditEvent.count({ where: { action: { in: ['patient.merge-proposed', 'patient.merged'] } } })).toBe(2);
+    expect((await verifyAuditChain(db)).ok).toBe(true);
   });
 });

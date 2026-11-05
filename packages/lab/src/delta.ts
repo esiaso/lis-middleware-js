@@ -4,6 +4,7 @@ import { evaluateDelta, parseDeltaRule, type DeltaOutcome, type DeltaRuleInput }
 import { appendAudit } from './audit.js';
 import { InvalidInput } from './instruments.js';
 import { WorkflowRejected } from './results.js';
+import { samePerson } from './patient-merge.js';
 import type { Tx } from './tx.js';
 
 /**
@@ -23,6 +24,8 @@ export async function deltaFor(tx: Tx, resultId: string, value: ResultValue, uni
   if (!rule) return null;
   const at = t.specimen?.collectedAt ?? new Date();
   const from = new Date(at.getTime() - rule.windowDays * 86_400_000);
+  // Every MRN of the same person counts as their earlier result (A-35).
+  const ids = await samePerson(tx, t.order.patientId);
   const rows = await tx.$queryRaw<{ resultId: string; value: ResultValue; units: string | null; collectedAt: Date }[]>`
     SELECT r.id AS "resultId", v.value, v.units, COALESCE(s.collected_at, v.created_at) AS "collectedAt"
       FROM result r
@@ -30,7 +33,7 @@ export async function deltaFor(tx: Tx, resultId: string, value: ResultValue, uni
       JOIN ordered_test t ON t.id = r.ordered_test_id
       JOIN lab_order o ON o.id = t.order_id
       LEFT JOIN specimen s ON s.id = t.specimen_id
-     WHERE o.patient_id = ${t.order.patientId}::uuid
+     WHERE o.patient_id = ANY(${ids}::uuid[])
        AND t.local_test_code = ${t.localTestCode}
        AND r.id <> ${resultId}::uuid
        AND r.status = ANY(${APPROVED})
