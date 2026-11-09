@@ -55,7 +55,7 @@ services:
       - certs:/certs:ro
       - hmis:/hmis
     ports:
-      - "127.0.0.1:3100:3100"
+      - "127.0.0.1:${DEMO_HMIS_PORT:-3100}:3100"
     depends_on:
       setup:
         condition: service_completed_successfully
@@ -71,7 +71,7 @@ services:
       LIMS_INSECURE_COOKIES: "true"
       LIMS_REPORT_HEADER: Demo laboratory (test data only)
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${DEMO_WEB_PORT:-3000}:3000"
     depends_on:
       setup:
         condition: service_completed_successfully

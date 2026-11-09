@@ -32,7 +32,15 @@ docker compose -f demo/compose.yaml down            # stop, keeping the data
 docker compose -f demo/compose.yaml down -v         # stop and delete all demo data
 ```
 
-Ports 3000 and 3100 must be free.
+Ports 3000 and 3100 must be free. If something else uses them, pick others,
+for example:
+
+```sh
+DEMO_WEB_PORT=3001 DEMO_HMIS_PORT=3101 docker compose -f demo/compose.yaml up -d --build
+```
+
+and use those ports in the addresses below. Set the same variables for later
+`up` commands.
 
 ## Accounts
 
