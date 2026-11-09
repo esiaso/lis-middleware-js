@@ -2,7 +2,7 @@ import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { createDb, uuidv7, type Db } from '@lis/db';
-import { approve, release, review, verifyAuditChain, WorkflowRejected } from '@lis/lab';
+import { approve, judgeCandidates, release, review, verifyAuditChain, WorkflowRejected, type ReconciliationCandidate } from '@lis/lab';
 import { createApp, createUser } from '@lis/web';
 import { pino } from 'pino';
 import { Browser, PW } from './browser.js';
@@ -83,6 +83,11 @@ describe.skipIf(!url)('downtime registration and reconciliation over HTTP', () =
     const rp = await dr.get(`/results/${resultId}`);
     expect(rp.html).toContain('held from the HMIS');
     expect(rp.html).not.toContain('Release to HMIS');
+    // The worklist and the dashboard show what is waiting.
+    const waiting = (await dr.get('/downtime')).html;
+    expect(waiting).toContain('<span class="badge text-bg-warning">1 approved</span>');
+    expect(waiting).toContain('no HMIS order matches yet');
+    expect((await dr.get('/')).html).toContain('1 downtime order to reconcile');
 
     // The HMIS order arrives without FT4: shown, but cannot be chosen.
     const partial = await hmisOrder(['TSH']);
@@ -90,11 +95,17 @@ describe.skipIf(!url)('downtime registration and reconciliation over HTTP', () =
     const rec = await tech.get(`/downtime/${dt.id}`);
     expect(rec.html).toContain('EXAMPLE, Cara · MRN MRN9');
     expect(rec.html).toContain('Not ordered in the HMIS: FT4');
+    expect((await tech.get('/downtime')).html).toContain('ORD-1 has no FT4; ask for it to be ordered in the HMIS');
     const tcsrf = await tech.csrf(`/downtime/${dt.id}`);
     expect((await tech.post(`/downtime/${dt.id}/reconcile`, { _csrf: tcsrf, hmisOrderId: partial, password: PW })).html).toContain('has no free FT4');
 
     const full = await hmisOrder(['TSH', 'FT4', 'PRL']);
-    expect((await tech.get(`/downtime/${dt.id}`)).html).toContain('MRN, birth date, family name, given name, tests');
+    const suggested = (await tech.get(`/downtime/${dt.id}`)).html;
+    expect(suggested).toContain('MRN, birth date, family name, given name, tests');
+    expect(suggested).toContain('Suggested: <span class="font-monospace">ORD-3</span>');
+    const list = (await tech.get('/downtime')).html;
+    expect(list).toContain('<span class="badge text-bg-success">clear</span>');
+    expect(list).toContain('1 has a clear match.');
     expect((await tech.post(`/downtime/${dt.id}/reconcile`, { _csrf: tcsrf, hmisOrderId: full, password: 'not my password' })).status).toBe(403);
     const pcsrf = await phleb.csrf('/downtime');
     expect((await phleb.post(`/downtime/${dt.id}/reconcile`, { _csrf: pcsrf, hmisOrderId: full, password: PW })).status).toBe(403);
@@ -111,6 +122,8 @@ describe.skipIf(!url)('downtime registration and reconciliation over HTTP', () =
     expect(prov.mergedIntoId).toBe((await db.labOrder.findUniqueOrThrow({ where: { id: full } })).patientId);
     expect((await tech.post(`/downtime/${dt.id}/reconcile`, { _csrf: tcsrf, hmisOrderId: full, password: PW })).html).toContain('already reconciled');
     expect((await tech.get(`/specimens/${specimen.id}`)).html).toContain('Downtime order reconciled by tech');
+    expect((await tech.get('/downtime')).html).toContain('Nothing to reconcile.');
+    expect((await tech.get('/')).html).not.toContain('downtime order to reconcile');
 
     // Release now goes out against the HMIS order and line.
     await release(db, resultId, { username: 'dr', displayName: 'dr' });
@@ -130,5 +143,21 @@ describe.skipIf(!url)('downtime registration and reconciliation over HTTP', () =
     expect(list.html).toContain('Reconcile');
     const aud = await db.auditEvent.count({ where: { action: 'order.downtime-registered' } });
     expect(aud).toBe(2);
+  });
+});
+
+describe('suggesting the HMIS order for a downtime order', () => {
+  const c = (hmisOrderId: string, score: number, why: string[], missing: string[] = []): ReconciliationCandidate => ({
+    orderId: hmisOrderId, hmisOrderId, orderedAt: new Date('2026-11-05T08:00:00Z'), score, why, missing,
+    patient: { mrn: `M-${hmisOrderId}`, familyName: 'Example', givenName: 'Cara', birthDate: null, sex: null },
+  });
+  it('is clear only for a strong match with every test and no close rival', () => {
+    expect(judgeCandidates([])).toMatchObject({ suggestion: 'none' });
+    expect(judgeCandidates([c('A', 9, ['MRN', 'birth date', 'family name', 'tests'])])).toMatchObject({ suggestion: 'clear', note: 'matches on MRN, birth date, family name, tests' });
+    expect(judgeCandidates([c('A', 5, ['birth date', 'family name', 'tests'])])).toMatchObject({ suggestion: 'clear' });
+    expect(judgeCandidates([c('A', 3, ['family name', 'tests'])])).toMatchObject({ suggestion: 'check', note: 'matches only on family name, tests' });
+    expect(judgeCandidates([c('A', 5, ['birth date', 'family name', 'tests']), c('B', 4, ['birth date', 'family name'])])).toMatchObject({ suggestion: 'check', note: 'A and B match about equally' });
+    expect(judgeCandidates([c('A', 9, ['MRN', 'birth date', 'family name']), c('B', 5, ['birth date', 'family name', 'tests'])].map((x, i) => (i === 0 ? { ...x, missing: ['FT4'] } : x)))).toMatchObject({ suggestion: 'check', best: { hmisOrderId: 'B' }, note: 'A matches as well but has no FT4' });
+    expect(judgeCandidates([c('A', 8, ['MRN'], ['FT4'])])).toMatchObject({ suggestion: 'not-ordered', note: 'A has no FT4; ask for it to be ordered in the HMIS' });
   });
 });

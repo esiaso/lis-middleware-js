@@ -3,6 +3,30 @@
   {{#if can.collect}}<a class="btn btn-primary btn-sm" href="/downtime/new">Downtime registration</a>{{/if}}
 </div>
 <p class="text-body-secondary">Orders registered by hand while the HMIS could not be reached. Their results are held from the HMIS until each is reconciled to the HMIS order.</p>
+
+<h2 class="h6">To reconcile</h2>
+{{#if work}}
+<p class="small text-body-secondary">Orders with approved results waiting come first. The suggestion is the HMIS order that matches best; it is "clear" only when it matches on the MRN written on the form, or on birth date and family name, has every test, and no other order comes close. Open each one, check the patient, and reconcile it with your password.{{#if clearCount}} {{clearCount}} {{#if (eq clearCount 1)}}has{{else}}have{{/if}} a clear match.{{/if}}</p>
+<table class="table table-sm align-middle">
+  <thead><tr><th>Downtime order</th><th>Provisional patient</th><th>Held results</th><th>Registered</th><th>Suggested HMIS order</th><th></th></tr></thead>
+  <tbody>
+    {{#each work}}
+    <tr>
+      <td><a class="font-monospace" href="/orders/{{id}}">{{downtimeId}}</a></td>
+      <td>{{patient}}{{#if birthDate}} <span class="small">born {{birthDate}}</span>{{/if}}</td>
+      <td>{{held}}{{#if approved}} <span class="badge text-bg-warning">{{approved}} approved</span>{{/if}}</td>
+      <td class="small">{{at}}</td>
+      <td>{{#if best}}<span class="font-monospace">{{best.hmisOrderId}}</span> <span class="small">MRN {{best.mrn}}</span> {{/if}}{{#if clear}}<span class="badge text-bg-success">clear</span>{{/if}}{{#if check}}<span class="badge text-bg-warning">check</span>{{/if}}{{#if notOrdered}}<span class="badge text-bg-danger">not ordered</span>{{/if}}<div class="small text-body-secondary">{{note}}</div></td>
+      <td><a class="btn btn-outline-warning btn-sm" href="/downtime/{{id}}">Reconcile</a></td>
+    </tr>
+    {{/each}}
+  </tbody>
+</table>
+{{else}}
+<p class="text-body-secondary">Nothing to reconcile.</p>
+{{/if}}
+
+<h2 class="h6">Reconciled</h2>
 <table class="table table-sm align-middle">
   <thead><tr><th>Downtime order</th><th>Provisional patient</th><th>Tests</th><th>Registered</th><th>Reconciliation</th></tr></thead>
   <tbody>
@@ -15,7 +39,7 @@
       <td>{{#if reconciled}}done by {{reconciledBy}}{{else}}<a class="btn btn-outline-warning btn-sm" href="/downtime/{{id}}">Reconcile</a>{{/if}}</td>
     </tr>
     {{else}}
-    <tr><td colspan="5" class="text-body-secondary">No downtime orders.</td></tr>
+    <tr><td colspan="5" class="text-body-secondary">None yet.</td></tr>
     {{/each}}
   </tbody>
 </table>

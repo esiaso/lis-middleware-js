@@ -8,11 +8,12 @@
 {{else}}
 <p>Specimens and results move to the HMIS order you choose; accession numbers and labels stay the same. Check the patient carefully: this cannot be undone from this screen.</p>
 <h2 class="h6">Possible HMIS orders</h2>
+{{#if suggestion}}<p class="small">{{#if suggestion.clear}}<span class="badge text-bg-success">clear</span> Suggested: <span class="font-monospace">{{suggestion.hmisOrderId}}</span>, {{suggestion.note}}. Check the patient before reconciling.{{else}}<span class="badge text-bg-warning">check</span> {{suggestion.note}}.{{/if}}</p>{{/if}}
 <table class="table table-sm align-middle">
   <thead><tr><th>HMIS order</th><th>HMIS patient</th><th>Ordered</th><th>Matches on</th><th></th></tr></thead>
   <tbody>
     {{#each candidates}}
-    <tr>
+    <tr{{#if suggested}} class="table-active"{{/if}}>
       <td class="font-monospace">{{hmisOrderId}}</td>
       <td><strong>{{patient}}</strong></td>
       <td class="small">{{at}}</td>

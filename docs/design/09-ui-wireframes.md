@@ -63,6 +63,18 @@ states.
 | [+ Downtime registration]  (enabled only for operator+ ; banner when HMIS down)|
 ```
 
+**Downtime orders** (when the HMIS returns, A-15): a **To reconcile** worklist,
+orders with approved results waiting first, then the oldest. Each row shows the
+provisional patient, how many results are held (and how many are approved), and
+the suggested HMIS order with its MRN and one of: **clear** (it matches on the
+MRN written on the form, or on birth date and family name, has every test, and
+no other order comes close), **check** (with why: two orders match about
+equally, a better match lacks a test, or it matches only weakly), or **not
+ordered** (the HMIS order lacks a test; ask for it to be ordered). Nothing is
+reconciled from the list: "Reconcile" opens the order, where the suggestion is
+highlighted and a person confirms it with their password. The dashboard says
+how many downtime orders are waiting until none are left.
+
 Order detail / collection:
 
 ```

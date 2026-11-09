@@ -171,6 +171,68 @@ export async function reconciliationCandidates(db: Db, downtimeOrderId: string):
   return out.sort((a, b) => b.score - a.score || a.orderedAt.getTime() - b.orderedAt.getTime()).slice(0, 10);
 }
 
+export type ReconcileSuggestion = 'clear' | 'check' | 'not-ordered' | 'none';
+
+/**
+ * What the candidate list suggests, for the worklist when the HMIS returns.
+ * "clear" only when the best order matches on the MRN written on the form, or
+ * on birth date and family name, has every test needed, and no other order
+ * comes close. A person still reconciles each order with their password.
+ */
+export function judgeCandidates(candidates: ReconciliationCandidate[]): { suggestion: ReconcileSuggestion; best: ReconciliationCandidate | null; note: string } {
+  if (candidates.length === 0) return { suggestion: 'none', best: null, note: 'no HMIS order matches yet' };
+  const usable = candidates.filter((c) => c.missing.length === 0);
+  const top = candidates[0]!;
+  if (usable.length === 0) return { suggestion: 'not-ordered', best: top, note: `${top.hmisOrderId} has no ${top.missing.join(', ')}; ask for it to be ordered in the HMIS` };
+  const u0 = usable[0]!;
+  if (top !== u0 && top.score >= u0.score) {
+    return { suggestion: 'check', best: u0, note: `${top.hmisOrderId} matches as well but has no ${top.missing.join(', ')}` };
+  }
+  const strong = u0.why.includes('MRN') || (u0.why.includes('birth date') && u0.why.includes('family name'));
+  const rivals = usable.filter((c) => c !== u0 && c.score >= u0.score - 1);
+  if (rivals.length) return { suggestion: 'check', best: u0, note: `${[u0, ...rivals].map((c) => c.hmisOrderId).join(' and ')} match about equally` };
+  if (!strong) return { suggestion: 'check', best: u0, note: `matches only on ${u0.why.join(', ') || 'the time ordered'}` };
+  return { suggestion: 'clear', best: u0, note: `matches on ${u0.why.join(', ')}` };
+}
+
+export interface ReconcileWorkItem {
+  orderId: string;
+  downtimeId: string;
+  orderedAt: Date;
+  patient: { familyName: string | null; givenName: string | null; birthDate: Date | null };
+  /** Results held from the HMIS, and how many of them are already approved. */
+  held: number;
+  approved: number;
+  suggestion: ReconcileSuggestion;
+  best: ReconciliationCandidate | null;
+  note: string;
+}
+
+const APPROVED_HELD = ['approved'];
+
+/**
+ * Downtime orders still to reconcile, with a suggestion for each: approved
+ * results waiting longest first, then the oldest order (A-15).
+ */
+export async function reconciliationWorklist(db: Db): Promise<ReconcileWorkItem[]> {
+  const orders = await db.labOrder.findMany({
+    where: { source: DOWNTIME, reconciledAt: null, status: { not: 'cancelled' } },
+    include: { patient: true, tests: { include: { result: true } } },
+    orderBy: { orderedAt: 'asc' },
+    take: 200,
+  });
+  const out: ReconcileWorkItem[] = [];
+  for (const o of orders) {
+    const results = o.tests.map((t) => t.result).filter((r): r is NonNullable<typeof r> => r !== null);
+    const j = judgeCandidates(await reconciliationCandidates(db, o.id));
+    out.push({
+      orderId: o.id, downtimeId: o.hmisOrderId, orderedAt: o.orderedAt, patient: o.patient,
+      held: results.length, approved: results.filter((r) => APPROVED_HELD.includes(r.status)).length, ...j,
+    });
+  }
+  return out.sort((a, b) => b.approved - a.approved || a.orderedAt.getTime() - b.orderedAt.getTime());
+}
+
 /**
  * Move a downtime order's specimens and results onto an HMIS order. Each
  * downtime test that has a specimen or a result needs a free HMIS test with
