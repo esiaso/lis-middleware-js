@@ -1,3 +1,4 @@
+import { criticalLabel } from '@lis/domain';
 import { APPROVED_STATUSES, type HistoryResult } from '@lis/lab';
 import { formatTime, formatValue } from './format.js';
 
@@ -40,7 +41,7 @@ export function cumulative(results: HistoryResult[], maxColumns = 12): Cumulativ
         units: r.units ?? '',
         flags: r.abnormalFlags.join(' '),
         approved: APPROVED_STATUSES.includes(r.status),
-        critical: r.criticalFlag === 'LOW' || r.criticalFlag === 'HIGH' ? r.criticalFlag : '',
+        critical: criticalLabel(r.criticalFlag),
         delta: r.deltaFlag === 'EXCEEDED',
       });
     }

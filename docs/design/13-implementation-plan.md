@@ -94,7 +94,8 @@ test environment), with an HMIS link page and dashboard warning (W-21), and
 the lab's own test catalogue with LOINC codes and a manual worksheet for tests
 read by a person, such as malaria rapid tests, dipstick urinalysis and smear
 counts (A-31, W-22, W-23), including panels such as a urinalysis or malaria
-microscopy ordered as one code and resulted as several (A-32), and QC for
+microscopy ordered as one code and resulted as several (A-32), and critical
+answers for choice tests such as a positive malaria smear (A-36), and QC for
 manual tests, which warns or blocks entry on a lot without a passing control
 (A-33, W-24), and adding a test a clinician asked for to an order from an
 unmatched result, held until the HMIS order line arrives (A-34, W-7), and

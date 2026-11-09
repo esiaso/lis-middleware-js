@@ -38,13 +38,19 @@ describe('catalogue form', () => {
     expect(parseCatalogueForm(form({ components: 'U-PROT U-GLU' }))).toMatchObject({ ok: false, issues: ['Only a panel has component tests.'] });
   });
 
+  it('marks a critical answer, which is abnormal too, and writes it back the same way', () => {
+    const r = parseAnswers('NEG | Negative | LA6577-6\nPF | P. falciparum positive | CRITICAL');
+    expect(r).toEqual({ issues: [], answers: [{ code: 'NEG', display: 'Negative', loinc: 'LA6577-6' }, { code: 'PF', display: 'P. falciparum positive', critical: true, abnormal: true }] });
+    expect(answersText(r.answers)).toBe('NEG | Negative | LA6577-6\nPF | P. falciparum positive | critical');
+  });
+
   it('refuses bad answer lines and keeps a LOINC answer code', () => {
     const r = parseAnswers('NEG | Negative | LA6577-6\nPOS\nNEG | again\nX | Y | maybe');
     expect(r.answers[0]).toEqual({ code: 'NEG', display: 'Negative', loinc: 'LA6577-6' });
     expect(r.issues).toEqual([
       'Answer 2: give the words to show, up to 80 characters, after a | sign.',
       'Answer 3: the code NEG is used twice.',
-      'Answer 4: "maybe" is neither "abnormal" nor a LOINC answer code (LA...).',
+      'Answer 4: "maybe" is not "abnormal", "critical" or a LOINC answer code (LA...).',
     ]);
     expect(answersText(r.answers.slice(0, 1))).toBe('NEG | Negative | LA6577-6');
   });

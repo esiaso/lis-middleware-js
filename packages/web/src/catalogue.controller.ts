@@ -155,7 +155,7 @@ function cardsOf(rows: WorksheetRow[], failed: Failed, qcOf: CardQc = () => null
       choice: r.test.resultType === 'ORDINAL' || r.test.resultType === 'NOMINAL',
       text: r.test.resultType === 'TEXT',
       unit: r.test.unit ?? '',
-      answers: r.test.answers.map((a) => ({ code: a.code, display: a.display, abnormal: Boolean(a.abnormal), selected: value === a.code })),
+      answers: r.test.answers.map((a) => ({ code: a.code, display: a.display, abnormal: Boolean(a.abnormal), critical: Boolean(a.critical), selected: value === a.code })),
       value,
     };
   };

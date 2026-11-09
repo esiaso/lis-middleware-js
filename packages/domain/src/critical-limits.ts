@@ -22,12 +22,24 @@ export interface CriticalSubject {
   ageDays: number | null;
 }
 
-/** LOW or HIGH need a recorded call before approval; UNITS_DIFFER asks a person to compare by hand. */
-export type CriticalFlag = 'LOW' | 'HIGH' | 'UNITS_DIFFER';
+/**
+ * LOW, HIGH and ANSWER (a catalogue answer the lab made critical, such as a
+ * positive malaria smear, A-36) need a recorded call before approval;
+ * UNITS_DIFFER asks a person to compare by hand.
+ */
+export type CriticalFlag = 'LOW' | 'HIGH' | 'UNITS_DIFFER' | 'ANSWER';
+
+/** The word to show next to "critical" for a flag that needs a call, or '' when it needs none. */
+export function criticalLabel(flag: string | null | undefined): string {
+  if (flag === 'LOW' || flag === 'HIGH') return flag;
+  if (flag === 'ANSWER') return 'answer';
+  return '';
+}
 
 export interface CriticalOutcome {
   flag: CriticalFlag;
-  limitId: string;
+  /** The critical limit that fired; null for a critical answer, which lives on the catalogue. */
+  limitId: string | null;
   detail: string;
 }
 

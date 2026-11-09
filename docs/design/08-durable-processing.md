@@ -283,8 +283,9 @@ hospital's email/SMS gateway or monitoring system.
   limit and adds a new one; both audited). Each result version is checked
   once, as it is written (instrument value, repeat, dilution, or
   correction), and keeps its flag (`result_version.critical_flag`: `LOW`,
-  `HIGH`, or `UNITS_DIFFER` when the units do not match the limit, which a
-  person must compare by hand). A `LOW` or `HIGH` version cannot be approved
+  `HIGH`, `ANSWER` for a catalogue answer the lab marked critical (A-36), or
+  `UNITS_DIFFER` when the units do not match the limit, which a person must
+  compare by hand). A `LOW`, `HIGH` or `ANSWER` version cannot be approved
   or released until someone records the call (`critical_call`, append-only:
   who was told, their role and ward, when, read back; a call without
   read-back cannot be saved). The dashboard and the **Critical** page list
