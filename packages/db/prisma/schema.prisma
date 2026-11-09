@@ -291,7 +291,7 @@ model PatientMerge {
   id            String    @id @db.Uuid
   fromPatientId String    @map("from_patient_id") @db.Uuid
   intoPatientId String    @map("into_patient_id") @db.Uuid
-  /// PROPOSED, CONFIRMED or WITHDRAWN.
+  /// PROPOSED, CONFIRMED, WITHDRAWN or UNDONE.
   status        String    @default("PROPOSED")
   /// The HMIS or medical records reference for the merge.
   reference     String
@@ -300,6 +300,13 @@ model PatientMerge {
   proposedAt    DateTime  @default(now()) @map("proposed_at") @db.Timestamptz
   decidedBy     String?   @map("decided_by")
   decidedAt     DateTime? @map("decided_at") @db.Timestamptz
+  /// Undoing a confirmed merge (A-39): proposed by one person, done by another.
+  undoReference String?   @map("undo_reference")
+  undoReason    String?   @map("undo_reason")
+  undoProposedBy String?  @map("undo_proposed_by")
+  undoProposedAt DateTime? @map("undo_proposed_at") @db.Timestamptz
+  undoneBy      String?   @map("undone_by")
+  undoneAt      DateTime? @map("undone_at") @db.Timestamptz
   from          Patient   @relation("MergeFrom", fields: [fromPatientId], references: [id], onDelete: Restrict, map: "patient_merge_from_fkey")
   into          Patient   @relation("MergeInto", fields: [intoPatientId], references: [id], onDelete: Restrict, map: "patient_merge_into_fkey")
 

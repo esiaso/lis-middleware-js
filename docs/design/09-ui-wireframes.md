@@ -306,6 +306,11 @@ lists the merged MRN and shows its results too, each column marked with the
 MRN it came under; the merged MRN's page and its orders say where the history
 now is.
 
+**Undo this merge** (administrators and approvers, A-39): on the merged MRN's
+page, the HMIS or medical records reference and why; a second person
+confirms with their password, or it is withdrawn. Both pages then list the
+undone merge with who did it and why.
+
 ## W-14 Printed result report
 
 **Order → Print result report**: an A4 page for the browser's print dialog,

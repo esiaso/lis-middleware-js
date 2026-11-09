@@ -2,7 +2,39 @@
 <h1 class="h4">{{p.name}}</h1>
 <p>MRN {{p.mrn}}{{#if p.sex}} · {{p.sex}}{{/if}}{{#if p.birthDate}} · born {{p.birthDate}}{{/if}}{{#if p.provisional}} <span class="badge text-bg-warning">provisional</span>{{/if}}</p>
 {{#if p.provisional}}{{#if p.mergedInto}}<div class="alert alert-secondary">This provisional record was reconciled. Its results moved with their orders to the <a href="{{p.mergedInto}}">HMIS patient</a>.</div>{{/if}}{{/if}}
-{{#if mergedAway}}<div class="alert alert-warning" role="alert"><strong>MRN {{p.mrn}} was merged</strong> into <a href="/patients/{{mergedAway.into.id}}">{{mergedAway.into.name}} (MRN {{mergedAway.into.mrn}})</a>, reference {{mergedAway.reference}}, recorded by {{mergedAway.by}} on {{mergedAway.at}}. Orders and results here keep this MRN; the full history is on that patient's page.</div>{{/if}}
+{{#if mergedAway}}<div class="alert alert-warning" role="alert"><strong>MRN {{p.mrn}} was merged</strong> into <a href="/patients/{{mergedAway.into.id}}">{{mergedAway.into.name}} (MRN {{mergedAway.into.mrn}})</a>, reference {{mergedAway.reference}}, recorded by {{mergedAway.by}} on {{mergedAway.at}}. Orders and results here keep this MRN; the full history is on that patient's page.</div>
+{{#if mergedAway.undo}}
+<div class="card card-body mb-3 border-warning">
+  <h2 class="h6">Undoing this merge is waiting for a second person</h2>
+  <p class="small mb-2">Proposed by {{mergedAway.undo.by}} at {{mergedAway.undo.at}}, reference {{mergedAway.undo.reference}}: {{mergedAway.undo.reason}}</p>
+  <p class="small text-body-secondary">Once confirmed, MRN {{p.mrn}} has its own history again and MRN {{mergedAway.into.mrn}} no longer includes it. Delta flags already on results stay as they are.</p>
+  {{#if canUndo}}
+  <div class="d-flex flex-wrap gap-3 align-items-end">
+    {{#if mergedAway.undo.mine}}<p class="mb-0">A different person must confirm.</p>{{else}}
+    <form method="post" action="/patients/{{p.id}}/merge/{{mergedAway.id}}/undo/confirm" class="d-flex gap-2 align-items-end">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <div>{{> confirm id="unmerge-password" label="Your password" labelClass="form-label small" inputClass="form-control form-control-sm"}}</div>
+      <button class="btn btn-warning btn-sm" type="submit">Confirm undo</button>
+    </form>{{/if}}
+    <form method="post" action="/patients/{{p.id}}/merge/{{mergedAway.id}}/undo/withdraw"><input type="hidden" name="_csrf" value="{{csrf}}"><button class="btn btn-outline-secondary btn-sm" type="submit">Withdraw</button></form>
+  </div>
+  {{/if}}
+</div>
+{{else}}{{#if canUndo}}
+<details class="mb-3"{{#if undoIssues}} open{{/if}}>
+  <summary class="small">Undo this merge</summary>
+  <form method="post" action="/patients/{{p.id}}/merge/{{mergedAway.id}}/undo" class="row g-2 mt-1 align-items-end">
+    <input type="hidden" name="_csrf" value="{{csrf}}">
+    {{#if undoIssues}}<div class="col-12"><div class="alert alert-danger py-2" role="alert">{{#each undoIssues}}<div>{{this}}</div>{{/each}}</div></div>{{/if}}
+    <p class="col-12 small text-body-secondary mb-0">When medical records reversed the merge in the HMIS, or it was recorded here in error. A different person confirms.</p>
+    <div class="col-md-4"><label class="form-label small" for="undo-reference">HMIS or medical records reference</label><input class="form-control" id="undo-reference" name="reference" value="{{u.reference}}" required maxlength="100"></div>
+    <div class="col-md-6"><label class="form-label small" for="undo-reason">Why</label><input class="form-control" id="undo-reason" name="reason" value="{{u.reason}}" required minlength="10" maxlength="500"></div>
+    <div class="col-md-2"><button class="btn btn-outline-warning" type="submit">Propose undo</button></div>
+  </form>
+</details>
+{{/if}}{{/if}}
+{{/if}}
+{{#if undone}}<div class="small text-body-secondary mb-3">{{#each undone}}<div>A merge of MRN {{from.mrn}} into MRN {{into.mrn}} was undone on {{at}} by {{by}}, reference {{reference}}: {{reason}}</div>{{/each}}</div>{{/if}}
 {{#if mergedIn}}<div class="alert alert-info" role="status">This history includes results under {{#each mergedIn}}<a href="/patients/{{id}}">MRN {{mrn}}</a> ({{name}}, merged {{at}}, reference {{reference}}){{#unless @last}}, {{/unless}}{{/each}}.</div>{{/if}}
 {{#if waiting}}
 <div class="card card-body mb-3">

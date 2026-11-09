@@ -112,3 +112,63 @@ export async function withdrawMerge(db: Db, user: string, mergeId: string): Prom
     await appendAudit(tx, { actor: user, action: 'patient.merge-withdrawn', entityType: 'patient', entityId: m.fromPatientId, after: { mergeId } });
   });
 }
+
+export interface UnmergeProposal {
+  /** The HMIS or medical records reference for the reversal, or the incident when the merge was recorded in error. */
+  reference: string;
+  reason: string;
+}
+
+/**
+ * First person: propose undoing a confirmed merge (A-39), because medical
+ * records reversed it in the HMIS or it was recorded in error.
+ */
+export async function proposeUnmerge(db: Db, user: string, mergeId: string, input: UnmergeProposal): Promise<void> {
+  const reference = input.reference.trim();
+  const reason = input.reason.trim();
+  const issues: string[] = [];
+  if (reference.length < 3 || reference.length > 100) issues.push('Give the HMIS or medical records reference for undoing the merge, 3 to 100 characters.');
+  if (reason.length < 10 || reason.length > 500) issues.push('Say why, in 10 to 500 characters (for example "two different people, merge reversed by medical records").');
+  if (issues.length) throw new InvalidInput(issues);
+  await db.$transaction(async (tx) => {
+    const m = await tx.patientMerge.findUnique({ where: { id: mergeId }, include: { from: true, into: true } });
+    if (!m || m.status !== 'CONFIRMED') throw reject('INVALID_STATE', 'only a confirmed merge can be undone');
+    if (m.undoProposedBy) throw reject('INVALID_STATE', 'undoing this merge is already waiting; confirm or withdraw it first');
+    const n = await tx.patientMerge.updateMany({ where: { id: m.id, status: 'CONFIRMED', undoProposedBy: null }, data: { undoReference: reference, undoReason: reason, undoProposedBy: user, undoProposedAt: new Date() } });
+    if (n.count !== 1) throw reject('INVALID_STATE', 'changed by someone else; reload');
+    await appendAudit(tx, { actor: user, action: 'patient.unmerge-proposed', entityType: 'patient', entityId: m.fromPatientId, reason, after: { mergeId: m.id, fromMrn: m.from.mrn, intoMrn: m.into.mrn, reference } });
+  });
+}
+
+/**
+ * Second person: the merge is undone. The merged MRN has its own history
+ * again and the MRN that stayed no longer includes it. Patients merged into
+ * the merged MRN before it was merged stay with it. Delta flags already
+ * written on results stay as they were.
+ */
+export async function confirmUnmerge(db: Db, user: string, mergeId: string): Promise<void> {
+  await db.$transaction(async (tx) => {
+    const m = await tx.patientMerge.findUnique({ where: { id: mergeId }, include: { from: true, into: true } });
+    if (!m || m.status !== 'CONFIRMED' || !m.undoProposedBy) throw reject('INVALID_STATE', 'no undo waiting to be confirmed');
+    if (m.undoProposedBy === user) throw reject('SAME_PERSON', 'a different person must confirm undoing the merge');
+    if (m.from.mergedIntoId !== m.intoPatientId) throw reject('INVALID_STATE', `MRN ${m.from.mrn} is no longer merged into MRN ${m.into.mrn}`);
+    const now = new Date();
+    const n = await tx.patientMerge.updateMany({ where: { id: m.id, status: 'CONFIRMED', undoProposedBy: m.undoProposedBy }, data: { status: 'UNDONE', undoneBy: user, undoneAt: now } });
+    if (n.count !== 1) throw reject('INVALID_STATE', 'changed by someone else; reload');
+    await tx.patient.update({ where: { id: m.fromPatientId }, data: { mergedIntoId: null } });
+    await appendAudit(tx, {
+      actor: user, action: 'patient.unmerged', entityType: 'patient', entityId: m.fromPatientId, reason: m.undoReason ?? '',
+      before: { mergedIntoId: m.intoPatientId, mergeId: m.id }, after: { mergedIntoId: null, fromMrn: m.from.mrn, intoMrn: m.into.mrn, reference: m.undoReference, proposedBy: m.undoProposedBy },
+    });
+  });
+}
+
+/** Take back a proposal to undo; the merge stays as it was. */
+export async function withdrawUnmerge(db: Db, user: string, mergeId: string): Promise<void> {
+  await db.$transaction(async (tx) => {
+    const m = await tx.patientMerge.findUnique({ where: { id: mergeId } });
+    if (!m || m.status !== 'CONFIRMED' || !m.undoProposedBy) throw reject('INVALID_STATE', 'no undo waiting');
+    await tx.patientMerge.update({ where: { id: m.id }, data: { undoReference: null, undoReason: null, undoProposedBy: null, undoProposedAt: null } });
+    await appendAudit(tx, { actor: user, action: 'patient.unmerge-withdrawn', entityType: 'patient', entityId: m.fromPatientId, before: { mergeId: m.id, reference: m.undoReference, reason: m.undoReason, proposedBy: m.undoProposedBy } });
+  });
+}

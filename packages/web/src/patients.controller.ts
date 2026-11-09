@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { Db } from '@lis/db';
-import { confirmMerge, InvalidInput, patientHistory, proposeMerge, withdrawMerge } from '@lis/lab';
+import { confirmMerge, confirmUnmerge, InvalidInput, patientHistory, proposeMerge, proposeUnmerge, withdrawMerge, withdrawUnmerge } from '@lis/lab';
 import type { Response } from 'express';
 import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
 import { cumulative } from './cumulative.js';
@@ -41,14 +41,15 @@ export class PatientsController {
     await this.render(req, res, uuidParam(id), {}, [], 200);
   }
 
-  private async render(req: WebRequest, res: Response, id: string, v: Record<string, string>, issues: string[], status: number): Promise<void> {
+  private async render(req: WebRequest, res: Response, id: string, v: Record<string, string>, issues: string[], status: number, uv: Record<string, string> = {}, undoIssues: string[] = []): Promise<void> {
     const p = await this.db.patient.findUnique({ where: { id } });
     if (!p) throw new NotFoundException();
-    const [results, into, merged, waiting] = await Promise.all([
+    const [results, into, merged, waiting, undone] = await Promise.all([
       patientHistory(this.db, p.id),
       p.mergedIntoId ? this.db.patient.findUnique({ where: { id: p.mergedIntoId } }) : null,
       this.db.patientMerge.findMany({ where: { intoPatientId: p.id, status: 'CONFIRMED' }, include: { from: true }, orderBy: { decidedAt: 'asc' } }),
       this.db.patientMerge.findFirst({ where: { fromPatientId: p.id, status: 'PROPOSED' }, include: { into: true } }),
+      this.db.patientMerge.findMany({ where: { OR: [{ fromPatientId: p.id }, { intoPatientId: p.id }], status: 'UNDONE' }, include: { from: true, into: true }, orderBy: { undoneAt: 'asc' } }),
     ]);
     const mergeRecord = p.mergedIntoId && !p.provisional ? await this.db.patientMerge.findFirst({ where: { fromPatientId: p.id, status: 'CONFIRMED' } }) : null;
     const c = cumulative(results);
@@ -57,7 +58,18 @@ export class PatientsController {
     page(req, res, 'patient', {
       title: `${name(p)} (${p.mrn})`,
       p: { id: p.id, name: name(p), mrn: p.mrn, sex: p.sex ?? '', birthDate: p.birthDate?.toISOString().slice(0, 10) ?? '', provisional: p.provisional, mergedInto: p.mergedIntoId ? `/patients/${p.mergedIntoId}` : '' },
-      mergedAway: into && mergeRecord ? { into: line(into), reference: mergeRecord.reference, by: `${mergeRecord.proposedBy} and ${mergeRecord.decidedBy ?? ''}`, at: formatTime(mergeRecord.decidedAt) } : null,
+      mergedAway: into && mergeRecord
+        ? {
+            id: mergeRecord.id, into: line(into), reference: mergeRecord.reference, by: `${mergeRecord.proposedBy} and ${mergeRecord.decidedBy ?? ''}`, at: formatTime(mergeRecord.decidedAt),
+            undo: mergeRecord.undoProposedBy
+              ? { by: mergeRecord.undoProposedBy, at: formatTime(mergeRecord.undoProposedAt), reference: mergeRecord.undoReference ?? '', reason: mergeRecord.undoReason ?? '', mine: mergeRecord.undoProposedBy === req.user?.username }
+              : null,
+          }
+        : null,
+      undone: undone.map((m) => ({ from: line(m.from), into: line(m.into), reference: m.undoReference ?? '', reason: m.undoReason ?? '', by: `${m.undoProposedBy ?? ''} and ${m.undoneBy ?? ''}`, at: formatTime(m.undoneAt) })),
+      canUndo: roles.includes('admin') || roles.includes('approver'),
+      u: uv,
+      undoIssues,
       mergedIn: merged.map((m) => ({ ...line(m.from), reference: m.reference, at: formatTime(m.decidedAt) })),
       waiting: waiting
         ? {
@@ -108,5 +120,36 @@ export class PatientsController {
   async withdraw(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Param('mergeId') mergeId: string): Promise<void> {
     await withdrawMerge(this.db, req.user!.username, uuidParam(mergeId));
     res.redirect(303, `/patients/${uuidParam(id)}?notice=merge-withdrawn`);
+  }
+
+  /** Undoing a confirmed merge (A-39): first person, from the merged MRN's page. */
+  @Post(':id/merge/:mergeId/undo')
+  @Roles('admin', 'approver')
+  async proposeUndo(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Param('mergeId') mergeId: string, @Body() body: Form): Promise<void> {
+    const pid = uuidParam(id);
+    const uv = { reference: str(body, 'reference'), reason: str(body, 'reason') };
+    try {
+      await proposeUnmerge(this.db, req.user!.username, uuidParam(mergeId), uv);
+    } catch (e) {
+      if (e instanceof InvalidInput) return this.render(req, res, pid, {}, [], 422, uv, e.issues);
+      throw e;
+    }
+    res.redirect(303, `/patients/${pid}?notice=unmerge-proposed`);
+  }
+
+  /** Second person, with password re-entry. */
+  @Post(':id/merge/:mergeId/undo/confirm')
+  @Roles('admin', 'approver')
+  async confirmUndo(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Param('mergeId') mergeId: string, @Body() body: Form): Promise<void> {
+    await requireStepUp(this.db, req, str(body, 'password'));
+    await confirmUnmerge(this.db, req.user!.username, uuidParam(mergeId));
+    res.redirect(303, `/patients/${uuidParam(id)}?notice=unmerge-confirmed`);
+  }
+
+  @Post(':id/merge/:mergeId/undo/withdraw')
+  @Roles('admin', 'approver')
+  async withdrawUndo(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Param('mergeId') mergeId: string): Promise<void> {
+    await withdrawUnmerge(this.db, req.user!.username, uuidParam(mergeId));
+    res.redirect(303, `/patients/${uuidParam(id)}?notice=unmerge-withdrawn`);
   }
 }
