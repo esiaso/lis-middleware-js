@@ -25,8 +25,29 @@
 .lj-key.lj-ok::before { background: var(--bs-success); }
 .lj-key.lj-rule::before { background: var(--bs-warning); }
 .lj-key.lj-bad::before { background: var(--bs-danger); }
+/* Left-hand menu (09 §1). No script: on narrow screens a checkbox shows and hides it. */
+.app-shell { display: flex; min-height: 100vh; }
+.app-sidebar { width: 14rem; flex: 0 0 14rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
+.app-nav { display: flex; flex-direction: column; flex: 1 1 auto; }
+.app-nav > nav { flex: 1 1 auto; padding: .25rem 0 .75rem; }
+.app-main { flex: 1 1 auto; min-width: 0; }
+.app-brand { font-size: 1.05rem; }
+.app-nav-button { display: none; }
+.app-nav-group { padding: .375rem .5rem 0; }
+.app-nav-heading { font-size: .7rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--bs-secondary-color); padding: .2rem .75rem; }
+.app-nav .nav-link { color: var(--bs-body-color); padding: .2rem .75rem; border-radius: var(--bs-border-radius); font-size: .925rem; }
+.app-nav .nav-link:hover { background: var(--bs-secondary-bg); }
+.app-nav .nav-link.active { background: var(--bs-primary); color: #fff; }
+.app-nav-toggle:focus-visible + .app-nav, .app-nav-button:focus-visible { outline: 2px solid var(--bs-primary); }
+@media (max-width: 767.98px) {
+  .app-shell { display: block; }
+  .app-sidebar { width: auto; height: auto; position: static; border-right: 0 !important; border-bottom: 1px solid var(--bs-border-color); }
+  .app-nav-button { display: inline-block; }
+  .app-nav-toggle:not(:checked) + .app-nav { display: none; }
+}
 @media print {
-  .navbar, .alert { display: none !important; }
+  .app-sidebar, .alert { display: none !important; }
+  .app-shell { display: block; }
   .result-report { max-width: none; }
   main { padding: 0 !important; }
   .specimen-label { page: label; border: none; }

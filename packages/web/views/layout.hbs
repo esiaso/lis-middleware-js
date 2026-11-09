@@ -9,10 +9,19 @@
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-  {{#if user}}{{> nav}}{{/if}}
+  {{#if user}}
+  <div class="app-shell">
+    {{> nav}}
+    <main class="app-main py-3 px-3 px-lg-4">
+      {{#if notice}}<div class="alert alert-success" role="status">{{notice}}</div>{{/if}}
+      {{{body}}}
+    </main>
+  </div>
+  {{else}}
   <main class="container-fluid py-3">
     {{#if notice}}<div class="alert alert-success" role="status">{{notice}}</div>{{/if}}
     {{{body}}}
   </main>
+  {{/if}}
 </body>
 </html>
