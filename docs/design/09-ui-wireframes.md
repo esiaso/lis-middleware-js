@@ -166,7 +166,9 @@ verification with the vendor report attached.
 +------------------------------------------------------------------------------+
 ```
 
-* A critical version shows a red banner with the time waiting and a
+* A critical version shows a red banner with the time waiting (and, when
+  the lab has set a call target, when the call is due or how far past it
+  it is, A-37) and a
   "Record the call" form (person told, role and ward, minutes ago, read-back
   ticked). Approval is refused until it is saved (08 §12).
 * Selecting a version is explicit; the default is the latest, but a newer

@@ -50,6 +50,12 @@ export function elapsed(since: Date, now = new Date()): string {
   return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
 }
 
+/** A call target (A-37) in words: how long until it is due, or how long past it. */
+export function callDue(due: Date | null, now = new Date()): { text: string; late: boolean } | null {
+  if (!due) return null;
+  return due.getTime() < now.getTime() ? { text: `past target by ${elapsed(due, now)}`, late: true } : { text: `due in ${elapsed(now, due)}`, late: false };
+}
+
 export const STATUS_LABELS: Record<string, string> = {
   received: 'To review',
   reviewed: 'To approve',
@@ -123,6 +129,8 @@ export const NOTICES: Record<string, string> = {
   'qc-range-retired': 'QC range retired. Earlier checks keep their outcome.',
   'target-added': 'Turnaround target saved. It applies to the report and the overdue list straight away.',
   'target-retired': 'Turnaround target retired.',
+  'call-target-set': 'Call target saved. The Critical page and dashboard now count waiting calls against it.',
+  'call-target-retired': 'Call target retired.',
   'limit-retired': 'Critical limit retired. Results already flagged keep their flag.',
 };
 

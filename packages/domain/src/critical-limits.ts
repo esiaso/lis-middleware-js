@@ -178,3 +178,33 @@ export function describeAge(min: number | null, max: number | null): string {
   if (max === null) return `from ${fmt(min)}`;
   return `${fmt(min)} to under ${fmt(max)}`;
 }
+
+/**
+ * How soon a critical result must be phoned (A-37): minutes from the moment
+ * the critical version arrives. A target for one test beats the lab-wide one
+ * (localTestCode null). The lab sets every target; there is no default.
+ */
+export interface CallTarget {
+  localTestCode: string | null;
+  minutes: number;
+}
+
+export function callTargetFor<T extends CallTarget>(targets: readonly T[], test: string): T | null {
+  return targets.find((t) => t.localTestCode === test) ?? targets.find((t) => t.localTestCode === null) ?? null;
+}
+
+export interface CallTargetInput {
+  localTestCode: string;
+  minutes: string;
+  reference: string;
+}
+
+export function parseCallTarget(i: CallTargetInput): { ok: true; value: { localTestCode: string | null; minutes: number; reference: string } } | { ok: false; issues: string[] } {
+  const issues: string[] = [];
+  const m = i.minutes.trim();
+  if (!/^\d{1,4}$/.test(m) || Number(m) < 1 || Number(m) > 1440) issues.push('Target: 1 to 1440 minutes (24 hours).');
+  const reference = i.reference.trim();
+  if (reference.length < 5 || reference.length > 200) issues.push('Source: 5 to 200 characters naming the lab policy and its version.');
+  if (issues.length) return { ok: false, issues };
+  return { ok: true, value: { localTestCode: i.localTestCode.trim() || null, minutes: Number(m), reference } };
+}

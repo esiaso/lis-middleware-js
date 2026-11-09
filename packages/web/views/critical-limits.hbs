@@ -52,6 +52,45 @@
 </form>
 {{/if}}
 
+<h2 class="h5 mt-4" id="targets">Call target times</h2>
+<p class="text-body-secondary">How soon a critical result must be phoned, counted from when it arrives. A target for one test replaces the lab-wide target for that test. There is no target until the lab sets one; the Critical page and dashboard then show which calls are past it. Nothing is escalated automatically.</p>
+<table class="table table-sm align-middle">
+  <thead><tr><th>Test</th><th>Call within</th><th>Source</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
+  <tbody>
+    {{#each targets}}
+    <tr>
+      <td>{{#if test}}<span class="font-monospace">{{test}}</span>{{else}}every test{{/if}}</td><td>{{minutes}} min</td><td class="small">{{reference}}</td><td class="small">{{by}}, {{at}}</td>
+      {{#if @root.can.approve}}
+      <td>
+        <details><summary class="small">Retire</summary>
+          <form method="post" action="/critical/targets/{{id}}/retire" class="mt-2">
+            <input type="hidden" name="_csrf" value="{{@root.csrf}}">
+            <input class="form-control form-control-sm mb-1" name="reason" minlength="5" required placeholder="Reason" aria-label="Reason">
+            {{> confirm inputClass="form-control form-control-sm mb-1"}}
+            <button class="btn btn-outline-danger btn-sm" type="submit">Retire target</button>
+          </form>
+        </details>
+      </td>
+      {{/if}}
+    </tr>
+    {{else}}
+    <tr><td colspan="5" class="text-body-secondary">No call target set.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+{{#if can.approve}}
+{{#if targetIssues}}<div class="alert alert-danger" role="alert"><ul class="mb-0">{{#each targetIssues}}<li>{{this}}</li>{{/each}}</ul></div>{{/if}}
+<form method="post" action="/critical/targets" class="row g-3">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <div class="col-md-3"><label class="form-label" for="target-test">Test</label>
+    <select class="form-select" id="target-test" name="localTestCode"><option value="">Every test</option>{{#each targetTests}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{code}}</option>{{/each}}</select></div>
+  <div class="col-md-2"><label class="form-label" for="minutes">Call within (minutes)</label><input class="form-control" id="minutes" name="minutes" value="{{t.minutes}}" required inputmode="numeric"></div>
+  <div class="col-md-4"><label class="form-label" for="target-reference">Source</label><input class="form-control" id="target-reference" name="reference" value="{{t.reference}}" required minlength="5" maxlength="200"><div class="form-text">The lab policy that sets this time, with its version.</div></div>
+  <div class="col-md-3">{{> confirm id="target-password" label="Your password" labelClass="form-label" inputClass="form-control"}}</div>
+  <div class="col-12"><button class="btn btn-primary" type="submit">Save target</button> <span class="small text-body-secondary">Replaces any target already set for the same test.</span></div>
+</form>
+{{/if}}
+
 {{#if retired}}
 <h2 class="h6 mt-4">Retired limits</h2>
 <table class="table table-sm small text-body-secondary">

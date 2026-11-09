@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageInDays, compareDecimal, describeAge, evaluateCritical, limitApplies, parseCriticalLimit, type CriticalLimit } from '../src/critical-limits.js';
+import { ageInDays, callTargetFor, parseCallTarget, compareDecimal, describeAge, evaluateCritical, limitApplies, parseCriticalLimit, type CriticalLimit } from '../src/critical-limits.js';
 
 // Limit values here are made up for the tests. They are not clinical guidance.
 const L = (over: Partial<CriticalLimit> = {}): CriticalLimit => ({ id: 'l1', sex: null, ageMinDays: null, ageMaxDays: null, low: '2.5', high: '6.5', units: 'mmol/L', ...over });
@@ -94,5 +94,20 @@ describe('parseCriticalLimit', () => {
     expect(describeAge(null, 28)).toBe('under 28 days');
     expect(describeAge(30, 18 * 365)).toBe('1 month to under 18 years');
     expect(describeAge(6570, null)).toBe('from 18 years');
+  });
+});
+
+describe('critical call targets (A-37)', () => {
+  it("prefers the test's own target over the lab-wide one", () => {
+    const all = { localTestCode: null, minutes: 30 };
+    const k = { localTestCode: 'K', minutes: 15 };
+    expect(callTargetFor([all, k], 'K')).toBe(k);
+    expect(callTargetFor([all, k], 'NA')).toBe(all);
+    expect(callTargetFor([k], 'NA')).toBeNull();
+  });
+  it('takes 1 to 1440 minutes and a source', () => {
+    expect(parseCallTarget({ localTestCode: ' ', minutes: '30', reference: 'Policy P-1 v2' })).toEqual({ ok: true, value: { localTestCode: null, minutes: 30, reference: 'Policy P-1 v2' } });
+    expect(parseCallTarget({ localTestCode: 'K', minutes: '1441', reference: 'x' })).toEqual({ ok: false, issues: ['Target: 1 to 1440 minutes (24 hours).', 'Source: 5 to 200 characters naming the lab policy and its version.'] });
+    expect(parseCallTarget({ localTestCode: 'K', minutes: '1.5', reference: 'Policy P-1 v2' }).ok).toBe(false);
   });
 });

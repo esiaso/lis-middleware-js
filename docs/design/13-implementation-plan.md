@@ -95,7 +95,9 @@ the lab's own test catalogue with LOINC codes and a manual worksheet for tests
 read by a person, such as malaria rapid tests, dipstick urinalysis and smear
 counts (A-31, W-22, W-23), including panels such as a urinalysis or malaria
 microscopy ordered as one code and resulted as several (A-32), and critical
-answers for choice tests such as a positive malaria smear (A-36), and QC for
+answers for choice tests such as a positive malaria smear (A-36), a lab-set
+target time for phoning critical results, shown on the Critical page,
+result page and dashboard (A-37), and QC for
 manual tests, which warns or blocks entry on a lot without a passing control
 (A-33, W-24), and adding a test a clinician asked for to an order from an
 unmatched result, held until the HMIS order line arrives (A-34, W-7), and
@@ -134,7 +136,7 @@ merges signalled by the HMIS itself, and undoing a merge.
 ## Phase 5: Hardening and extensions
 
 * Within-run rules (R-4s), if the lab wants them here (A-23).
-* Critical-result escalation via hospital SMS/email gateway, and a target time with escalation steps (A-18). The on-screen workflow is built.
+* Critical-result escalation via hospital SMS/email gateway, with escalation steps (A-18). The on-screen workflow and the call target time (A-37) are built.
 * Mapping editor UI with approval workflow (W-9).
 * Second OS installer; SIEM streaming; archive tooling.
 * Additional instruments from the inventory (D-26). From phase 2 an

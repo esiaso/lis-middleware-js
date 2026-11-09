@@ -2,14 +2,14 @@ import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { createDb, uuidv7, type Db } from '@lis/db';
-import { attachObservation, verifyAuditChain, waitingCriticals } from '@lis/lab';
+import { attachObservation, pastTarget, verifyAuditChain, waitingCriticals } from '@lis/lab';
 import { createApp, createUser } from '@lis/web';
 import { pino } from 'pino';
 import { Browser, PW } from './browser.js';
 
 const url = process.env['TEST_DATABASE_URL'];
 const TABLES =
-  'user_session, app_user, audit_event, critical_call, critical_limit, delivery_attempt, outbox_message, result_event, result_version, result, unmatched_result, specimen, ordered_test, lab_order, patient, instrument, hmis_code_map';
+  'user_session, app_user, audit_event, critical_call, critical_call_target, critical_limit, delivery_attempt, outbox_message, result_event, result_version, result, unmatched_result, specimen, ordered_test, lab_order, patient, instrument, hmis_code_map';
 
 // The limit values below are made up for the test. They are not clinical guidance.
 describe.skipIf(!url)('critical results over HTTP', () => {
@@ -121,6 +121,43 @@ describe.skipIf(!url)('critical results over HTTP', () => {
     expect(detail.html).toContain('told Nurse Achieng (ward nurse, Ward 3)');
     expect(detail.html).not.toContain('Record the call');
     expect((await dr.post(`/results/${resultId}/approve`, { _csrf: dcsrf, password: PW })).location).toBe(`/results/${resultId}?notice=approved`);
+    expect((await verifyAuditChain(db)).ok).toBe(true);
+  });
+
+  it("counts a waiting call against the lab's call target, the test's own target first (A-37)", async () => {
+    const dr = await as('dr.lab');
+    const csrf = await dr.csrf('/critical/limits');
+    await dr.post('/critical/limits', { ...limitForm, _csrf: csrf });
+    const tech = await as('tech');
+    expect((await tech.post('/critical/targets', { _csrf: await tech.csrf('/critical'), localTestCode: '', minutes: '30', reference: 'Test policy T-2 v1', password: PW })).status).toBe(403);
+    const bad = await dr.post('/critical/targets', { _csrf: csrf, localTestCode: '', minutes: '0', reference: 'x', password: PW });
+    expect(bad.status).toBe(422);
+    expect(bad.html).toContain('Target: 1 to 1440 minutes');
+
+    const target = { _csrf: csrf, localTestCode: '', minutes: '30', reference: 'Test policy T-2 v1', password: PW };
+    expect((await dr.post('/critical/targets', target)).location).toBe('/critical/limits?notice=call-target-set');
+    expect((await dr.post('/critical/targets', { ...target, localTestCode: 'K', minutes: '20' })).location).toBe('/critical/limits?notice=call-target-set');
+    // Setting the same scope again replaces the old target rather than adding a second.
+    await dr.post('/critical/targets', { ...target, localTestCode: 'K', minutes: '15' });
+    expect((await db.criticalCallTarget.findMany({ where: { active: true }, orderBy: { minutes: 'asc' } })).map((t) => [t.localTestCode, t.minutes])).toEqual([['K', 15], [null, 30]]);
+    const page = (await dr.get('/critical/limits')).html;
+    expect(page).toContain('15 min');
+    expect(page).toContain('every test');
+
+    const resultId = await arrive('7.2');
+    const [w] = await waitingCriticals(db);
+    expect(w).toMatchObject({ resultId, targetMinutes: 15 });
+    expect(w!.due!.getTime() - w!.arrivedAt.getTime()).toBe(15 * 60_000);
+    expect((await dr.get('/critical')).html).toMatch(/due in 0:1\d/);
+    expect((await dr.get(`/results/${resultId}`)).html).toMatch(/for a call, due in 0:1\d/);
+    expect((await dr.get('/')).html).not.toContain('past the call target');
+    expect(pastTarget([w!], new Date(w!.arrivedAt.getTime() + 16 * 60_000))).toHaveLength(1);
+    expect(pastTarget([w!], new Date(w!.arrivedAt.getTime() + 14 * 60_000))).toHaveLength(0);
+
+    // Retiring the test's target falls back to the lab-wide one.
+    const k = await db.criticalCallTarget.findFirstOrThrow({ where: { localTestCode: 'K', active: true } });
+    expect((await dr.post(`/critical/targets/${k.id}/retire`, { _csrf: csrf, reason: 'policy changed', password: PW })).location).toBe('/critical/limits?notice=call-target-retired');
+    expect((await waitingCriticals(db))[0]).toMatchObject({ targetMinutes: 30 });
     expect((await verifyAuditChain(db)).ok).toBe(true);
   });
 

@@ -12,7 +12,7 @@
 
 {{#if critical}}
 <div class="alert alert-danger" role="alert">
-  {{#each critical}}<p class="mb-1"><strong>&#9650; Critical result</strong>, version {{no}}: <span class="font-monospace">{{value}} {{units}}</span>, {{detail}}. Waiting {{waiting}} for a call.</p>{{/each}}
+  {{#each critical}}<p class="mb-1"><strong>&#9650; Critical result</strong>, version {{no}}: <span class="font-monospace">{{value}} {{units}}</span>, {{detail}}. Waiting {{waiting}} for a call{{#if due}}, {{#if due.late}}<strong>{{due.text}}</strong>{{else}}{{due.text}}{{/if}}{{/if}}.</p>{{/each}}
   <p class="mb-0 small">Phone the ward or the clinician now, ask them to read the value back, and record it below. It cannot be approved until then.</p>
 </div>
 {{#if can.call}}

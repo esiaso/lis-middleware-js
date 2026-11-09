@@ -1,11 +1,12 @@
 <h1 class="h4">Critical results waiting for a call</h1>
-<p class="text-body-secondary">Each one must be phoned to the ward or clinician, read back, and recorded on the result before it can be approved. The time waiting counts from when the value arrived. This page refreshes every minute. <a href="/critical/limits">Critical limits</a></p>
+<p class="text-body-secondary">Each one must be phoned to the ward or clinician, read back, and recorded on the result before it can be approved. The time waiting counts from when the value arrived; the call target is the lab's own, set on the limits page. This page refreshes every minute. <a href="/critical/limits">Critical limits and call targets</a></p>
 <table class="table table-sm align-middle">
-  <thead><tr><th>Waiting</th><th>Patient</th><th>Ward</th><th>Test</th><th>Why</th><th>Accession</th><th>Arrived</th></tr></thead>
+  <thead><tr><th>Waiting</th><th>Call target</th><th>Patient</th><th>Ward</th><th>Test</th><th>Why</th><th>Accession</th><th>Arrived</th></tr></thead>
   <tbody>
     {{#each rows}}
     <tr class="table-danger">
       <td class="fw-bold font-monospace">{{waiting}}</td>
+      <td class="small">{{#if due}}{{#if due.late}}<span class="badge text-bg-danger">{{due.text}}</span>{{else}}{{due.text}}{{/if}}{{else}}<span class="text-body-secondary">none set</span>{{/if}}</td>
       <td><a href="{{href}}">{{patient}}</a></td>
       <td>{{location}}</td>
       <td class="font-monospace">{{test}} <span class="small text-body-secondary">v{{version}}</span></td>
@@ -14,7 +15,7 @@
       <td class="small">{{arrived}}</td>
     </tr>
     {{else}}
-    <tr><td colspan="7" class="text-body-secondary">No critical results are waiting for a call.</td></tr>
+    <tr><td colspan="8" class="text-body-secondary">No critical results are waiting for a call.</td></tr>
     {{/each}}
   </tbody>
 </table>

@@ -1,10 +1,10 @@
 import { Body, Controller, Get, Inject, Param, Post, Req, Res } from '@nestjs/common';
 import type { Db } from '@lis/db';
-import { criticalLabel, describeAge, parseCriticalLimit } from '@lis/domain';
-import { addCriticalLimit, downtimeTestCatalogue, InvalidInput, recordCriticalCall, retireCriticalLimit, waitingCriticals } from '@lis/lab';
+import { criticalLabel, describeAge, parseCallTarget, parseCriticalLimit } from '@lis/domain';
+import { activeCallTargets, addCriticalLimit, downtimeTestCatalogue, InvalidInput, recordCriticalCall, retireCallTarget, retireCriticalLimit, setCallTarget, waitingCriticals } from '@lis/lab';
 import type { Response } from 'express';
 import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
-import { elapsed, formatTime } from './format.js';
+import { callDue, elapsed, formatTime } from './format.js';
 import { Roles, type WebRequest } from './security.js';
 import { DB } from './tokens.js';
 
@@ -35,6 +35,7 @@ export class CriticalController {
         accessionNo: r.accessionNo ?? '',
         arrived: formatTime(r.arrivedAt),
         waiting: elapsed(r.arrivedAt, now),
+        due: callDue(r.due, now),
       })),
     });
   }
@@ -44,11 +45,12 @@ export class CriticalController {
     await this.renderLimits(req, res, {}, []);
   }
 
-  private async renderLimits(req: WebRequest, res: Response, v: Record<string, string>, issues: string[], status = 200): Promise<void> {
-    const [limits, retired, tests] = await Promise.all([
+  private async renderLimits(req: WebRequest, res: Response, v: Record<string, string>, issues: string[], status = 200, t: Record<string, string> = {}, targetIssues: string[] = []): Promise<void> {
+    const [limits, retired, tests, targets] = await Promise.all([
       this.db.criticalLimit.findMany({ where: { active: true }, orderBy: [{ localTestCode: 'asc' }, { createdAt: 'asc' }] }),
       this.db.criticalLimit.findMany({ where: { active: false }, orderBy: { retiredAt: 'desc' }, take: 50 }),
       downtimeTestCatalogue(this.db),
+      activeCallTargets(this.db),
     ]);
     const row = (l: (typeof limits)[number]) => ({
       id: l.id,
@@ -70,6 +72,10 @@ export class CriticalController {
       limits: limits.map(row),
       retired: retired.map(row),
       tests: tests.map((code) => ({ code, selected: code === v['localTestCode'] })),
+      targets: targets.map((x) => ({ id: x.id, test: x.localTestCode ?? '', minutes: x.minutes, reference: x.reference, by: x.createdBy, at: formatTime(x.createdAt) })),
+      targetTests: tests.map((code) => ({ code, selected: code === t['localTestCode'] })),
+      t,
+      targetIssues,
       v,
       minUnits: AGE_UNITS.map((unit) => ({ unit, selected: unit === (v['ageMinUnit'] || 'years') })),
       maxUnits: AGE_UNITS.map((unit) => ({ unit, selected: unit === (v['ageMaxUnit'] || 'years') })),
@@ -94,6 +100,26 @@ export class CriticalController {
       throw e;
     }
     res.redirect(303, '/critical/limits?notice=limit-added');
+  }
+
+  /** The lab director sets how soon a critical result must be phoned (A-37); there is no default. */
+  @Post('targets')
+  @Roles('approver')
+  async setTarget(@Req() req: WebRequest, @Res() res: Response, @Body() body: Form): Promise<void> {
+    const t = { localTestCode: str(body, 'localTestCode'), minutes: str(body, 'minutes'), reference: str(body, 'reference') };
+    const parsed = parseCallTarget(t);
+    if (!parsed.ok) return this.renderLimits(req, res, {}, [], 422, t, parsed.issues);
+    await requireStepUp(this.db, req, str(body, 'password'));
+    await setCallTarget(this.db, req.user!.username, t);
+    res.redirect(303, '/critical/limits?notice=call-target-set');
+  }
+
+  @Post('targets/:id/retire')
+  @Roles('approver')
+  async retireTarget(@Req() req: WebRequest, @Res() res: Response, @Param('id') id: string, @Body() body: Form): Promise<void> {
+    await requireStepUp(this.db, req, str(body, 'password'));
+    await retireCallTarget(this.db, req.user!.username, uuidParam(id), str(body, 'reason'));
+    res.redirect(303, '/critical/limits?notice=call-target-retired');
   }
 
   @Post('limits/:id/retire')

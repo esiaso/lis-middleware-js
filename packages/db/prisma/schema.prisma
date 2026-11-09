@@ -650,6 +650,25 @@ model CriticalLimit {
   @@map("critical_limit")
 }
 
+/// How soon a critical result must be phoned, in minutes from its arrival (A-37).
+/// At most one active target per test and one lab-wide (partial unique index in SQL).
+model CriticalCallTarget {
+  id            String    @id @db.Uuid
+  /// Null is the lab-wide target.
+  localTestCode String?   @map("local_test_code")
+  minutes       Int
+  reference     String
+  active        Boolean   @default(true)
+  createdBy     String    @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  retiredBy     String?   @map("retired_by")
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz
+  retireReason  String?   @map("retire_reason")
+
+  @@index([active])
+  @@map("critical_call_target")
+}
+
 /// Reference range entered by the lab (01 A-25); none shipped. Inclusive. Shown to people only.
 model ReferenceRange {
   id            String    @id @db.Uuid
