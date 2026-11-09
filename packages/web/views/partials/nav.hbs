@@ -1,28 +1,27 @@
-<nav class="navbar navbar-expand bg-body-tertiary border-bottom">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="/">Lab middleware</a>
-    <ul class="navbar-nav me-auto">
-      <li class="nav-item"><a class="nav-link" href="/orders">Orders</a></li>
-      <li class="nav-item"><a class="nav-link" href="/patients">Patients</a></li>
-      <li class="nav-item"><a class="nav-link" href="/downtime">Downtime</a></li>
-      <li class="nav-item"><a class="nav-link" href="/worksheet">Worksheet</a></li>
-      <li class="nav-item"><a class="nav-link" href="/results">Results</a></li>
-      <li class="nav-item"><a class="nav-link" href="/critical">Critical</a></li>
-      <li class="nav-item"><a class="nav-link" href="/qc">QC</a></li>
-      <li class="nav-item"><a class="nav-link" href="/autoverification">Autoverification</a></li>
-      <li class="nav-item"><a class="nav-link" href="/unmatched">Unmatched</a></li>
-      <li class="nav-item"><a class="nav-link" href="/failed">Failed deliveries</a></li>
-      <li class="nav-item"><a class="nav-link" href="/hmis">HMIS link</a></li>
-      <li class="nav-item"><a class="nav-link" href="/instruments">Instruments</a></li>
-      <li class="nav-item"><a class="nav-link" href="/catalogue">Catalogue</a></li>
-      <li class="nav-item"><a class="nav-link" href="/reports/turnaround">Turnaround</a></li>
-      {{#if can.audit}}<li class="nav-item"><a class="nav-link" href="/audit">Audit</a></li>{{/if}}
-      {{#if can.users}}<li class="nav-item"><a class="nav-link" href="/users">Users</a></li>{{/if}}
-    </ul>
-    {{#if user.external}}<span class="navbar-text me-3">{{user.displayName}}</span>{{else}}<a class="navbar-text me-3" href="/account/password" title="Change password">{{user.displayName}}</a>{{/if}}
-    <form method="post" action="/logout" class="d-inline">
-      <input type="hidden" name="_csrf" value="{{csrf}}">
-      <button class="btn btn-outline-secondary btn-sm" type="submit">Sign out</button>
-    </form>
+<aside class="app-sidebar border-end bg-body-tertiary d-print-none" aria-label="Main menu">
+  <div class="app-sidebar-head d-flex align-items-center justify-content-between px-3 py-2">
+    <a class="app-brand text-decoration-none text-body fw-semibold" href="/">Lab middleware</a>
+    <label class="btn btn-outline-secondary btn-sm app-nav-button" for="app-nav-toggle">Menu</label>
   </div>
-</nav>
+  <input type="checkbox" id="app-nav-toggle" class="app-nav-toggle visually-hidden" aria-label="Show the menu">
+  <div class="app-nav">
+    <nav>
+      {{#each nav}}
+      <div class="app-nav-group">
+        <div class="app-nav-heading">{{label}}</div>
+        <ul class="nav flex-column">
+          {{#each links}}<li class="nav-item"><a class="nav-link{{#if active}} active{{/if}}" href="{{href}}"{{#if active}} aria-current="page"{{/if}}>{{label}}</a></li>{{/each}}
+        </ul>
+      </div>
+      {{/each}}
+    </nav>
+    <div class="app-nav-user border-top px-3 py-3">
+      {{#if user.external}}<div class="small fw-semibold">{{user.displayName}}</div>{{else}}<a class="small fw-semibold d-block" href="/account/password" title="Change password">{{user.displayName}}</a>{{/if}}
+      <div class="small text-body-secondary mb-2">{{#each user.roles}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</div>
+      <form method="post" action="/logout">
+        <input type="hidden" name="_csrf" value="{{csrf}}">
+        <button class="btn btn-outline-secondary btn-sm w-100" type="submit">Sign out</button>
+      </form>
+    </div>
+  </div>
+</aside>

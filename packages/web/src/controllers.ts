@@ -1,3 +1,4 @@
+import { navFor } from './nav.js';
 import { randomBytes } from 'node:crypto';
 import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
@@ -40,6 +41,7 @@ export function page(req: WebRequest, res: Response, view: string, data: Record<
     csrf: req.user?.csrfToken,
     notice,
     timeZone: displayTimeZone(),
+    nav: req.user ? navFor(req.path, roles) : [],
     // For hospital sign-in accounts, forms that need re-confirmation show a link back to this page.
     stepUp: req.user?.sso
       ? {
