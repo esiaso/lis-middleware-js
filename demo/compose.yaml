@@ -1,0 +1,104 @@
+# Demo environment for testing (demo/README.md). Not for production and not
+# for patient data: every account, password, patient and code here is made up.
+name: lims-demo
+
+x-app: &app
+  build:
+    context: ..
+    dockerfile: demo/Dockerfile
+  image: lims-middleware-demo:latest
+  environment: &env
+    DATABASE_URL: postgresql://lims:lims-demo@db:5432/lims
+    LIMS_TIME_ZONE: ${LIMS_TIME_ZONE:-Africa/Nairobi}
+    LIMS_TWO_PERSON_RULE: "true"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: lims
+      POSTGRES_PASSWORD: lims-demo
+      POSTGRES_DB: lims
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lims -d lims"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # One-shot: certificate for the demo HMIS, database migrations, demo accounts and tests.
+  setup:
+    <<: *app
+    command: ["sh", "demo/setup.sh"]
+    environment:
+      <<: *env
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-demo-password-1}
+    volumes:
+      - certs:/certs
+      - hmis:/hmis
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # A stand-in HMIS (demo/hmis.mjs): a page to place orders and see results, and the
+  # FHIR R4 interface the lab proposed (07 §6.6). It is not the hospital's HMIS.
+  hmis:
+    <<: *app
+    command: ["node", "demo/hmis.mjs"]
+    environment:
+      HMIS_CERT: /certs/hmis.crt
+      HMIS_KEY: /certs/hmis.key
+      HMIS_STORE: /hmis/store.json
+      HMIS_CLIENT_SECRET: demo-hmis-secret
+    volumes:
+      - certs:/certs:ro
+      - hmis:/hmis
+    ports:
+      - "127.0.0.1:${DEMO_HMIS_PORT:-3100}:3100"
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+
+  web:
+    <<: *app
+    command: ["node", "packages/web/dist/main.js"]
+    environment:
+      <<: *env
+      BIND_HOST: 0.0.0.0
+      PORT: "3000"
+      # Plain http on this computer only (the port is published on 127.0.0.1). Never in production.
+      LIMS_INSECURE_COOKIES: "true"
+      LIMS_REPORT_HEADER: Demo laboratory (test data only)
+    ports:
+      - "127.0.0.1:${DEMO_WEB_PORT:-3000}:3000"
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+
+  jobs:
+    <<: *app
+    command: ["node", "packages/result-intake/dist/main.js"]
+    environment:
+      <<: *env
+      LIMS_HMIS_PROFILE: fhir-r4
+      LIMS_HMIS_BASE_URL: https://hmis:8443/fhir
+      LIMS_HMIS_TOKEN_URL: https://hmis:8443/token
+      LIMS_HMIS_CLIENT_ID: lims-middleware
+      LIMS_HMIS_CLIENT_SECRET: demo-hmis-secret
+      LIMS_HMIS_MRN_SYSTEM: https://hmis.demo/mrn
+      LIMS_HMIS_ORDER_SYSTEM: https://hmis.demo/order
+      LIMS_HMIS_ORDER_LINE_SYSTEM: https://hmis.demo/order-line
+      LIMS_HMIS_TEST_SYSTEM: https://hmis.demo/test
+      LIMS_HMIS_POLL_SECONDS: "10"
+      NODE_EXTRA_CA_CERTS: /certs/hmis.crt
+    volumes:
+      - certs:/certs:ro
+    depends_on:
+      hmis:
+        condition: service_started
+
+volumes:
+  db:
+  certs:
+  hmis:
