@@ -165,4 +165,59 @@ describe.skipIf(!url)('patient history over HTTP', () => {
     expect(await db.auditEvent.count({ where: { action: { in: ['patient.merge-proposed', 'patient.merged'] } } })).toBe(2);
     expect((await verifyAuditChain(db)).ok).toBe(true);
   });
+
+  it('undoes a confirmed merge with two people, and each MRN has its own history again (A-39)', async () => {
+    for (const u of ['dr.a', 'dr.b']) await createUser(db, { username: u, displayName: u, password: PW, roles: ['approver'] }, 'test');
+    const old = uuidv7();
+    const keep = uuidv7();
+    await db.patient.create({ data: { id: old, mrn: 'MRN30', familyName: 'Example', givenName: 'Ben', sex: 'M' } });
+    await db.patient.create({ data: { id: keep, mrn: 'MRN31', familyName: 'Example', givenName: 'Bea', sex: 'F' } });
+    await add(old, 'K', '3.9', new Date('2026-10-01T08:00:00Z'));
+    await add(keep, 'K', '4.4', new Date('2026-11-01T08:00:00Z'));
+    const a = await as('dr.a');
+    const b = await as('dr.b');
+    const ca = await a.csrf(`/patients/${old}`);
+    const cb = await b.csrf(`/patients/${old}`);
+    await a.post(`/patients/${old}/merge`, { _csrf: ca, intoMrn: 'MRN31', reference: 'MR-2026-200', reason: 'thought to be a duplicate registration' });
+    const m = await db.patientMerge.findFirstOrThrow();
+    await b.post(`/patients/${old}/merge/${m.id}/confirm`, { _csrf: cb, password: PW });
+
+    // A technologist cannot undo; a reason is required; nothing changes until a second person confirms.
+    const tech = await as('tech');
+    expect((await tech.get(`/patients/${old}`)).html).not.toContain('Undo this merge');
+    expect((await tech.post(`/patients/${old}/merge/${m.id}/undo`, { _csrf: await tech.csrf(`/patients/${old}`), reference: 'MR-2026-201', reason: 'two different people' })).status).toBe(403);
+    expect((await a.get(`/patients/${old}`)).html).toContain('Undo this merge');
+    const bad = await a.post(`/patients/${old}/merge/${m.id}/undo`, { _csrf: ca, reference: 'MR-2026-201', reason: 'no' });
+    expect(bad.status).toBe(422);
+    expect(bad.html).toContain('Say why, in 10 to 500 characters');
+    expect((await a.post(`/patients/${old}/merge/${m.id}/undo`, { _csrf: ca, reference: 'MR-2026-201', reason: 'two different people, reversed by medical records' })).location).toBe(`/patients/${old}?notice=unmerge-proposed`);
+    expect((await a.get(`/patients/${old}`)).html).toContain('A different person must confirm.');
+    expect((await a.post(`/patients/${old}/merge/${m.id}/undo/confirm`, { _csrf: ca, password: PW })).status).toBe(409);
+    expect((await samePerson(db, old)).sort()).toEqual([old, keep].sort());
+
+    // Withdrawing keeps the merge; proposing again and confirming undoes it.
+    expect((await b.post(`/patients/${old}/merge/${m.id}/undo/withdraw`, { _csrf: cb })).location).toBe(`/patients/${old}?notice=unmerge-withdrawn`);
+    expect(await db.patientMerge.findUniqueOrThrow({ where: { id: m.id } })).toMatchObject({ status: 'CONFIRMED', undoProposedBy: null });
+    await a.post(`/patients/${old}/merge/${m.id}/undo`, { _csrf: ca, reference: 'MR-2026-201', reason: 'two different people, reversed by medical records' });
+    expect((await b.post(`/patients/${old}/merge/${m.id}/undo/confirm`, { _csrf: cb, password: 'wrong password!!' })).status).toBe(403);
+    expect((await b.post(`/patients/${old}/merge/${m.id}/undo/confirm`, { _csrf: cb, password: PW })).location).toBe(`/patients/${old}?notice=unmerge-confirmed`);
+    expect(await db.patient.findUniqueOrThrow({ where: { id: old } })).toMatchObject({ mergedIntoId: null });
+    expect(await db.patientMerge.findUniqueOrThrow({ where: { id: m.id } })).toMatchObject({ status: 'UNDONE', undoneBy: 'dr.b', undoProposedBy: 'dr.a' });
+    expect(await samePerson(db, old)).toEqual([old]);
+    expect(await samePerson(db, keep)).toEqual([keep]);
+
+    const kept = (await b.get(`/patients/${keep}`)).html;
+    expect(kept).not.toContain('This history includes results under');
+    expect(kept).not.toContain('3.9');
+    expect(kept).toContain('A merge of MRN MRN30 into MRN MRN31 was undone');
+    const own = (await b.get(`/patients/${old}`)).html;
+    expect(own).not.toContain('was merged</strong>');
+    expect(own).toContain('Record a merge');
+    // The undone merge does not stop a later, correct merge of the same MRN.
+    expect((await a.post(`/patients/${old}/merge`, { _csrf: ca, intoMrn: 'MRN31', reference: 'MR-2026-300', reason: 'checked again with medical records' })).location).toBe(`/patients/${old}?notice=merge-proposed`);
+    // The database itself refuses an undo confirmed by the person who proposed it.
+    await expect(db.patientMerge.update({ where: { id: m.id }, data: { undoneBy: 'dr.a' } })).rejects.toThrow(/patient_merge_undo_chk/);
+    expect((await db.auditEvent.findMany({ where: { action: { startsWith: 'patient.unmerge' } }, orderBy: { at: 'asc' } })).map((e) => e.action)).toEqual(['patient.unmerge-proposed', 'patient.unmerge-withdrawn', 'patient.unmerge-proposed', 'patient.unmerged']);
+    expect((await verifyAuditChain(db)).ok).toBe(true);
+  });
 });
