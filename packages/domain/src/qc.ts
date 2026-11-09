@@ -89,6 +89,8 @@ export interface QcRangeInput {
   targetSd?: string | undefined;
   /** Westgard rules to apply; they need the mean and SD. */
   westgardRules?: string[] | undefined;
+  /** Minutes that make one run, for R-4s (A-38). */
+  runMinutes?: string | undefined;
 }
 
 export interface ParsedQcRange {
@@ -103,6 +105,7 @@ export interface ParsedQcRange {
   targetMean: string | null;
   targetSd: string | null;
   westgardRules: WestgardRule[];
+  runMinutes: number | null;
 }
 
 export function parseQcRange(i: QcRangeInput): { ok: true; value: ParsedQcRange } | { ok: false; issues: string[] } {
@@ -120,7 +123,7 @@ export function parseQcRange(i: QcRangeInput): { ok: true; value: ParsedQcRange 
   if (isDecimal(low) && isDecimal(high) && compareDecimal(low, high) > 0) issues.push('The lowest acceptable value must not be above the highest.');
   if (!i.units.trim() || i.units.trim().length > 20) issues.push('Units: 1 to 20 characters, exactly as the instrument reports them.');
   if (i.reference.trim().length < 5 || i.reference.trim().length > 200) issues.push('Source: 5 to 200 characters, for example the control insert or the lab\'s QC plan and its version.');
-  const w = parseWestgard(i.targetMean ?? '', i.targetSd ?? '', i.westgardRules ?? []);
+  const w = parseWestgard(i.targetMean ?? '', i.targetSd ?? '', i.westgardRules ?? [], i.runMinutes ?? '');
   if (!w.ok) issues.push(...w.issues);
   if (issues.length || !w.ok) return { ok: false, issues };
   return { ok: true, value: { instrumentId: i.instrumentId.trim(), localTestCode: i.localTestCode.trim(), controlLot: lot || null, controlName: name || null, low, high, units: i.units.trim(), reference: i.reference.trim(), ...w.value } };

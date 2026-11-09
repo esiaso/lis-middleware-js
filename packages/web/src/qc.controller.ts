@@ -49,6 +49,9 @@ const shown = (r: QcSummaryRow) => {
 };
 const control = (c: { controlName: string | null; controlLot: string | null }) => [c.controlName, c.controlLot && `lot ${c.controlLot}`].filter(Boolean).join(', ') || '(not named)';
 
+/** The range's Westgard rules, with the R-4s run window (A-38). */
+const rulesText = (r: { westgardRules: string[]; runMinutes: number | null }) => r.westgardRules.map((w) => (w === 'R-4s' && r.runMinutes ? `R-4s (run ${r.runMinutes} min)` : w)).join(', ');
+
 /** QC results from the instruments and the lab's acceptable ranges (08 §12, A-21). */
 @Controller('qc')
 export class QcController {
@@ -149,7 +152,7 @@ export class QcController {
       high: r.high,
       units: r.units,
       target: r.targetMean && r.targetSd ? `${r.targetMean} ± ${r.targetSd}` : '',
-      rules: r.westgardRules.join(', '),
+      rules: rulesText(r),
       reference: r.reference,
       by: r.createdBy,
       at: formatTime(r.createdAt),
@@ -198,7 +201,7 @@ export class QcController {
       title: 'QC chart',
       range: {
         instrument: r.instrument.displayName, test: r.localTestCode, control: control(r), low: r.low, high: r.high, units: r.units,
-        target: r.targetMean && r.targetSd ? `${r.targetMean} ± ${r.targetSd}` : '', rules: r.westgardRules.join(', '), active: r.active,
+        target: r.targetMean && r.targetSd ? `${r.targetMean} ± ${r.targetSd}` : '', rules: rulesText(r), active: r.active,
       },
       chart,
       rows: [...rows].reverse(),
@@ -209,7 +212,7 @@ export class QcController {
   @Post('ranges')
   @Roles('approver')
   async add(@Req() req: WebRequest, @Res() res: Response, @Body() body: Form): Promise<void> {
-    const keys = ['instrumentId', 'localTestCode', 'controlLot', 'controlName', 'low', 'high', 'units', 'reference', 'targetMean', 'targetSd'] as const;
+    const keys = ['instrumentId', 'localTestCode', 'controlLot', 'controlName', 'low', 'high', 'units', 'reference', 'targetMean', 'targetSd', 'runMinutes'] as const;
     const v = Object.fromEntries(keys.map((k) => [k, str(body, k)])) as Record<(typeof keys)[number], string>;
     const westgardRules = list(body['westgardRules']);
     const input = { ...v, westgardRules };

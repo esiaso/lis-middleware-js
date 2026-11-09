@@ -36,7 +36,14 @@ export async function evaluateQcMessage(tx: Tx, normalizedMessageId: string): Pr
       const earlier = need
         ? await tx.qcEvaluation.findMany({ where: { rangeId: range.id, outcome: 'IN_RANGE', zScore: { not: null } }, orderBy: [{ at: 'desc' }, { id: 'desc' }], take: need, select: { zScore: true } })
         : [];
-      ({ reject, warn } = evaluateWestgard(z, earlier.map((e) => e.zScore as number), rules));
+      // R-4s (A-38): the other controls of this test on this instrument within the range's run window.
+      const peers = rules.includes('R-4s') && range.runMinutes
+        ? await tx.qcEvaluation.findMany({
+            where: { instrumentId: nm.instrumentId, localTestCode: o.localTestCode, rangeId: { not: range.id }, zScore: { not: null }, at: { gte: new Date(Date.now() - range.runMinutes * 60_000) } },
+            select: { zScore: true },
+          })
+        : [];
+      ({ reject, warn } = evaluateWestgard(z, earlier.map((e) => e.zScore as number), rules, peers.map((p) => p.zScore as number)));
       const note = [reject.length ? `breaks ${reject.join(', ')}` : '', warn.length ? `warning ${warn.join(', ')}` : ''].filter(Boolean).join('; ');
       const detail = `${r.detail}, z ${z.toFixed(2)}${note ? `; ${note}` : ''}`;
       r = { ...r, outcome: r.outcome === 'IN_RANGE' && reject.length ? 'RULE_VIOLATION' : r.outcome, detail };

@@ -48,6 +48,7 @@
   <fieldset class="col-md-8"><legend class="form-label fs-6">Westgard rules (optional; need the mean and SD)</legend>
     {{#each westgard}}<div class="form-check"><input class="form-check-input" type="checkbox" name="westgardRules" value="{{value}}" id="wg-{{@index}}" {{#if checked}}checked{{/if}}><label class="form-check-label" for="wg-{{@index}}">{{label}}</label></div>{{/each}}
   </fieldset>
+  <div class="col-md-4"><label class="form-label" for="runMinutes">Run window for R-4s (minutes)</label><input class="form-control" id="runMinutes" name="runMinutes" value="{{v.runMinutes}}" inputmode="numeric"><div class="form-text">Other controls of this test on this instrument within this many minutes count as the same run. Only used by R-4s; set it from how the lab runs its controls.</div></div>
   <div class="col-md-6"><label class="form-label" for="reference">Source</label><input class="form-control" id="reference" name="reference" value="{{v.reference}}" required minlength="5" maxlength="200"><div class="form-text">The control insert or the lab's QC plan, with its version.</div></div>
   <div class="col-md-4">{{> confirm id="qc-password" label="Your password" labelClass="form-label" inputClass="form-control"}}</div>
   <div class="col-12"><button class="btn btn-primary" type="submit">Save range</button></div>
