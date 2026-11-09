@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { createDb, uuidv7, type Db } from '@lis/db';
 import { FhirR4Hmis } from '@lis/hmis';
 import {
-  accessionSpecimen, activeCatalogue, approve, approveCatalogueEntry, deliverOutbox, discardCatalogueDraft, downtimeTestCatalogue, enterManualPanel, enterManualResult, InvalidInput,
+  accessionSpecimen, activeCatalogue, approve, recordCriticalCall, waitingCriticals, approveCatalogueEntry, deliverOutbox, discardCatalogueDraft, downtimeTestCatalogue, enterManualPanel, enterManualResult, InvalidInput,
   manualPerformer, manualWorksheet, proposeCatalogueEntry, pullOrders, receiveSpecimen, release, retireCatalogueEntry, review, verifyAuditChain, WorkflowRejected,
 } from '@lis/lab';
 import type { CatalogueForm } from '@lis/domain';
@@ -10,7 +10,7 @@ import { feedLine, startStubFhir, SYSTEMS, type StubFhir } from '../../hmis/test
 
 const url = process.env['TEST_DATABASE_URL'];
 const TABLES =
-  'audit_event, delivery_attempt, outbox_message, result_event, result_comment, result_version, result, unmatched_result, specimen, ordered_test, lab_order, patient, hmis_code_map, hmis_cursor, test_catalogue';
+  'audit_event, critical_call, delivery_attempt, outbox_message, result_event, result_comment, result_version, result, unmatched_result, specimen, ordered_test, lab_order, patient, hmis_code_map, hmis_cursor, test_catalogue';
 
 // The codes and answers below are examples for the tests; the lab chooses its own.
 const RDT: CatalogueForm = {
@@ -106,6 +106,33 @@ describe.skipIf(!url)('test catalogue and manual results', () => {
     expect(await manualPerformer(db, id)).toEqual({ performedBy: 'tech.b', enteredBy: 'tech.a', lot: 'RDT-2611' });
     expect(await manualWorksheet(db)).toEqual([]);
     await expect(enterManualResult(db, 'tech.a', { orderedTestId: o.testId, value: 'NEG' })).rejects.toThrow(WorkflowRejected);
+  });
+
+  it('a critical answer is flagged when entered and waits for a call before approval (A-36)', async () => {
+    await activate({ ...RDT, answers: 'NEG | Negative\nPF | P. falciparum positive | critical\nINV | Invalid' });
+    const neg = await receivedOrder('MAL-RDT', '32700-7');
+    const negId = await enterManualResult(db, 'tech.a', { orderedTestId: neg.testId, value: 'NEG' });
+    expect(await db.resultVersion.findFirstOrThrow({ where: { resultId: negId } })).toMatchObject({ criticalFlag: null });
+
+    const o = await receivedOrder('MAL-RDT', '32700-7');
+    const id = await enterManualResult(db, 'tech.a', { orderedTestId: o.testId, value: 'PF' });
+    expect(await db.resultVersion.findFirstOrThrow({ where: { resultId: id } })).toMatchObject({
+      abnormalFlags: ['A'], criticalFlag: 'ANSWER', criticalLimitId: null, criticalDetail: 'P. falciparum positive is a critical answer for MAL-RDT (catalogue version 1)',
+    });
+    expect((await waitingCriticals(db)).map((w) => [w.resultId, w.flag])).toEqual([[id, 'ANSWER']]);
+    await review(db, id, 'tech.a', 1);
+    await expect(approve(db, id, 'dr.lab', { twoPersonRule: true })).rejects.toMatchObject({ error: { code: 'CRITICAL_NOT_COMMUNICATED' } });
+    await recordCriticalCall(db, id, 'tech.a', { versionNo: 1, notified: 'Dr Example', notifiedRole: 'Medical officer, ward 3', calledAt: new Date(), readBack: true, note: '' });
+    expect(await waitingCriticals(db)).toEqual([]);
+    await approve(db, id, 'dr.lab', { twoPersonRule: true });
+
+    // A later catalogue version that drops the mark does not change what was flagged.
+    const v2 = await proposeCatalogueEntry(db, 'lab.manager', RDT, 'positive no longer phoned');
+    await approveCatalogueEntry(db, 'dr.lab', v2.id);
+    expect(await db.resultVersion.findFirstOrThrow({ where: { resultId: id } })).toMatchObject({ criticalFlag: 'ANSWER' });
+    const later = await receivedOrder('MAL-RDT', '32700-7');
+    const laterId = await enterManualResult(db, 'tech.a', { orderedTestId: later.testId, value: 'PF' });
+    expect(await db.resultVersion.findFirstOrThrow({ where: { resultId: laterId } })).toMatchObject({ criticalFlag: null, abnormalFlags: ['A'] });
   });
 
   it('a number keeps the catalogue unit and decimals', async () => {

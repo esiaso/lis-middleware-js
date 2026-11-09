@@ -1,6 +1,7 @@
 import type { ResultValue } from '@lis/contracts';
 import type { Db } from '@lis/db';
 import { APPROVED_STATUSES } from './history.js';
+import { criticalLabel } from '@lis/domain';
 import { reportComments } from './comments.js';
 import { instrumentReferenceText, labReferences, type ReferenceShown } from './reference-ranges.js';
 import type { Tx } from './tx.js';
@@ -57,7 +58,7 @@ export async function orderReport(db: Db | Tx, orderId: string): Promise<ReportL
       value: approved ? (v!.value as unknown as ResultValue) : null,
       units: approved ? v!.units : null,
       abnormalFlags: approved ? v!.abnormalFlags : [],
-      critical: approved && (v!.criticalFlag === 'LOW' || v!.criticalFlag === 'HIGH') ? v!.criticalFlag : null,
+      critical: approved ? criticalLabel(v!.criticalFlag) || null : null,
       corrected: approved && v!.kind === 'correction',
       referenceRange,
       labReference: labReference ?? null,

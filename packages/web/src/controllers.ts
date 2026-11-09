@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
 import { migrationStatus, type Db } from '@lis/db';
-import { AUTOVERIFY_ACTOR, clinicalGateFor } from '@lis/domain';
+import { AUTOVERIFY_ACTOR, clinicalGateFor, criticalLabel } from '@lis/domain';
 import { activeEntry, addResultComment, approve, confirmLink, decisionsFor, failingQc, hmisLinkStatus, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeAddTest, DOWNTIME, proposeLink, release, replay, review, standardCommentsFor, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
 import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS, type LoginResult } from './auth.js';
@@ -290,7 +290,7 @@ export class ResultsController {
           value: formatValue(v?.value as ResultValue | undefined),
           units: v?.units ?? '',
           flags: v?.abnormalFlags.join(' ') ?? '',
-          critical: v?.criticalFlag && (NEEDS_CALL as readonly string[]).includes(v.criticalFlag) ? v.criticalFlag : '',
+          critical: criticalLabel(v?.criticalFlag),
           delta: v?.deltaFlag === 'EXCEEDED' ? (v.deltaDetail ?? '') : '',
           status: STATUS_LABELS[r.status] ?? r.status,
           attention: r.newDataAfterApproval || r.needsConfirmation,
@@ -374,7 +374,7 @@ export class ResultsController {
         by: v.createdBy,
         at: formatTime(v.createdAt),
         selected: v.versionNo === r.selectedVersionNo,
-        critical: isCritical(v.criticalFlag) ? v.criticalFlag : '',
+        critical: criticalLabel(v.criticalFlag),
         unitsDiffer: v.criticalFlag === 'UNITS_DIFFER' ? (v.criticalDetail ?? '') : '',
         delta: v.deltaFlag ? { exceeded: v.deltaFlag === 'EXCEEDED', detail: v.deltaDetail ?? '', previous: v.deltaPreviousResultId ? `/results/${v.deltaPreviousResultId}` : '' } : null,
         called: called.has(v.versionNo),

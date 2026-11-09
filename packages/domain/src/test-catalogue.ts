@@ -23,6 +23,12 @@ export interface CatalogueAnswer {
   display: string;
   /** This answer is outside normal (for example a positive malaria test). */
   abnormal?: boolean;
+  /**
+   * The lab director has made this answer critical (A-36): like a value past a
+   * critical limit, approval waits until a call with read-back is recorded.
+   * A critical answer is always abnormal too.
+   */
+  critical?: boolean;
   /** LOINC answer code (LA...), when the lab has chosen one. */
   loinc?: string;
 }
@@ -59,7 +65,7 @@ export interface CatalogueForm {
   specimenType: string;
   performedBy: string;
   resultType: string;
-  /** One answer per line: "code | display", optionally "| abnormal" and "| LA code". */
+  /** One answer per line: "code | display", optionally "| abnormal" (or "| critical") and "| LA code". */
   answers: string;
   unit: string;
   decimals: string;
@@ -112,9 +118,10 @@ export function parseAnswers(text: string): { answers: CatalogueAnswer[]; issues
     const a: CatalogueAnswer = { code, display };
     for (const r of rest) {
       if (r.toLowerCase() === 'abnormal') a.abnormal = true;
+      else if (r.toLowerCase() === 'critical') a.critical = a.abnormal = true;
       // Answer codes are only checked for shape: their check digit is not computed like a term's.
       else if (LOINC_ANSWER.test(r)) a.loinc = r;
-      else if (r) issues.push(`Answer ${n}: "${r}" is neither "abnormal" nor a LOINC answer code (LA...).`);
+      else if (r) issues.push(`Answer ${n}: "${r}" is not "abnormal", "critical" or a LOINC answer code (LA...).`);
     }
     if (answers.some((x) => x.code.toUpperCase() === code.toUpperCase())) issues.push(`Answer ${n}: the code ${code} is used twice.`);
     answers.push(a);
@@ -203,7 +210,7 @@ export function parseCatalogueForm(f: CatalogueForm): { ok: true; value: Catalog
 
 /** The answers back as the form's text, for editing a new version. */
 export const answersText = (answers: CatalogueAnswer[]): string =>
-  answers.map((a) => [a.code, a.display, ...(a.abnormal ? ['abnormal'] : []), ...(a.loinc ? [a.loinc] : [])].join(' | ')).join('\n');
+  answers.map((a) => [a.code, a.display, ...(a.critical ? ['critical'] : a.abnormal ? ['abnormal'] : []), ...(a.loinc ? [a.loinc] : [])].join(' | ')).join('\n');
 
 export type ManualValue = { ok: true; value: ResultValue; units?: string; abnormalFlags: string[] } | { ok: false; issue: string };
 

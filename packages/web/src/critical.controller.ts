@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Inject, Param, Post, Req, Res } from '@nestjs/common';
 import type { Db } from '@lis/db';
-import { describeAge, parseCriticalLimit } from '@lis/domain';
+import { criticalLabel, describeAge, parseCriticalLimit } from '@lis/domain';
 import { addCriticalLimit, downtimeTestCatalogue, InvalidInput, recordCriticalCall, retireCriticalLimit, waitingCriticals } from '@lis/lab';
 import type { Response } from 'express';
 import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
@@ -30,7 +30,7 @@ export class CriticalController {
         location: r.location ?? '',
         test: r.test,
         version: r.versionNo,
-        flag: r.flag,
+        flag: criticalLabel(r.flag),
         detail: r.detail,
         accessionNo: r.accessionNo ?? '',
         arrived: formatTime(r.arrivedAt),

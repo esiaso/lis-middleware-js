@@ -2,6 +2,7 @@ import type { ResultValue } from '@lis/contracts';
 import { uuidv7, type Db } from '@lis/db';
 import { ageInDays, evaluateCritical, parseCriticalLimit, type CriticalLimitInput, type CriticalOutcome } from '@lis/domain';
 import { appendAudit } from './audit.js';
+import { activeEntry } from './catalogue.js';
 import { InvalidInput } from './instruments.js';
 import { WorkflowRejected } from './results.js';
 import type { Tx } from './tx.js';
@@ -12,10 +13,11 @@ import type { Tx } from './tx.js';
  * holds no limits of its own; until the lab enters them nothing is flagged.
  */
 
-export const NEEDS_CALL = ['LOW', 'HIGH'] as const;
+export const NEEDS_CALL = ['LOW', 'HIGH', 'ANSWER'] as const;
 
 /** Flag for a version about to be written to this result. */
 export async function criticalFor(tx: Tx, resultId: string, value: ResultValue, units: string | undefined | null): Promise<CriticalOutcome | null> {
+  if (value.kind === 'qualitative') return criticalAnswer(tx, resultId, value.code);
   if (value.kind !== 'numeric' && value.kind !== 'censored') return null;
   const r = await tx.result.findUniqueOrThrow({ where: { id: resultId }, select: { orderedTest: { select: { localTestCode: true, specimen: { select: { collectedAt: true } }, order: { select: { patient: { select: { sex: true, birthDate: true } } } } } } } });
   const t = r.orderedTest;
@@ -26,7 +28,22 @@ export async function criticalFor(tx: Tx, resultId: string, value: ResultValue, 
   return evaluateCritical(value, units, limits, { sex: p.sex, ageDays: ageInDays(p.birthDate, t.specimen?.collectedAt ?? new Date()) });
 }
 
-/** Approval and release of a LOW or HIGH version wait until someone has recorded telling the clinician. */
+/**
+ * A choice answer the lab director marked critical in the catalogue (A-36),
+ * such as a positive malaria smear. The active catalogue entry is read when
+ * the version is written, so a later catalogue change does not move old flags.
+ */
+async function criticalAnswer(tx: Tx, resultId: string, code: string): Promise<CriticalOutcome | null> {
+  const r = await tx.result.findUniqueOrThrow({ where: { id: resultId }, select: { orderedTest: { select: { localTestCode: true } } } });
+  const local = r.orderedTest.localTestCode;
+  if (!local) return null;
+  const def = await activeEntry(tx, local);
+  const a = (def?.answers ?? []).find((x) => x.code.toUpperCase() === code.toUpperCase());
+  if (!def || !a?.critical) return null;
+  return { flag: 'ANSWER', limitId: null, detail: `${a.display} is a critical answer for ${def.localCode} (catalogue version ${def.versionNo})` };
+}
+
+/** Approval and release of a LOW, HIGH or ANSWER version wait until someone has recorded telling the clinician. */
 export async function requireCriticalCall(tx: Tx, resultId: string, versionNo: number | undefined): Promise<void> {
   if (versionNo === undefined) return;
   const v = await tx.resultVersion.findUnique({ where: { resultId_versionNo: { resultId, versionNo } }, select: { criticalFlag: true, criticalDetail: true } });
@@ -96,7 +113,7 @@ export async function waitingCriticals(db: Db | Tx, limit = 100): Promise<Waitin
       JOIN lab_order o ON o.id = t.order_id
       JOIN patient p ON p.id = o.patient_id
       LEFT JOIN specimen s ON s.id = t.specimen_id
-     WHERE v.critical_flag IN ('LOW', 'HIGH')
+     WHERE v.critical_flag IN ('LOW', 'HIGH', 'ANSWER')
        AND v.version_no >= COALESCE(r.selected_version_no, 0)
        AND NOT EXISTS (SELECT 1 FROM critical_call c WHERE c.result_id = v.result_id AND c.version_no = v.version_no)
      ORDER BY v.created_at ASC

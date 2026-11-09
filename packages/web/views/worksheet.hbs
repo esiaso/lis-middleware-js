@@ -25,7 +25,7 @@
       {{#each fields}}
       <div class="{{#if ../panel}}col-md-6 col-lg-4{{else}}col-md-4{{/if}}"><label class="form-label small" for="value-{{id}}">{{#if ../panel}}{{test}}{{#if loinc}} <span class="font-monospace text-body-secondary">{{loinc}}</span>{{/if}}{{else}}Result{{/if}}</label>
         {{#if choice}}
-        <select class="form-select" id="value-{{id}}" name="{{#if ../panel}}value-{{id}}{{else}}value{{/if}}"{{#unless ../panel}} required{{/unless}}><option value="">{{#if ../panel}}Not read yet{{else}}Pick an answer{{/if}}</option>{{#each answers}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{display}}{{#if abnormal}} (abnormal){{/if}}</option>{{/each}}</select>
+        <select class="form-select" id="value-{{id}}" name="{{#if ../panel}}value-{{id}}{{else}}value{{/if}}"{{#unless ../panel}} required{{/unless}}><option value="">{{#if ../panel}}Not read yet{{else}}Pick an answer{{/if}}</option>{{#each answers}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{display}}{{#if critical}} (critical){{else if abnormal}} (abnormal){{/if}}</option>{{/each}}</select>
         {{else}}{{#if text}}
         <textarea class="form-control" id="value-{{id}}" name="{{#if ../panel}}value-{{id}}{{else}}value{{/if}}" rows="2"{{#unless ../panel}} required{{/unless}} maxlength="4000">{{value}}</textarea>
         {{else}}

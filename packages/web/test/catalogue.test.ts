@@ -9,7 +9,7 @@ import { Browser, PW } from './browser.js';
 
 const url = process.env['TEST_DATABASE_URL'];
 const TABLES =
-  'user_session, app_user, audit_event, delivery_attempt, outbox_message, result_event, result_comment, result_version, result, unmatched_result, specimen, ordered_test, lab_order, patient, hmis_code_map, test_catalogue, manual_qc';
+  'user_session, app_user, audit_event, delivery_attempt, outbox_message, critical_call, result_event, result_comment, result_version, result, unmatched_result, specimen, ordered_test, lab_order, patient, hmis_code_map, test_catalogue, manual_qc';
 
 // Example codes and answers for the test; the lab chooses its own.
 const DIPSTICK = {
@@ -103,6 +103,32 @@ describe.skipIf(!url)('test catalogue and manual worksheet over HTTP', () => {
     const detail = (await tech.get(`/results/${r.id}`)).html;
     expect(detail).toContain('manual entry: performed by Tech Two, lot STRIP-44, entered by tech');
     expect(detail).toContain('1+ (1P)');
+  });
+
+  it('a critical answer is marked on the catalogue and worksheet, and waits on the critical page for a call (A-36)', async () => {
+    const d = await proposeCatalogueEntry(db, 'manager', { ...DIPSTICK, answers: 'NEG | Negative\nTR | Trace\n3P | 3+ | critical' }, 'example');
+    await approveCatalogueEntry(db, 'dr.lab', d.id);
+    const orderId = uuidv7();
+    const testId = uuidv7();
+    const patientId = uuidv7();
+    await db.patient.create({ data: { id: patientId, mrn: 'MRN8', familyName: 'Example', givenName: 'Bo', sex: 'M' } });
+    await db.labOrder.create({ data: { id: orderId, hmisOrderId: 'ORD-8', patientId, priority: 'routine', orderedAt: new Date(), status: 'active', sourceJson: {} } });
+    const specimenId = uuidv7();
+    await db.specimen.create({ data: { id: specimenId, orderId, accessionNo: 'L26110900008', barcode: 'L26110900008', status: 'received', receivedAt: new Date(), createdBy: 'test' } });
+    await db.orderedTest.create({ data: { id: testId, orderId, hmisLineId: '1', hmisTestCode: 'HMIS-UPROT', localTestCode: 'U-PROT', status: 'active', specimenId } });
+
+    const tech = await as('tech');
+    expect((await tech.get('/catalogue')).html).toContain('3+ <strong>!</strong>');
+    expect((await tech.get('/worksheet')).html).toContain('3+ (critical)');
+    await tech.post(`/worksheet/${testId}`, { _csrf: await tech.csrf('/worksheet'), value: '3P', performedBy: '', lot: '' });
+    const r = await db.result.findFirstOrThrow();
+    const detail = (await tech.get(`/results/${r.id}`)).html;
+    expect(detail).toContain('critical answer');
+    expect(detail).toContain('3+ is a critical answer for U-PROT (catalogue version 1)');
+    const waiting = (await tech.get('/critical')).html;
+    expect(waiting).toContain('critical answer');
+    expect(waiting).toContain('MRN8');
+    expect((await tech.get('/')).html).toContain('1 critical result not yet called');
   });
 
   it('a panel is entered on one card, and a component left empty stays for later', async () => {
