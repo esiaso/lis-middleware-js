@@ -290,7 +290,8 @@ hospital's email/SMS gateway or monitoring system.
   who was told, their role and ward, when, read back; a call without
   read-back cannot be saved). The dashboard and the **Critical** page list
   every critical version without a call, oldest first, with the time
-  waiting, and refresh every minute. A critical version replaced before
+  waiting and, once the lab has set one, the call target and how far past
+  it each call is (A-37), and refresh every minute. A critical version replaced before
   approval by a later selected one (a repeat that came back normal) drops
   off the list; one arriving after approval stays. Sending SMS or e-mail
   waits for the hospital gateway (13, phase 5).

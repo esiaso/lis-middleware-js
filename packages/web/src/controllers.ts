@@ -2,12 +2,12 @@ import { randomBytes } from 'node:crypto';
 import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
 import { migrationStatus, type Db } from '@lis/db';
-import { AUTOVERIFY_ACTOR, clinicalGateFor, criticalLabel } from '@lis/domain';
-import { activeEntry, addResultComment, approve, confirmLink, decisionsFor, failingQc, hmisLinkStatus, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeAddTest, DOWNTIME, proposeLink, release, replay, review, standardCommentsFor, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
+import { AUTOVERIFY_ACTOR, callTargetFor, clinicalGateFor, criticalLabel } from '@lis/domain';
+import { activeEntry, addResultComment, approve, confirmLink, decisionsFor, failingQc, hmisLinkStatus, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, activeCallTargets, pastTarget, proposeAddTest, DOWNTIME, proposeLink, release, replay, review, standardCommentsFor, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
 import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS, type LoginResult } from './auth.js';
 import { directory } from './ldap.js';
-import { displayTimeZone, elapsed, formatTime, formatValue, NOTICES, REFERENCE_MARK, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
+import { callDue, displayTimeZone, elapsed, formatTime, formatValue, NOTICES, REFERENCE_MARK, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
 import { LOGIN_CSRF_COOKIE, OpenDuringPasswordChange, Public, Roles, SESSION_COOKIE, type WebRequest } from './security.js';
 import { CALLBACK_PATH, FLIGHT_MS, OIDC_COOKIE, OidcRefused, START_PATH, STEP_UP_PATH, type Oidc } from './oidc.js';
 import { DB, OIDC, WEB_OPTIONS, type WebOptions } from './tokens.js';
@@ -229,7 +229,7 @@ export class DashboardController {
       downtime: downtimeWaiting ? { n: downtimeWaiting } : null,
       overdue: overdue.length ? { n: overdue.length, oldest: elapsed(overdue[0]!.due, now) } : null,
       qcFailing: qcFailing.length ? { n: qcFailing.length, list: qcFailing.slice(0, 5).map((f) => `${f.instrumentName} ${f.localTestCode}`).join(', ') } : null,
-      critical: criticals.length ? { n: criticals.length, oldest: elapsed(criticals[0]!.arrivedAt, now), more: criticals.length >= 100 } : null,
+      critical: criticals.length ? { n: criticals.length, oldest: elapsed(criticals[0]!.arrivedAt, now), more: criticals.length >= 100, late: pastTarget(criticals, now).length } : null,
       instruments: instruments.map((i) => {
         const gate = clinicalGateFor({
           enabled: i.enabled,
@@ -317,6 +317,7 @@ export class ResultsController {
     const isCritical = (f: string | null) => !!f && (NEEDS_CALL as readonly string[]).includes(f);
     // Same rule as the waiting list: critical, no call yet, and not superseded before approval.
     const waiting = r.versions.filter((v) => isCritical(v.criticalFlag) && !called.has(v.versionNo) && v.versionNo >= (r.selectedVersionNo ?? 0));
+    const callTarget = waiting.length ? callTargetFor(await activeCallTargets(this.db), r.orderedTest.localTestCode ?? r.orderedTest.hmisTestCode) : null;
     const inst = r.instrumentId ? await this.db.instrument.findUnique({ where: { id: r.instrumentId } }) : null;
     const gate = inst
       ? clinicalGateFor({
@@ -384,7 +385,7 @@ export class ResultsController {
         })(),
       })),
       critical: waiting.length
-        ? waiting.map((v) => ({ no: v.versionNo, value: formatValue(v.value as unknown as ResultValue), units: v.units ?? '', flag: v.criticalFlag, detail: v.criticalDetail ?? '', waiting: elapsed(v.createdAt) }))
+        ? waiting.map((v) => ({ no: v.versionNo, value: formatValue(v.value as unknown as ResultValue), units: v.units ?? '', flag: v.criticalFlag, detail: v.criticalDetail ?? '', waiting: elapsed(v.createdAt), due: callDue(callTarget ? new Date(v.createdAt.getTime() + callTarget.minutes * 60_000) : null) }))
         : null,
       calls: r.criticalCalls.map((c) => ({ version: c.versionNo, notified: c.notified, role: c.notifiedRole, at: formatTime(c.calledAt), by: c.recordedBy, recordedAt: formatTime(c.recordedAt), note: c.note ?? '' })),
       autoverify: decisions.map((d) => ({ version: d.versionNo, passed: d.passed, at: formatTime(d.at), reference: d.reference, failed: d.checks.filter((c) => !c.ok), checks: d.checks })),

@@ -1,6 +1,6 @@
 import type { ResultValue } from '@lis/contracts';
 import { uuidv7, type Db } from '@lis/db';
-import { ageInDays, evaluateCritical, parseCriticalLimit, type CriticalLimitInput, type CriticalOutcome } from '@lis/domain';
+import { ageInDays, callTargetFor, evaluateCritical, parseCallTarget, parseCriticalLimit, type CallTargetInput, type CriticalLimitInput, type CriticalOutcome } from '@lis/domain';
 import { appendAudit } from './audit.js';
 import { activeEntry } from './catalogue.js';
 import { InvalidInput } from './instruments.js';
@@ -96,6 +96,10 @@ export interface WaitingCritical {
   givenName: string | null;
   location: string | null;
   accessionNo: string | null;
+  /** The lab's call target for this test (A-37), or null when none is set. */
+  targetMinutes: number | null;
+  /** When the call is due: arrival plus the target. */
+  due: Date | null;
 }
 
 /**
@@ -104,7 +108,18 @@ export interface WaitingCritical {
  * back normal) is left out; one that arrived after approval is kept.
  */
 export async function waitingCriticals(db: Db | Tx, limit = 100): Promise<WaitingCritical[]> {
-  return db.$queryRaw<WaitingCritical[]>`
+  const [rows, targets] = await Promise.all([waitingRows(db, limit), activeCallTargets(db)]);
+  return rows.map((r) => {
+    const t = callTargetFor(targets, r.test);
+    return { ...r, targetMinutes: t?.minutes ?? null, due: t ? new Date(r.arrivedAt.getTime() + t.minutes * 60_000) : null };
+  });
+}
+
+/** Waiting criticals whose call target has passed. */
+export const pastTarget = (rows: readonly WaitingCritical[], now = new Date()): WaitingCritical[] => rows.filter((r) => r.due && r.due.getTime() < now.getTime());
+
+function waitingRows(db: Db | Tx, limit: number) {
+  return db.$queryRaw<Omit<WaitingCritical, 'targetMinutes' | 'due'>[]>`
     SELECT r.id AS "resultId", v.version_no AS "versionNo", v.critical_flag AS flag, COALESCE(v.critical_detail, '') AS detail, v.created_at AS "arrivedAt",
            COALESCE(t.local_test_code, t.hmis_test_code) AS test, p.mrn, p.family_name AS "familyName", p.given_name AS "givenName", o.location, s.accession_no AS "accessionNo"
       FROM result_version v
@@ -137,5 +152,48 @@ export async function retireCriticalLimit(db: Db, actor: string, id: string, rea
     const n = await tx.criticalLimit.updateMany({ where: { id, active: true }, data: { active: false, retiredBy: actor, retiredAt: new Date(), retireReason: reason.trim() } });
     if (n.count !== 1) throw new WorkflowRejected({ code: 'INVALID_STATE', detail: 'that limit is not active' });
     await appendAudit(tx, { actor, action: 'critical-limit.retire', entityType: 'critical_limit', entityId: id, reason: reason.trim() });
+  });
+}
+
+export interface CallTargetRow {
+  id: string;
+  localTestCode: string | null;
+  minutes: number;
+  reference: string;
+  createdBy: string;
+  createdAt: Date;
+}
+
+export async function activeCallTargets(db: Db | Tx): Promise<CallTargetRow[]> {
+  return db.criticalCallTarget.findMany({ where: { active: true }, orderBy: [{ localTestCode: { sort: 'asc', nulls: 'first' } }], select: { id: true, localTestCode: true, minutes: true, reference: true, createdBy: true, createdAt: true } });
+}
+
+/**
+ * Set how soon critical results for a test (or, with no test, every test)
+ * must be phoned (A-37). A target already set for the same test is retired
+ * in the same step, so there is never more than one.
+ */
+export async function setCallTarget(db: Db, actor: string, input: CallTargetInput): Promise<string> {
+  const p = parseCallTarget(input);
+  if (!p.ok) throw new InvalidInput(p.issues);
+  const id = uuidv7();
+  await db.$transaction(async (tx) => {
+    const old = await tx.criticalCallTarget.findFirst({ where: { localTestCode: p.value.localTestCode, active: true } });
+    if (old) {
+      await tx.criticalCallTarget.update({ where: { id: old.id }, data: { active: false, retiredBy: actor, retiredAt: new Date(), retireReason: `replaced by ${p.value.minutes} minutes` } });
+      await appendAudit(tx, { actor, action: 'critical-call-target.retire', entityType: 'critical_call_target', entityId: old.id, reason: 'replaced', before: { minutes: old.minutes, reference: old.reference } });
+    }
+    await tx.criticalCallTarget.create({ data: { id, ...p.value, createdBy: actor } });
+    await appendAudit(tx, { actor, action: 'critical-call-target.set', entityType: 'critical_call_target', entityId: id, after: p.value });
+  });
+  return id;
+}
+
+export async function retireCallTarget(db: Db, actor: string, id: string, reason: string): Promise<void> {
+  if (reason.trim().length < 5) throw new InvalidInput(['Give a reason of at least 5 characters.']);
+  await db.$transaction(async (tx) => {
+    const n = await tx.criticalCallTarget.updateMany({ where: { id, active: true }, data: { active: false, retiredBy: actor, retiredAt: new Date(), retireReason: reason.trim() } });
+    if (n.count !== 1) throw new WorkflowRejected({ code: 'INVALID_STATE', detail: 'that target is not active' });
+    await appendAudit(tx, { actor, action: 'critical-call-target.retire', entityType: 'critical_call_target', entityId: id, reason: reason.trim() });
   });
 }
