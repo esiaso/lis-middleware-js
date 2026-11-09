@@ -1,5 +1,5 @@
 import type { AddressInfo } from 'node:net';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { createDb, uuidv7, type Db, type JsonInput } from '@lis/db';
 import { attachObservation, failingQc, matchNormalizedMessage, verifyAuditChain } from '@lis/lab';
@@ -177,6 +177,40 @@ describe.skipIf(!url)('QC log over HTTP', () => {
     expect(chart.html).toContain('mean 4.5');
     expect(chart.html).toContain('4.85 mmol/L, z 3.50, breaks 1-3s, 2-2s, warning 1-2s'); // the point's tooltip
     expect((await dr.get(`/qc/ranges/${uuidv7()}/chart`)).status).toBe(404);
+  });
+
+  it('applies R-4s across two controls of the same test within the run window (A-38)', async () => {
+    const dr = await as('dr.lab');
+    const csrf = await dr.csrf('/qc/ranges');
+    const level = { ...rangeForm, _csrf: csrf, targetSd: '0.1', westgardRules: ['R-4s'] };
+    const noWindow = await dr.post('/qc/ranges', { ...level, targetMean: '4.5' });
+    expect(noWindow.status).toBe(422);
+    expect(noWindow.html).toContain('R-4s needs the run window');
+    // Level 1 (lot L123, mean 4.5) and level 2 (lot L777, mean 7.0), both inside wide ranges so only R-4s decides.
+    expect((await dr.post('/qc/ranges', { ...level, targetMean: '4.5', runMinutes: '30' })).status).toBe(303);
+    expect((await dr.post('/qc/ranges', { ...level, controlLot: 'L777', low: '6.0', high: '8.0', targetMean: '7.0', runMinutes: '30' })).status).toBe(303);
+    expect((await dr.get('/qc/ranges')).html).toContain('R-4s (run 30 min)');
+
+    await qc([['K', '4.73']], { lot: 'L123' }); // level 1 at +2.3 SD: alone, nothing broken
+    let e = await db.qcEvaluation.findFirstOrThrow({ orderBy: [{ at: 'desc' }, { id: 'desc' }] });
+    expect([e.outcome, e.westgardReject]).toEqual(['IN_RANGE', []]);
+    await qc([['K', '6.75']], { lot: 'L777' }); // level 2 at -2.5 SD in the same run: R-4s
+    e = await db.qcEvaluation.findFirstOrThrow({ orderBy: [{ at: 'desc' }, { id: 'desc' }] });
+    expect([e.outcome, e.westgardReject]).toEqual(['RULE_VIOLATION', ['R-4s']]);
+    expect(e.detail).toBe('6.75 within 6.0 to 8.0 mmol/L, z -2.50; breaks R-4s');
+    expect((await failingQc(db)).length).toBe(1);
+
+    // Outside the window the earlier control is another run.
+    // (The log is append-only, so the clock moves on instead of the rows moving back.)
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(Date.now() + 31 * 60_000);
+      await qc([['K', '6.74']], { lot: 'L777' });
+    } finally {
+      vi.useRealTimers();
+    }
+    e = await db.qcEvaluation.findFirstOrThrow({ orderBy: [{ at: 'desc' }, { id: 'desc' }] });
+    expect([e.outcome, e.westgardReject]).toEqual(['IN_RANGE', []]);
   });
 
   it('summarises each range over a period, with a CSV for approvers and auditors', async () => {

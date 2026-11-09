@@ -25,6 +25,15 @@ describe('Westgard rules', () => {
     expect(evaluateWestgard(0.1, [0.2, 0.3], all).reject).toEqual([]); // too few results yet
   });
 
+  it('R-4s needs another control in the run beyond 2 SD on the other side (A-38)', () => {
+    expect(evaluateWestgard(2.3, [], ['R-4s'], [-2.1])).toEqual({ reject: ['R-4s'], warn: [] });
+    expect(evaluateWestgard(-2.5, [], ['R-4s'], [0.4, 2.2])).toEqual({ reject: ['R-4s'], warn: [] });
+    expect(evaluateWestgard(2.3, [], ['R-4s'], [2.4])).toEqual({ reject: [], warn: [] }); // same side: not R-4s
+    expect(evaluateWestgard(2.3, [], ['R-4s'], [-1.9])).toEqual({ reject: [], warn: [] });
+    expect(evaluateWestgard(1.9, [], ['R-4s'], [-2.5])).toEqual({ reject: [], warn: [] });
+    expect(evaluateWestgard(2.3, [], ['R-4s'])).toEqual({ reject: [], warn: [] }); // no other control in the run
+  });
+
   it('applies only the rules the lab chose', () => {
     expect(evaluateWestgard(3.5, [2.5], ['10x'])).toEqual({ reject: [], warn: [] });
     expect(westgardHistory([])).toBe(0);
@@ -34,12 +43,17 @@ describe('Westgard rules', () => {
   });
 
   it('checks the mean, SD and rules a person enters', () => {
-    expect(parseWestgard('', '', [])).toEqual({ ok: true, value: { targetMean: null, targetSd: null, westgardRules: [] } });
-    expect(parseWestgard('4.5', '0.1', ['2-2s', '1-3s', '2-2s'])).toEqual({ ok: true, value: { targetMean: '4.5', targetSd: '0.1', westgardRules: ['1-3s', '2-2s'] } });
+    expect(parseWestgard('', '', [])).toEqual({ ok: true, value: { targetMean: null, targetSd: null, westgardRules: [], runMinutes: null } });
+    expect(parseWestgard('4.5', '0.1', ['2-2s', '1-3s', '2-2s'])).toEqual({ ok: true, value: { targetMean: '4.5', targetSd: '0.1', westgardRules: ['1-3s', '2-2s'], runMinutes: null } });
     expect(parseWestgard('', '', ['1-3s'])).toMatchObject({ ok: false, issues: ['Westgard rules need the target mean and SD for this control.'] });
     expect(parseWestgard('4.5', '0', [])).toMatchObject({ ok: false });
     expect(parseWestgard('4.5', '', [])).toMatchObject({ ok: false });
-    expect(parseWestgard('4.5', '0.1', ['R-4s'])).toMatchObject({ ok: false, issues: ['Unknown Westgard rule: R-4s.'] });
+    expect(parseWestgard('4.5', '0.1', ['R-4s'])).toMatchObject({ ok: false, issues: ['R-4s needs the run window: 1 to 240 minutes within which this control and the other controls of the test count as one run.'] });
+    expect(parseWestgard('4.5', '0.1', ['R-4s'], '241')).toMatchObject({ ok: false });
+    expect(parseWestgard('4.5', '0.1', ['R-4s', '1-3s'], '30')).toEqual({ ok: true, value: { targetMean: '4.5', targetSd: '0.1', westgardRules: ['1-3s', 'R-4s'], runMinutes: 30 } });
+    // A run window without R-4s is not kept.
+    expect(parseWestgard('4.5', '0.1', ['1-3s'], '30')).toMatchObject({ ok: true, value: { runMinutes: null } });
+    expect(parseWestgard('4.5', '0.1', ['R-5s'])).toMatchObject({ ok: false, issues: ['Unknown Westgard rule: R-5s.'] });
     const base = { instrumentId: 'i', localTestCode: 'K', controlLot: 'L1', controlName: '', low: '4.1', high: '4.9', units: 'mmol/L', reference: 'QC plan v1' };
     expect(parseQcRange(base)).toMatchObject({ ok: true, value: { targetMean: null, westgardRules: [] } });
     expect(parseQcRange({ ...base, targetMean: '4.5', targetSd: '0.1', westgardRules: ['1-3s'] })).toMatchObject({ ok: true, value: { targetSd: '0.1', westgardRules: ['1-3s'] } });

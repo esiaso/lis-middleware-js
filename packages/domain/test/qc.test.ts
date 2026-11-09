@@ -41,7 +41,7 @@ describe('qcSupports', () => {
 describe('parseQcRange', () => {
   const base = { instrumentId: 'c111-01', localTestCode: 'K', controlLot: 'L123', controlName: '', low: '4.1', high: '4.9', units: 'mmol/L', reference: 'Control insert L123 rev 2' };
   it('accepts a range', () => {
-    expect(parseQcRange(base)).toEqual({ ok: true, value: { ...base, controlName: null, targetMean: null, targetSd: null, westgardRules: [] } });
+    expect(parseQcRange(base)).toEqual({ ok: true, value: { ...base, controlName: null, targetMean: null, targetSd: null, westgardRules: [], runMinutes: null } });
   });
   it('explains every problem', () => {
     const r = parseQcRange({ instrumentId: '', localTestCode: '', controlLot: '', controlName: '', low: 'x', high: '1', units: '', reference: '' });
