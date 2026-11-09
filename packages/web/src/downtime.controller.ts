@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Inject, NotFoundException, Param, Post, Req, Res } from '@nestjs/common';
 import type { Db } from '@lis/db';
-import { DOWNTIME, downtimeTestCatalogue, InvalidInput, reconcileDowntimeOrder, reconciliationCandidates, registerDowntimeOrder } from '@lis/lab';
+import { DOWNTIME, downtimeTestCatalogue, InvalidInput, judgeCandidates, reconcileDowntimeOrder, reconciliationCandidates, reconciliationWorklist, registerDowntimeOrder } from '@lis/lab';
 import type { Response } from 'express';
 import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
 import { formatTime } from './format.js';
@@ -22,9 +22,28 @@ export class DowntimeController {
 
   @Get()
   async index(@Req() req: WebRequest, @Res() res: Response): Promise<void> {
-    const orders = await this.db.labOrder.findMany({ where: { source: DOWNTIME }, orderBy: [{ reconciledAt: { sort: 'desc', nulls: 'first' } }, { orderedAt: 'desc' }], take: 200, include: { patient: true, tests: true } });
+    const [work, orders] = await Promise.all([
+      reconciliationWorklist(this.db),
+      this.db.labOrder.findMany({ where: { source: DOWNTIME, reconciledAt: { not: null } }, orderBy: { reconciledAt: 'desc' }, take: 100, include: { patient: true, tests: true } }),
+    ]);
     page(req, res, 'downtime', {
       title: 'Downtime orders',
+      // Assisted reconciliation when the HMIS returns: a suggestion for each, a person still decides.
+      work: work.map((w) => ({
+        id: w.orderId,
+        downtimeId: w.downtimeId,
+        patient: name(w.patient),
+        birthDate: day(w.patient.birthDate),
+        at: formatTime(w.orderedAt),
+        held: w.held,
+        approved: w.approved,
+        clear: w.suggestion === 'clear',
+        check: w.suggestion === 'check',
+        notOrdered: w.suggestion === 'not-ordered',
+        best: w.best ? { hmisOrderId: w.best.hmisOrderId, mrn: w.best.patient.mrn } : null,
+        note: w.note,
+      })),
+      clearCount: work.filter((w) => w.suggestion === 'clear').length,
       rows: orders.map((o) => ({
         id: o.id,
         downtimeId: o.hmisOrderId,
@@ -101,13 +120,16 @@ export class DowntimeController {
     if (!o || o.source !== DOWNTIME) throw new NotFoundException();
     const to = o.reconciledToId ? await this.db.labOrder.findUnique({ where: { id: o.reconciledToId } }) : null;
     const candidates = o.reconciledAt ? [] : await reconciliationCandidates(this.db, o.id);
+    const judged = judgeCandidates(candidates);
     const src = o.sourceJson as { claimedMrn?: string | null; registeredBy?: string };
     page(req, res, 'downtime-reconcile', {
       title: `Reconcile ${o.hmisOrderId}`,
       o: { id: o.id, downtimeId: o.hmisOrderId, at: formatTime(o.orderedAt), by: src.registeredBy ?? '', reconciledAt: formatTime(o.reconciledAt), reconciledBy: o.reconciledBy ?? '', to: to ? { id: to.id, hmisOrderId: to.hmisOrderId } : null },
       patient: { name: name(o.patient), birthDate: day(o.patient.birthDate), sex: o.patient.sex ?? '', claimedMrn: src.claimedMrn ?? '' },
       tests: o.tests.map((t) => ({ code: t.localTestCode, state: t.result ? 'result' : t.specimenId ? 'collected' : t.status === 'reconciled' ? 'moved' : 'not collected' })),
+      suggestion: judged.best ? { clear: judged.suggestion === 'clear', note: judged.note, hmisOrderId: judged.best.hmisOrderId } : null,
       candidates: candidates.map((c) => ({
+        suggested: c === judged.best && judged.suggestion !== 'not-ordered',
         orderId: c.orderId,
         hmisOrderId: c.hmisOrderId,
         at: formatTime(c.orderedAt),

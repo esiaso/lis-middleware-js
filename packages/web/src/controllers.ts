@@ -3,7 +3,7 @@ import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, P
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
 import { migrationStatus, type Db } from '@lis/db';
 import { AUTOVERIFY_ACTOR, clinicalGateFor } from '@lis/domain';
-import { activeEntry, addResultComment, approve, confirmLink, decisionsFor, failingQc, hmisLinkStatus, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeAddTest, proposeLink, release, replay, review, standardCommentsFor, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
+import { activeEntry, addResultComment, approve, confirmLink, decisionsFor, failingQc, hmisLinkStatus, instrumentReferenceText, labReferences, overdueResults, correct, dismissUnmatched, NEEDS_CALL, proposeAddTest, DOWNTIME, proposeLink, release, replay, review, standardCommentsFor, waitingCriticals, withdrawLink, withdrawResultComment } from '@lis/lab';
 import type { CookieOptions, Response } from 'express';
 import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS, type LoginResult } from './auth.js';
 import { directory } from './ldap.js';
@@ -219,11 +219,14 @@ export class DashboardController {
       overdueResults(this.db, now),
       hmisLinkStatus(this.db, now),
     ]);
+    // Downtime orders still holding results from the HMIS (A-15).
+    const downtimeWaiting = await this.db.labOrder.count({ where: { source: DOWNTIME, reconciledAt: null, status: { not: 'cancelled' } } });
     const counts = Object.fromEntries(byStatus.map((g) => [g.status, g._count._all]));
     page(req, res, 'dashboard', {
       title: 'Dashboard',
       refresh: 60,
       hmis: hmis.warnings.length ? hmis.warnings.map((w) => w.text).join('; ') : null,
+      downtime: downtimeWaiting ? { n: downtimeWaiting } : null,
       overdue: overdue.length ? { n: overdue.length, oldest: elapsed(overdue[0]!.due, now) } : null,
       qcFailing: qcFailing.length ? { n: qcFailing.length, list: qcFailing.slice(0, 5).map((f) => `${f.instrumentName} ${f.localTestCode}`).join(', ') } : null,
       critical: criticals.length ? { n: criticals.length, oldest: elapsed(criticals[0]!.arrivedAt, now), more: criticals.length >= 100 } : null,
