@@ -905,7 +905,7 @@ model QcRange {
   targetMean    String?    @map("target_mean")
   targetSd      String?    @map("target_sd")
   westgardRules String[]   @default([]) @map("westgard_rules")
-  /// R-4s run window (A-38): other controls of the test on the instrument within this many minutes are one run.
+  /// Run window for R-4s and 2-2s within the run (A-38, A-40): other controls of the test on the instrument within this many minutes are one run.
   runMinutes    Int?       @map("run_minutes")
   active        Boolean    @default(true)
   createdBy     String     @map("created_by")

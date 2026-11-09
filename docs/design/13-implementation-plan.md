@@ -84,7 +84,7 @@ with their source, a flag on each version as it arrives, approval held
 until the call with read-back is recorded, and the waiting list with its
 timer on the dashboard; A-18, 08 §12), autoverification (off for
 every test until the lab director adds a rule naming the validation report;
-approves only, release stays with a person; A-19), delta checks (rules from the lab, flag shown to reviewers and holding autoverification; A-20), a QC log (QC results checked against the lab's ranges and optional Westgard rules including R-4s across controls within a lab-set run window (A-38), Levey-Jennings charts (W-15), a QC summary of observed mean, SD and CV per control with CSV export (A-28, W-20), a dashboard warning, an optional QC window for autoverification; A-21, A-23), a turnaround-time report with CSV export, lab-set targets and an overdue list (A-22, W-12), a workload report with CSV export (W-16), a lab time zone setting for screens, typed times and report days (A-24), lab-entered reference ranges by sex and age shown on results and the printed report (A-25, W-17), comments on results, for the lab or printed on the report (A-26, W-18), a lab-entered list of standard comments to pick on results (A-27, W-19), a patient history page with a cumulative report (W-13), and a printed result report per order (W-14), and DPAPI encryption of secret files on Windows
+approves only, release stays with a person; A-19), delta checks (rules from the lab, flag shown to reviewers and holding autoverification; A-20), a QC log (QC results checked against the lab's ranges and optional Westgard rules including R-4s and 2-2s across controls within a lab-set run window (A-38, A-40), Levey-Jennings charts (W-15), a QC summary of observed mean, SD and CV per control with CSV export (A-28, W-20), a dashboard warning, an optional QC window for autoverification; A-21, A-23), a turnaround-time report with CSV export, lab-set targets and an overdue list (A-22, W-12), a workload report with CSV export (W-16), a lab time zone setting for screens, typed times and report days (A-24), lab-entered reference ranges by sex and age shown on results and the printed report (A-25, W-17), comments on results, for the lab or printed on the report (A-26, W-18), a lab-entered list of standard comments to pick on results (A-27, W-19), a patient history page with a cumulative report (W-13), and a printed result report per order (W-14), and DPAPI encryption of secret files on Windows
 (10 §7; tested on the Windows CI runner, not yet on the hospital server), and
 the FHIR R4 HMIS connector in the jobs worker, built to the interface the lab
 proposed to the in-house HMIS team: polled order feed with a cursor, results
@@ -135,7 +135,6 @@ merges signalled by the HMIS itself.
 
 ## Phase 5: Hardening and extensions
 
-* Across-level 2-2s, if the lab wants it (A-23).
 * Critical-result escalation via hospital SMS/email gateway, with escalation steps (A-18). The on-screen workflow and the call target time (A-37) are built.
 * Mapping editor UI with approval workflow (W-9).
 * Second OS installer; SIEM streaming; archive tooling.

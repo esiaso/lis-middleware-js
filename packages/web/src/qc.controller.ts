@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { ResultValue } from '@lis/contracts';
 import type { Db } from '@lis/db';
-import { formatStat, parseQcRange, WESTGARD_LABEL, WESTGARD_RULES, zonedDay } from '@lis/domain';
+import { formatStat, parseQcRange, WESTGARD_LABEL, WESTGARD_RULES, WESTGARD_RUN_RULES, zonedDay } from '@lis/domain';
 import { addQcRange, appendAudit, downtimeTestCatalogue, failingQc, InvalidInput, parseTatFilter, qcSummary, retireQcRange, type QcSummaryRow, type TatFilter } from '@lis/lab';
 import type { Response } from 'express';
 import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
@@ -49,8 +49,8 @@ const shown = (r: QcSummaryRow) => {
 };
 const control = (c: { controlName: string | null; controlLot: string | null }) => [c.controlName, c.controlLot && `lot ${c.controlLot}`].filter(Boolean).join(', ') || '(not named)';
 
-/** The range's Westgard rules, with the R-4s run window (A-38). */
-const rulesText = (r: { westgardRules: string[]; runMinutes: number | null }) => r.westgardRules.map((w) => (w === 'R-4s' && r.runMinutes ? `R-4s (run ${r.runMinutes} min)` : w)).join(', ');
+/** The range's Westgard rules, with the run window of the within-run rules (A-38, A-40). */
+const rulesText = (r: { westgardRules: string[]; runMinutes: number | null }) => r.westgardRules.map((w) => ((WESTGARD_RUN_RULES as readonly string[]).includes(w) && r.runMinutes ? `${w} (run ${r.runMinutes} min)` : w)).join(', ');
 
 /** QC results from the instruments and the lab's acceptable ranges (08 §12, A-21). */
 @Controller('qc')

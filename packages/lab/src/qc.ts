@@ -1,6 +1,6 @@
 import type { ResultValue } from '@lis/contracts';
 import { uuidv7, type Db, type JsonInput } from '@lis/db';
-import { evaluateQc, evaluateWestgard, parseQcRange, qcSupports, westgardHistory, zScore, type QcControl, type QcOutcome, type QcOutcomeKind, type QcRangeInput, type WestgardRule } from '@lis/domain';
+import { evaluateQc, evaluateWestgard, parseQcRange, qcSupports, westgardHistory, WESTGARD_RUN_RULES, zScore, type QcControl, type QcOutcome, type QcOutcomeKind, type QcRangeInput, type WestgardRule } from '@lis/domain';
 import { appendAudit } from './audit.js';
 import { InvalidInput } from './instruments.js';
 import { WorkflowRejected } from './results.js';
@@ -36,8 +36,8 @@ export async function evaluateQcMessage(tx: Tx, normalizedMessageId: string): Pr
       const earlier = need
         ? await tx.qcEvaluation.findMany({ where: { rangeId: range.id, outcome: 'IN_RANGE', zScore: { not: null } }, orderBy: [{ at: 'desc' }, { id: 'desc' }], take: need, select: { zScore: true } })
         : [];
-      // R-4s (A-38): the other controls of this test on this instrument within the range's run window.
-      const peers = rules.includes('R-4s') && range.runMinutes
+      // R-4s and 2-2s within the run (A-38, A-40): the other controls of this test on this instrument within the range's run window.
+      const peers = rules.some((x) => WESTGARD_RUN_RULES.includes(x)) && range.runMinutes
         ? await tx.qcEvaluation.findMany({
             where: { instrumentId: nm.instrumentId, localTestCode: o.localTestCode, rangeId: { not: range.id }, zScore: { not: null }, at: { gte: new Date(Date.now() - range.runMinutes * 60_000) } },
             select: { zScore: true },
