@@ -19,3 +19,15 @@
     });
   });
 })();
+
+// Wide tables scroll sideways inside their own box on small screens, instead of the page.
+(function () {
+  'use strict';
+  document.querySelectorAll('.app-main table.table').forEach(function (t) {
+    if (t.closest('.table-responsive, .result-report')) return;
+    var box = document.createElement('div');
+    box.className = 'table-responsive';
+    t.parentNode.insertBefore(box, t);
+    box.appendChild(t);
+  });
+})();

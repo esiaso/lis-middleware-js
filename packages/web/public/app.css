@@ -71,3 +71,17 @@ details:not([open]) > summary.app-nav-heading .bi { transform: rotate(-90deg); }
   main { padding: 0 !important; }
   .specimen-label { page: label; border: none; }
 }
+/* Tables on the screens (not the printed report): a framed, airy grid with quiet headers. */
+.app-main .table { --bs-table-hover-bg: var(--bs-tertiary-bg); border: 1px solid var(--bs-border-color); border-collapse: separate; border-spacing: 0; border-radius: var(--bs-border-radius-lg); overflow: hidden; background: var(--bs-body-bg); }
+.app-main .table > :not(caption) > * > * { padding: .5rem .75rem; border-bottom-color: var(--bs-border-color-translucent); }
+.app-main .table > thead > tr > th { background: var(--bs-tertiary-bg); color: var(--bs-secondary-color); font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; border-bottom: 1px solid var(--bs-border-color); }
+.app-main .table > tbody > tr:last-child > * { border-bottom: 0; }
+.app-main .table > tbody > tr:hover > * { background: var(--bs-tertiary-bg); }
+.app-main .table.table-bordered > :not(caption) > * > * { border-width: 0 0 1px; }
+.app-main .card > .table-responsive > .table, .app-main .card > .table { border: 0; border-radius: 0; }
+.app-main .table-responsive { margin-bottom: 1rem; }
+.app-main .table-responsive > .table { margin-bottom: 0; }
+.result-report .table { border: 0; border-radius: 0; overflow: visible; }
+.result-report .table > thead > tr > th { background: none; color: inherit; text-transform: none; letter-spacing: 0; font-size: inherit; }
+.result-report .table > tbody > tr:hover > * { background: none; }
+@media print { .app-main .table { border: 0; border-radius: 0; } .app-main .table > thead > tr > th { background: none; } }

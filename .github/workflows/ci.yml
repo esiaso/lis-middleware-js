@@ -72,6 +72,15 @@ jobs:
       - name: Database tests (must not be skipped here)
         run: npx vitest run packages/db packages/analyzer-worker packages/result-intake packages/lab packages/web packages/ops --no-file-parallelism --reporter=verbose 2>&1 | tee db-test.log; test "${PIPESTATUS[0]}" -eq 0 && ! grep -q "skipped" db-test.log
         shell: bash
+      # The demo's seed and sample data go through the real workflow code, so they break when it changes.
+      - name: Demo seed and sample data on a fresh database, twice
+        run: |
+          psql "$DATABASE_URL" -c 'CREATE DATABASE lims_demo'
+          export DATABASE_URL=postgresql://lims_test:lims_test@localhost:5432/lims_demo
+          npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+          npm run build
+          node demo/seed.mjs && node demo/sample.mjs
+          node demo/seed.mjs && node demo/sample.mjs | grep -q 'nothing to do'
 
   # Offline release bundle (11 §2): build it twice to check it is reproducible,
   # then install it and run its own tools against a real PostgreSQL.

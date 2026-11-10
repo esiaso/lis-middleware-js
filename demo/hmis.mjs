@@ -14,6 +14,13 @@ const TESTS = [
   { code: '32700-7', name: 'Malaria rapid test' },
   { code: 'MAL-DENS', name: 'Malaria parasite density' },
   { code: 'U-PROT', name: 'Urine protein (dipstick)' },
+  // Added with the sample data (demo/sample.mjs).
+  { code: '3016-3', name: 'TSH' },
+  { code: '3024-7', name: 'Free T4' },
+  { code: '718-7', name: 'Haemoglobin' },
+  { code: '6690-2', name: 'White cell count' },
+  { code: '777-3', name: 'Platelet count' },
+  { code: '5902-2', name: 'Prothrombin time' },
 ];
 const CLIENT_ID = process.env.HMIS_CLIENT_ID ?? 'lims-middleware';
 const CLIENT_SECRET = process.env.HMIS_CLIENT_SECRET ?? 'demo-hmis-secret';

@@ -65,6 +65,36 @@ start to change it).
 The call target for critical results is 30 minutes. None of this is the lab's
 policy.
 
+## Sample data
+
+`demo/sample.mjs` runs after the accounts and tests, once per database; it adds to
+a demo that already has data and does nothing the second time. It fills every
+screen with made-up examples, sent through the same code the real system uses
+(instrument messages are stored raw, decoded and matched; every later step goes
+through the workflow functions, so the audit trail is complete):
+
+* three instruments: a cobas e 411 and a Mindray haematology analyser with
+  **placeholder** verification records marked "DEMO ONLY", and a generic HL7
+  coagulation analyser left unverified, to show the "not for clinical use" gate;
+  approved test mappings for each;
+* six more tests (TSH, FT4, HB, WBC, PLT, PT, HMIS codes `3016-3`, `3024-7`,
+  `718-7`, `6690-2`, `777-3`, `5902-2`, also on the demo HMIS order form), with
+  demo reference ranges, critical limits (HB, PLT), a delta rule (HB), an
+  autoverification rule (TSH), turnaround targets, standard comments and a QC
+  range with Westgard rules for TSH;
+* 13 patients (MRN3001 to MRN3013) with orders, specimens and results at every
+  step: waiting for review, reviewed, approved, autoverified and released; a
+  critical haemoglobin called and approved, a positive malaria test waiting for
+  its call, a haemoglobin flagged by the delta check, an e 411 result for a tube
+  the lab does not know (unmatched), a result from the unverified instrument, an
+  order not yet collected, a downtime order to reconcile, and MRN3011 merged into
+  MRN3010;
+* twelve TSH controls on the e 411 for the QC log and Levey-Jennings chart, and
+  a manual QC record for the malaria test lot.
+
+None of these patients exist, and none of the values, limits or targets is
+clinical guidance or the lab's policy. No instrument has passed interface testing.
+
 ## A walk-through
 
 1. Open http://localhost:3100, tick a test or two and place an order.
