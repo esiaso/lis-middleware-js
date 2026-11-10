@@ -1,8 +1,8 @@
 <div class="d-flex align-items-baseline gap-3 mb-3"><h1 class="h4 mb-0">Results</h1><a href="/reference-ranges">Reference ranges</a><a href="/standard-comments">Standard comments</a></div>
 <div class="mb-3 d-flex flex-wrap gap-1">
-  <a class="btn btn-sm {{#if filter}}btn-outline-secondary{{else}}btn-secondary{{/if}}" href="/results">All</a>
+  <a class="btn btn-sm {{#if filter}}btn-outline-secondary{{else}}btn-primary{{/if}}" href="/results">All</a>
   {{#each statuses}}
-  <a class="btn btn-sm {{#if active}}btn-secondary{{else}}btn-outline-secondary{{/if}}" href="/results?status={{value}}">{{label}}</a>
+  <a class="btn btn-sm {{#if active}}btn-primary{{else}}btn-outline-secondary{{/if}}" href="/results?status={{value}}">{{label}}</a>
   {{/each}}
 </div>
 <table class="table table-sm table-hover align-middle">
@@ -15,7 +15,7 @@
       <td>{{test}}</td>
       <td class="font-monospace">{{value}} {{units}}</td>
       <td>{{flags}}{{#if critical}} <span class="badge text-bg-danger">critical {{critical}}</span>{{/if}}{{#if delta}} <span class="badge text-bg-warning" title="{{delta}}">delta</span>{{/if}}</td>
-      <td>{{status}}{{#if attention}} <span class="badge text-bg-warning">needs attention</span>{{/if}}</td>
+      <td><span class="badge text-bg-{{statusTone}}">{{status}}</span>{{#if attention}} <span class="badge text-bg-warning">needs attention</span>{{/if}}</td>
       <td class="small">{{updated}}</td>
     </tr>
     {{else}}

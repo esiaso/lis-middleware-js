@@ -26,6 +26,16 @@ order, a QC chart under QC ranges, and an instrument's edit pages under the
 instrument. The breadcrumbs replace the old "back to …" links and are not
 printed.
 
+Look: an indigo accent on a light grey page, white cards and tables with
+hairline borders, soft-tinted status badges, and the Inter typeface. The
+style follows common Tailwind admin dashboards (NextAdmin was studied); the
+CSS (`/static/theme.css`) is written for this app and no template code is
+used. Every file the pages load comes from this server: Bootstrap and
+Bootstrap Icons from the installed packages, and Inter (SIL Open Font
+License, `public/fonts/inter/OFL.txt`) from the project folder. No page links
+to or loads anything from outside. A white top bar holds the breadcrumbs and
+the signed-in person (initials, name, roles, Sign out).
+
 Explanatory notes on a page, and the hints under form fields, start folded:
 an info icon beside the heading or field label shows them, and a heading's
 icon shows every note under it. With no script they are simply shown.
