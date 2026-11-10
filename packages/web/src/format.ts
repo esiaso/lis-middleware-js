@@ -67,6 +67,18 @@ export const STATUS_LABELS: Record<string, string> = {
   corrected: 'Corrected',
 };
 
+/** Bootstrap colour for a result status badge: amber when a person must act, blue on its way, green when the HMIS has it, red when delivery failed. */
+export const STATUS_TONE: Record<string, string> = {
+  received: 'warning',
+  reviewed: 'warning',
+  approved: 'primary',
+  queued: 'info',
+  sent: 'info',
+  hmis_confirmed: 'success',
+  failed: 'danger',
+  corrected: 'secondary',
+};
+
 /** Only these notices can appear after a redirect, so no request text is ever echoed into a page. */
 export const NOTICES: Record<string, string> = {
   reviewed: 'Result reviewed.',

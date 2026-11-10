@@ -1,4 +1,4 @@
-<p><a href="/downtime">&larr; Downtime orders</a> · <a href="/orders/{{o.id}}">Order {{o.downtimeId}}</a></p>
+<p><a href="/orders/{{o.id}}">Order {{o.downtimeId}}</a></p>
 <h1 class="h4">Reconcile {{o.downtimeId}}</h1>
 <p class="mb-1"><strong>{{patient.name}}</strong> <span class="badge text-bg-warning">provisional</span>{{#if patient.birthDate}} · born {{patient.birthDate}}{{/if}}{{#if patient.sex}} · {{patient.sex}}{{/if}}{{#if patient.claimedMrn}} · MRN on form {{patient.claimedMrn}}{{/if}}</p>
 <p class="small text-body-secondary">Registered {{o.at}} by {{o.by}}. Tests: {{#each tests}}<span class="font-monospace">{{code}}</span> ({{state}}){{#unless @last}}, {{/unless}}{{/each}}</p>

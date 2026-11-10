@@ -85,3 +85,46 @@ details:not([open]) > summary.app-nav-heading .bi { transform: rotate(-90deg); }
 .result-report .table > thead > tr > th { background: none; color: inherit; text-transform: none; letter-spacing: 0; font-size: inherit; }
 .result-report .table > tbody > tr:hover > * { background: none; }
 @media print { .app-main .table { border: 0; border-radius: 0; } .app-main .table > thead > tr > th { background: none; } }
+/* Page header (09 §1): breadcrumbs above one consistent title on every page. */
+.app-crumbs .breadcrumb { font-size: .825rem; margin-bottom: .35rem; --bs-breadcrumb-divider-color: var(--bs-secondary-color); }
+.app-crumbs .breadcrumb a { text-decoration: none; }
+.app-crumbs .breadcrumb a:hover { text-decoration: underline; }
+.app-main h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -.01em; }
+.app-main .page-head { margin-bottom: 1rem; }
+.app-main .section-title { font-size: .8rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--bs-secondary-color); margin: 1.5rem 0 .5rem; }
+/* Result page summary. */
+.result-summary .result-label { font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--bs-secondary-color); }
+.result-summary .result-big { font-size: 1.9rem; font-weight: 600; line-height: 1.2; }
+.result-summary .result-units { font-size: 1rem; font-weight: 400; color: var(--bs-secondary-color); }
+.result-summary .result-facts dt { font-weight: 600; color: var(--bs-secondary-color); }
+.result-summary .result-facts dd { margin-bottom: .35rem; }
+@media (min-width: 768px) { .result-summary .result-value { border-right: 1px solid var(--bs-border-color); } }
+/* Printable report (09 W-14): A4, letterhead, patient and request boxes, plain ruled tables. */
+.result-report { max-width: 60rem; background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-radius: var(--bs-border-radius-lg); padding: 1.5rem 1.75rem; }
+.report-letterhead { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; border-bottom: 2px solid var(--bs-body-color); padding-bottom: .5rem; margin-bottom: .9rem; }
+.report-lab { font-size: 1.25rem; font-weight: 700; }
+.report-kind { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--bs-secondary-color); }
+.report-ids { text-align: right; font-size: .9rem; }
+.report-ids span { color: var(--bs-secondary-color); }
+.report-boxes { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: .9rem; }
+.report-box { border: 1px solid var(--bs-border-color); border-radius: var(--bs-border-radius); padding: .5rem .75rem; font-size: .875rem; }
+.report-box-title { font-size: .7rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--bs-secondary-color); }
+.report-patient { font-size: 1.05rem; font-weight: 600; }
+.report-box dl { display: grid; grid-template-columns: auto 1fr; column-gap: .75rem; margin: .15rem 0 0; }
+.report-box dt { font-weight: 400; color: var(--bs-secondary-color); }
+.report-box dd { margin: 0; }
+.result-report .table { margin-bottom: .9rem; }
+.result-report .table > thead > tr > th { border-bottom: 1.5px solid var(--bs-body-color); font-size: .8rem; }
+.result-report .report-results td { vertical-align: top; }
+.result-report .report-comment td { border-top: 0; padding-top: 0; }
+.result-report .report-critical td { background: var(--bs-danger-bg-subtle); }
+.report-footer { border-top: 1px solid var(--bs-border-color); padding-top: .4rem; font-size: .78rem; color: var(--bs-secondary-color); }
+@media (max-width: 575.98px) { .report-boxes { grid-template-columns: 1fr; } .result-report { padding: 1rem; } }
+@page { size: A4; margin: 14mm 12mm 16mm; @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 8pt; color: #555; } }
+@media print {
+  body { background: #fff; }
+  .app-main form, .app-main .btn, .app-main details, .app-crumbs { display: none !important; }
+  .result-report { border: 0; padding: 0; max-width: none; }
+  .result-report .report-critical td { background: none; font-weight: 600; }
+  .result-report tr { break-inside: avoid; }
+}

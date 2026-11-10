@@ -1,28 +1,52 @@
+<div class="page-head d-flex flex-wrap align-items-center gap-2 d-print-none">
+  <h1 class="h4 mb-0">Report {{o.hmisOrderId}}</h1>
+  <button class="btn btn-primary btn-sm ms-auto d-inline-flex align-items-center gap-1" type="button" data-print>{{icon "printer"}}<span>Print</span></button>
+</div>
 <div class="d-print-none mb-3">
-  <p><a href="/orders/{{o.id}}">&larr; Order</a></p>
-  <p class="mb-1">Print with Ctrl+P. Only approved results carry a value; the rest print as pending.</p>
+  <p class="small text-body-secondary mb-2">Print with the button or Ctrl+P. Only approved results carry a value; the rest print as pending.</p>
   {{#unless approved}}<div class="alert alert-warning">No result on this order is approved yet, so the report has no values.</div>{{/unless}}
 </div>
 <article class="result-report">
-  <header class="border-bottom mb-2 pb-1">
-    <div class="h5 mb-0">{{header}}</div>
-    <div class="small">Printed {{printed}} by {{printedBy}}</div>
+  <header class="report-letterhead">
+    <div>
+      <div class="report-lab">{{header}}</div>
+      <div class="report-kind">Laboratory report</div>
+    </div>
+    <div class="report-ids">
+      <div><span>Order</span> <strong>{{o.hmisOrderId}}</strong>{{#if o.downtime}} (downtime order){{/if}}</div>
+      <div><span>Priority</span> {{o.priority}}</div>
+    </div>
   </header>
-  <div class="row small mb-2">
-    <div class="col-7"><strong>{{patient.name}}</strong>{{#if patient.provisional}} (provisional record){{/if}}<br>MRN {{patient.mrn}}{{#if patient.sex}} · {{patient.sex}}{{/if}}{{#if patient.birthDate}} · born {{patient.birthDate}}{{/if}}</div>
-    <div class="col-5">Order {{o.hmisOrderId}}{{#if o.downtime}} (downtime order){{/if}} · {{o.priority}}<br>{{#if o.location}}{{o.location}}{{/if}}{{#if o.clinician}} · {{o.clinician}}{{/if}}<br>Ordered {{o.orderedAt}}</div>
-  </div>
+  <section class="report-boxes">
+    <div class="report-box">
+      <div class="report-box-title">Patient</div>
+      <div class="report-patient">{{patient.name}}{{#if patient.provisional}} <span class="small">(provisional record)</span>{{/if}}</div>
+      <dl>
+        <dt>MRN</dt><dd>{{patient.mrn}}</dd>
+        {{#if patient.sex}}<dt>Sex</dt><dd>{{patient.sex}}</dd>{{/if}}
+        {{#if patient.birthDate}}<dt>Born</dt><dd>{{patient.birthDate}}</dd>{{/if}}
+      </dl>
+    </div>
+    <div class="report-box">
+      <div class="report-box-title">Request</div>
+      <dl>
+        {{#if o.location}}<dt>Location</dt><dd>{{o.location}}</dd>{{/if}}
+        {{#if o.clinician}}<dt>Clinician</dt><dd>{{o.clinician}}</dd>{{/if}}
+        <dt>Ordered</dt><dd>{{o.orderedAt}}</dd>
+      </dl>
+    </div>
+  </section>
   {{#if specimens}}
-  <table class="table table-sm small mb-2">
+  <table class="table table-sm small report-specimens">
     <thead><tr><th>Specimen</th><th>Type</th><th>Collected</th><th>Received</th></tr></thead>
     <tbody>{{#each specimens}}<tr><td>{{accessionNo}}{{#if rejected}} (rejected){{/if}}</td><td>{{type}}</td><td>{{collected}}</td><td>{{received}}</td></tr>{{/each}}</tbody>
   </table>
   {{/if}}
-  <table class="table table-sm">
+  <table class="table table-sm report-results">
     <thead><tr><th>Test</th><th>Result</th><th>Units</th><th>Flag</th><th>Reference range</th><th>Approved</th></tr></thead>
     <tbody>
       {{#each lines}}
-      <tr>
+      <tr class="{{#if critical}}report-critical{{/if}}">
         <td>{{test}}{{#if hmisTestCode}} <span class="text-body-secondary small">({{hmisTestCode}})</span>{{/if}}</td>
         {{#if approved}}
         <td class="font-monospace fw-semibold">{{value}}{{#if corrected}} <span class="small fw-normal">(corrected)</span>{{/if}}</td><td>{{units}}</td><td>{{flags}}{{#if mark}} {{mark}}{{/if}}{{#if critical}} <strong>CRITICAL{{#unless (eq critical "answer")}} {{critical}}{{/unless}}</strong>{{/if}}</td><td class="small">{{referenceRange}}{{#if rangeSource}} <span class="text-body-secondary">({{rangeSource}})</span>{{/if}}</td><td class="small">{{approvedBy}}<br>{{approvedAt}}</td>
@@ -30,9 +54,12 @@
         <td colspan="5" class="text-body-secondary">{{#if cancelled}}Cancelled{{else}}Pending{{/if}}</td>
         {{/if}}
       </tr>
-      {{#if comments}}<tr><td class="border-0"></td><td colspan="5" class="small pt-0">{{#each comments}}<div>Comment: {{this}}</div>{{/each}}</td></tr>{{/if}}
+      {{#if comments}}<tr class="report-comment"><td></td><td colspan="5" class="small">{{#each comments}}<div>Comment: {{this}}</div>{{/each}}</td></tr>{{/if}}
       {{/each}}
     </tbody>
   </table>
-  <footer class="small text-body-secondary border-top pt-1">Values as reported by the instrument and approved in the laboratory. {{#if pending}}Pending tests have no approved result yet; do not act on them from this report. {{/if}}The HMIS record is the official result where it has been received.</footer>
+  <footer class="report-footer">
+    <p class="mb-1">Values as reported by the instrument and approved in the laboratory. {{#if pending}}Pending tests have no approved result yet; do not act on them from this report. {{/if}}The HMIS record is the official result where it has been received.</p>
+    <p class="mb-0">Printed {{printed}} by {{printedBy}}</p>
+  </footer>
 </article>

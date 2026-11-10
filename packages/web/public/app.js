@@ -31,3 +31,11 @@
     box.appendChild(t);
   });
 })();
+
+// A Print button on printable pages (the page prints the same with Ctrl+P).
+(function () {
+  'use strict';
+  document.querySelectorAll('[data-print]').forEach(function (b) {
+    b.addEventListener('click', function () { window.print(); });
+  });
+})();

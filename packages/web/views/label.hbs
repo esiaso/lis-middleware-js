@@ -1,5 +1,5 @@
 <div class="d-print-none mb-3">
-  <p><a href="/orders/{{s.orderId}}">&larr; Order</a> · <a href="/specimens/{{s.id}}">Specimen history</a></p>
+  <p><a href="/specimens/{{s.id}}">Specimen history</a></p>
   <p class="mb-2">Print this page on the label printer (Ctrl+P). Labels printed so far: <strong>{{s.prints}}</strong>.</p>
   {{#if can.collect}}
   <form method="post" action="/specimens/{{s.id}}/reprint" class="d-inline">

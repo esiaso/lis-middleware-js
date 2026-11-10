@@ -14,6 +14,7 @@
   <div class="app-shell">
     {{> nav}}
     <main class="app-main py-3 px-3 px-lg-4">
+      {{#if crumbs.length}}<nav class="app-crumbs d-print-none" aria-label="Breadcrumb"><ol class="breadcrumb">{{#each crumbs}}<li class="breadcrumb-item"><a href="{{href}}">{{label}}</a></li>{{/each}}<li class="breadcrumb-item active" aria-current="page">{{title}}</li></ol></nav>{{/if}}
       {{#if notice}}<div class="alert alert-success" role="status">{{notice}}</div>{{/if}}
       {{{body}}}
     </main>

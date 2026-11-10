@@ -1,8 +1,24 @@
-<p><a href="/results">&larr; Results</a></p>
-<h1 class="h4">{{test.local}} <span class="text-body-secondary small">HMIS {{test.hmis}}</span></h1>
-<p class="mb-1"><strong><a href="/patients/{{patientId}}">{{patient}}</a></strong> · order {{order.hmisOrderId}} ({{order.priority}}, {{order.orderedAt}})</p>
-<p class="mb-3">{{#if specimen}}Accession {{specimen.accessionNo}}{{#if specimen.collectedAt}}, collected {{specimen.collectedAt}}{{/if}}{{/if}}
-  {{#if instrument}} · {{instrument.name}} ({{instrument.model}}){{else}} · manual entry{{#if manual}}: performed by {{manual.performedBy}}{{#if manual.lot}}, lot {{manual.lot}}{{/if}}, entered by {{manual.enteredBy}}{{#if manual.qcProblem}} · <span class="badge text-bg-warning">QC {{manual.qcProblem}}</span>{{/if}}{{#if manual.qcPassed}} · QC passed{{/if}}{{/if}}{{/if}}</p>
+<div class="page-head d-flex flex-wrap align-items-center gap-2">
+  <h1 class="h4 mb-0">{{test.local}} <span class="text-body-secondary small">HMIS {{test.hmis}}</span></h1>
+  <span class="badge rounded-pill text-bg-{{r.statusTone}}">{{r.status}}</span>
+  <a class="btn btn-outline-secondary btn-sm ms-auto d-print-none" href="/orders/{{order.id}}/report">{{icon "printer"}} Order report</a>
+</div>
+<div class="card result-summary mb-3">
+  <div class="card-body row g-3">
+    <div class="col-md-3 result-value">
+      <div class="result-label">Reported value</div>
+      {{#each versions}}{{#if selected}}<div class="result-big font-monospace">{{value}} <span class="result-units">{{units}}</span></div><div class="small">{{flags}}{{#if critical}} <span class="badge text-bg-danger">critical {{critical}}</span>{{/if}}</div>{{/if}}{{/each}}
+      {{#unless versions.length}}<div class="text-body-secondary">No value yet</div>{{/unless}}
+    </div>
+    <dl class="col-md-9 row mb-0 small result-facts">
+      <dt class="col-sm-3">Patient</dt><dd class="col-sm-9"><strong><a href="/patients/{{patientId}}">{{patient}}</a></strong></dd>
+      <dt class="col-sm-3">Order</dt><dd class="col-sm-9"><a href="/orders/{{order.id}}">{{order.hmisOrderId}}</a> · {{order.priority}} · ordered {{order.orderedAt}}</dd>
+      <dt class="col-sm-3">Specimen</dt><dd class="col-sm-9">{{#if specimen}}<a href="/specimens/{{specimen.id}}">Accession {{specimen.accessionNo}}</a>{{#if specimen.collectedAt}}, collected {{specimen.collectedAt}}{{/if}}{{else}}<span class="text-body-secondary">none</span>{{/if}}</dd>
+      <dt class="col-sm-3">Performed on</dt><dd class="col-sm-9">{{#if instrument}}<a href="/instruments/{{instrument.id}}">{{instrument.name}}</a> ({{instrument.model}}){{else}}manual entry{{#if manual}}: performed by {{manual.performedBy}}{{#if manual.lot}}, lot {{manual.lot}}{{/if}}, entered by {{manual.enteredBy}}{{#if manual.qcProblem}} · <span class="badge text-bg-warning">QC {{manual.qcProblem}}</span>{{/if}}{{#if manual.qcPassed}} · QC passed{{/if}}{{/if}}{{/if}}</dd>
+      {{#if reference}}{{#if reference.text}}<dt class="col-sm-3">Reference range</dt><dd class="col-sm-9"><strong class="font-monospace">{{reference.text}}</strong> {{#if reference.lab}}(the lab's range for {{reference.who}}; {{reference.source}}){{else}}(sent by the instrument){{/if}}</dd>{{/if}}{{/if}}
+    </dl>
+  </div>
+</div>
 
 {{#if notClinical}}<div class="alert alert-warning" role="alert"><strong>Not for clinical use.</strong> This instrument is not cleared: {{notClinical}}. The result cannot be released.</div>{{/if}}
 {{#if downtime}}<div class="alert alert-warning" role="alert"><strong>Downtime order {{downtime.id}}.</strong> This result can be reviewed and approved, but it is held from the HMIS until the order is <a href="/downtime/{{downtime.orderId}}">reconciled to the HMIS order</a>.</div>{{/if}}
@@ -35,8 +51,7 @@
 
 <p>Status: <strong>{{r.status}}</strong>{{#if r.autoverified}} · <span class="badge text-bg-success">autoverified</span> approved by the lab's autoverification rule, waiting for a person to release{{else}}{{#if r.reviewedBy}} · reviewed by {{r.reviewedBy}}{{/if}}{{#if r.approvedBy}} · approved by {{r.approvedBy}}{{/if}}{{/if}}</p>
 
-{{#if reference}}{{#if reference.text}}<p class="small mb-2">Reference range: <strong class="font-monospace">{{reference.text}}</strong> {{#if reference.lab}}(the lab's range for {{reference.who}}; {{reference.source}}){{else}}(sent by the instrument){{/if}}</p>{{/if}}{{/if}}
-<h2 class="h6">Versions</h2>
+<h2 class="section-title">Versions</h2>
 <table class="table table-sm">
   <thead><tr><th>#</th><th>Kind</th><th>Value</th><th>Flags</th><th>By</th><th>At</th><th>Reason</th></tr></thead>
   <tbody>
@@ -120,13 +135,13 @@
 {{/each}}
 
 {{#if calls}}
-<h2 class="h6">Critical result calls</h2>
+<h2 class="section-title">Critical result calls</h2>
 <ul class="list-unstyled small">
   {{#each calls}}<li>v{{version}} · told {{notified}} ({{role}}) at {{at}}, read back · recorded by {{by}} at {{recordedAt}}{{#if note}} · {{note}}{{/if}}</li>{{/each}}
 </ul>
 {{/if}}
 
-<div class="d-flex align-items-baseline gap-3"><h2 class="h6">Comments</h2><a class="small" href="/standard-comments">Standard comments</a></div>
+<div class="d-flex align-items-baseline gap-3"><h2 class="section-title">Comments</h2><a class="small" href="/standard-comments">Standard comments</a></div>
 <ul class="list-unstyled small">
   {{#each comments}}
   <li class="mb-2{{#if withdrawn}} text-body-secondary{{/if}}">
@@ -163,7 +178,7 @@
 </form>
 {{/if}}
 
-<h2 class="h6">History</h2>
+<h2 class="section-title">History</h2>
 <ul class="list-unstyled small">
   {{#each events}}<li>{{at}} · {{kind}}{{#if version}} v{{version}}{{/if}} · {{actor}}{{#if reason}} · {{reason}}{{/if}}</li>{{else}}<li class="text-body-secondary">No decisions yet.</li>{{/each}}
 </ul>

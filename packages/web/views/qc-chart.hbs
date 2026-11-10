@@ -1,4 +1,3 @@
-<p><a href="/qc/ranges">&larr; QC ranges</a></p>
 <h1 class="h4">QC chart{{#unless range.active}} <span class="badge text-bg-secondary">retired range</span>{{/unless}}</h1>
 <p class="mb-1"><strong>{{range.instrument}}</strong> · <span class="font-monospace">{{range.test}}</span> · {{range.control}}</p>
 <p class="small text-body-secondary">Acceptable {{range.low}} to {{range.high}} {{range.units}}{{#if range.target}} · target {{range.target}}{{/if}}{{#if range.rules}} · Westgard {{range.rules}}{{/if}}. The latest {{limit}} numeric results for this range, oldest on the left. Results in other units are not plotted; they are on the <a href="/qc">QC log</a>.</p>
