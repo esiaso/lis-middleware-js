@@ -113,7 +113,7 @@ async function intake(instrumentId, store) {
  * Runs on its own, so it is also added to a demo that already has sample data.
  */
 async function instrumentDownSample() {
-  if (await db.patient.findUnique({ where: { mrn: 'MRN3014' } })) return;
+  if (await db.patient.findUnique({ where: { mrn: 'MRN3014' } })) return false;
   const hmisOrderId = 'DEMO-MRN3014';
   const order = { hmisOrderId, patient: { mrn: 'MRN3014', familyName: 'Ouma', givenName: 'Samuel', sex: 'M', birthDate: '1981-10-19' }, encounter: { hmisEncounterId: 'E-MRN3014', type: 'inpatient', location: 'Medical ward' }, priority: 'urgent', orderedAt: minutesAgo(45).toISOString(), orderingClinician: 'Dr Demo', lines: ['718-7', '6690-2', '777-3'].map((testCode, i) => ({ hmisLineId: `${hmisOrderId}-${i + 1}`, testCode })) };
   const { orderId } = await db.$transaction((tx) => ingestOrder(tx, HmisOrder.parse(order)));
@@ -122,13 +122,13 @@ async function instrumentDownSample() {
   await recordLabelPrint(db, specimenId, 'tech');
   await receiveSpecimen(db, specimenId, 'tech');
   console.log('sample: added a received blood count with no analyser result (instrument link down)');
+  return true;
 }
 
 async function main() {
   if (!(await db.appUser.count())) throw new Error('run demo/seed.mjs first');
   if (await db.instrument.findUnique({ where: { id: MARK } })) {
-    console.log('sample: sample data already present');
-    await instrumentDownSample();
+    if (!(await instrumentDownSample())) console.log('sample: sample data already present, nothing to do');
     return;
   }
 
