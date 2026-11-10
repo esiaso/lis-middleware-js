@@ -7,7 +7,11 @@ the hospital time zone.
 
 Navigation is a left-hand menu grouped as Overview, Specimens, Results,
 Quality, Set-up and Administration, with the current page highlighted and
-Audit and Users shown only to the roles that can open them. A group can be
+Audit and Users shown only to the roles that can open them. On every page,
+Critical, Unmatched, Failed deliveries and Downtime show how much work is
+waiting there (the same counts as the dashboard; red for calls and failures),
+read when the page is drawn; a count that cannot be read is left out rather
+than failing the page. A group can be
 folded; one script file of our own (`/static/app.js`, allowed by
 `script-src 'self'`) remembers folded groups in that browser only, and the
 group holding the current page is always open. Below 768px the menu folds

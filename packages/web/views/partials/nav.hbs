@@ -10,7 +10,7 @@
       <details class="app-nav-group" data-group="{{key}}"{{#if current}} data-current{{/if}} open>
         <summary class="app-nav-heading">{{label}}{{icon "chevron-down"}}</summary>
         <ul class="nav flex-column">
-          {{#each links}}<li class="nav-item"><a class="nav-link{{#if active}} active{{/if}}" href="{{href}}"{{#if active}} aria-current="page"{{/if}}>{{icon icon}}<span>{{label}}</span></a></li>{{/each}}
+          {{#each links}}<li class="nav-item"><a class="nav-link{{#if active}} active{{/if}}" href="{{href}}"{{#if active}} aria-current="page"{{/if}}>{{icon icon}}<span>{{label}}</span>{{#if count}}<span class="badge rounded-pill text-bg-{{countTone}} ms-auto">{{count}}<span class="visually-hidden"> waiting</span></span>{{/if}}</a></li>{{/each}}
         </ul>
       </details>
       {{/each}}

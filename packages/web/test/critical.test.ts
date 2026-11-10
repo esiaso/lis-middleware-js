@@ -91,6 +91,8 @@ describe.skipIf(!url)('critical results over HTTP', () => {
     const resultId = await arrive('7.2');
     expect((await db.resultVersion.findFirstOrThrow({ where: { resultId } })).criticalFlag).toBe('HIGH');
     expect((await dr.get('/')).html).toMatch(/1 critical result not yet called<\/strong> <span>oldest waiting 0:0\d/);
+    // Every page's menu shows the call waiting beside Critical.
+    expect((await dr.get('/orders')).html).toMatch(/href="\/critical">.*?<span>Critical<\/span><span class="badge rounded-pill text-bg-danger ms-auto">1<span class="visually-hidden"> waiting<\/span><\/span><\/a>/);
     const list = await dr.get('/critical');
     expect(list.html).toContain('EXAMPLE, Ben (MRN9)');
     expect(list.html).toContain('Ward 3');

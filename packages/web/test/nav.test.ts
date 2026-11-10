@@ -38,3 +38,14 @@ describe('menu groups and icons', () => {
     for (const g of navFor('/', ['admin', 'auditor'])) for (const l of g.links) expect(ICONS.has(l.icon)).toBe(true);
   });
 });
+
+describe('menu counts', () => {
+  it('puts the count of waiting work beside a link, in red for calls and failures, and nothing for zero', () => {
+    const links = navFor('/', ['tech'], { '/critical': 2, '/unmatched': 3, '/failed': 0 }).flatMap((g) => g.links);
+    const by = (href: string) => links.find((l) => l.href === href)!;
+    expect([by('/critical').count, by('/critical').countTone]).toEqual([2, 'danger']);
+    expect([by('/unmatched').count, by('/unmatched').countTone]).toEqual([3, 'secondary']);
+    expect(by('/failed').count).toBeUndefined();
+    expect(by('/orders').count).toBeUndefined();
+  });
+});
