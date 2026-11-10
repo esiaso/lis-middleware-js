@@ -19,6 +19,13 @@ behind a Menu button. Icons are Bootstrap Icons (MIT) from the installed
 package, served as one local sprite (`/static/icons.svg`) and hidden from
 screen readers.
 
+Every page opens with a page header: breadcrumbs (Dashboard, then the pages
+above this one, then this page, left out on the dashboard itself), the page
+title, and the page's main actions on the right. A specimen sits under its
+order, a QC chart under QC ranges, and an instrument's edit pages under the
+instrument. The breadcrumbs replace the old "back to …" links and are not
+printed.
+
 ## Status vocabulary (used everywhere)
 
 | Badge | Meaning | Colour + icon (never colour alone) |
@@ -189,6 +196,10 @@ verification with the vendor report attached.
   version arriving after review resets the item to RECEIVED.
 * Approve & release shows a confirmation listing exactly which values will
   be sent.
+* A single result's page opens with a summary card: the selected value,
+  large, with its flags, next to the patient, order, specimen, the
+  instrument it came from (or who entered it by hand, and the lot), and the
+  reference range, with a status badge and a link to the order's report.
 * Corrections open a form: new value or choose version, mandatory reason,
   approver signature (re-enter password or SSO step-up if available).
 
@@ -336,7 +347,9 @@ instrument sent with the value, or the lab's own range when one applies (A-25, m
 and who approved it and when, with any report comments (A-26) under the line. Every other test prints as pending or
 cancelled, never with a value. Each view is recorded in the audit trail
 (`order.report-viewed`). For handing results out during HMIS downtime; the
-HMIS record stays the official result once it has it.
+HMIS record stays the official result once it has it. The page has a
+Print button; when printed, the menu, breadcrumbs and buttons are left out,
+and each page carries "Page n of N" where the browser supports it.
 
 ## W-15 QC chart (Levey-Jennings)
 

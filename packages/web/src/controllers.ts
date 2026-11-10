@@ -1,4 +1,5 @@
 import { navFor } from './nav.js';
+import { crumbsFor } from './crumbs.js';
 import { randomBytes } from 'node:crypto';
 import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
@@ -8,7 +9,7 @@ import { activeEntry, addResultComment, approve, confirmLink, decisionsFor, fail
 import type { CookieOptions, Response } from 'express';
 import { confirmIdentity, login, logout, oidcSignIn, recordStepUp, STEP_UP_MS, type LoginResult } from './auth.js';
 import { directory } from './ldap.js';
-import { callDue, displayTimeZone, elapsed, formatTime, formatValue, NOTICES, REFERENCE_MARK, parseEnteredValue, safeNext, STATUS_LABELS } from './format.js';
+import { callDue, displayTimeZone, elapsed, formatTime, formatValue, NOTICES, REFERENCE_MARK, parseEnteredValue, safeNext, STATUS_LABELS, STATUS_TONE } from './format.js';
 import { LOGIN_CSRF_COOKIE, OpenDuringPasswordChange, Public, Roles, SESSION_COOKIE, type WebRequest } from './security.js';
 import { CALLBACK_PATH, FLIGHT_MS, OIDC_COOKIE, OidcRefused, START_PATH, STEP_UP_PATH, type Oidc } from './oidc.js';
 import { DB, OIDC, WEB_OPTIONS, type WebOptions } from './tokens.js';
@@ -41,6 +42,7 @@ export function page(req: WebRequest, res: Response, view: string, data: Record<
     csrf: req.user?.csrfToken,
     notice,
     timeZone: displayTimeZone(),
+    crumbs: req.user ? crumbsFor(req.path, data) : [],
     nav: req.user ? navFor(req.path, roles, (res.locals['navCounts'] as Record<string, number> | undefined) ?? {}) : [],
     // For hospital sign-in accounts, forms that need re-confirmation show a link back to this page.
     stepUp: req.user?.sso
@@ -352,6 +354,7 @@ export class ResultsController {
       r: {
         id: r.id,
         status: STATUS_LABELS[r.status] ?? r.status,
+        statusTone: STATUS_TONE[r.status] ?? 'secondary',
         reviewedBy: r.reviewedBy,
         approvedBy: r.approvedBy,
         autoverified: r.approvedBy === AUTOVERIFY_ACTOR,
@@ -360,10 +363,10 @@ export class ResultsController {
       },
       patient: patientName(t.order.patient),
       patientId: t.order.patient.id,
-      order: { hmisOrderId: t.order.hmisOrderId, priority: t.order.priority, orderedAt: formatTime(t.order.orderedAt) },
+      order: { id: t.order.id, hmisOrderId: t.order.hmisOrderId, priority: t.order.priority, orderedAt: formatTime(t.order.orderedAt) },
       test: { local: t.localTestCode, hmis: t.hmisTestCode },
-      specimen: t.specimen ? { accessionNo: t.specimen.accessionNo, collectedAt: formatTime(t.specimen.collectedAt) } : null,
-      instrument: inst ? { name: inst.displayName, model: `${inst.manufacturer} ${inst.model}` } : null,
+      specimen: t.specimen ? { id: t.specimen.id, accessionNo: t.specimen.accessionNo, collectedAt: formatTime(t.specimen.collectedAt) } : null,
+      instrument: inst ? { id: inst.id, name: inst.displayName, model: `${inst.manufacturer} ${inst.model}` } : null,
       notClinical: gate.releasable ? null : gate.detail,
       downtime: t.order.source === 'MANUAL_DOWNTIME' ? { orderId: t.order.id, id: t.order.hmisOrderId } : null,
       addedByLab: t.source === 'LAB_ADDED' ? { orderId: t.order.id, requestedBy: t.requestedBy ?? '' } : null,
