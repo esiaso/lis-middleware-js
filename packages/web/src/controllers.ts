@@ -41,7 +41,7 @@ export function page(req: WebRequest, res: Response, view: string, data: Record<
     csrf: req.user?.csrfToken,
     notice,
     timeZone: displayTimeZone(),
-    nav: req.user ? navFor(req.path, roles) : [],
+    nav: req.user ? navFor(req.path, roles, (res.locals['navCounts'] as Record<string, number> | undefined) ?? {}) : [],
     // For hospital sign-in accounts, forms that need re-confirmation show a link back to this page.
     stepUp: req.user?.sso
       ? {

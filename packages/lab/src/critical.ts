@@ -118,6 +118,18 @@ export async function waitingCriticals(db: Db | Tx, limit = 100): Promise<Waitin
 /** Waiting criticals whose call target has passed. */
 export const pastTarget = (rows: readonly WaitingCritical[], now = new Date()): WaitingCritical[] => rows.filter((r) => r.due && r.due.getTime() < now.getTime());
 
+/** How many critical versions are waiting for a call (for the menu count). */
+export async function countWaitingCriticals(db: Db | Tx): Promise<number> {
+  const [row] = await db.$queryRaw<{ n: bigint }[]>`
+    SELECT count(*) AS n
+      FROM result_version v
+      JOIN result r ON r.id = v.result_id
+     WHERE v.critical_flag IN ('LOW', 'HIGH', 'ANSWER')
+       AND v.version_no >= COALESCE(r.selected_version_no, 0)
+       AND NOT EXISTS (SELECT 1 FROM critical_call c WHERE c.result_id = v.result_id AND c.version_no = v.version_no)`;
+  return Number(row?.n ?? 0);
+}
+
 function waitingRows(db: Db | Tx, limit: number) {
   return db.$queryRaw<Omit<WaitingCritical, 'targetMinutes' | 'due'>[]>`
     SELECT r.id AS "resultId", v.version_no AS "versionNo", v.critical_flag AS flag, COALESCE(v.critical_detail, '') AS detail, v.created_at AS "arrivedAt",

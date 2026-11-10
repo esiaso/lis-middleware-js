@@ -12,6 +12,7 @@ import type { Express } from 'express';
 import type { Db } from '@lis/db';
 import cookieParser from 'cookie-parser';
 import hbs from 'hbs';
+import { navCountsMiddleware } from './nav-counts.js';
 import { ICON_SPRITE_PATH, iconSprite, iconSvg } from './icons.js';
 import { pino, type Logger } from 'pino';
 import { DEFAULT_SESSION_POLICY } from './auth.js';
@@ -90,6 +91,7 @@ export async function createApp(db: Db, o: CreateAppOptions = {}): Promise<NestE
   app.use(securityHeaders(opts.secureCookies));
   app.use(cookieParser());
   app.use(sessionMiddleware(db, opts.session));
+  app.use(navCountsMiddleware(db, logger));
   const bootstrapDist = join(dirname(createRequire(import.meta.url).resolve('bootstrap/package.json')), 'dist');
   app.useStaticAssets(join(bootstrapDist, 'css'), { prefix: '/static/bootstrap/', index: false });
   const sprite = iconSprite();

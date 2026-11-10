@@ -12,3 +12,5 @@ echo "setup: applying database migrations"
 npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
 echo "setup: demo accounts and tests"
 node demo/seed.mjs
+echo "setup: demo sample data"
+node demo/sample.mjs
