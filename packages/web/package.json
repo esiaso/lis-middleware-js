@@ -36,6 +36,7 @@
     "@nestjs/core": "12.3.2",
     "@nestjs/platform-express": "12.3.2",
     "bootstrap": "5.3.8",
+    "bootstrap-icons": "1.13.2",
     "bwip-js": "4.11.4",
     "cookie-parser": "1.4.7",
     "hbs": "4.4.0",

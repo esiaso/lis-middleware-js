@@ -1,18 +1,18 @@
 <aside class="app-sidebar border-end bg-body-tertiary d-print-none" aria-label="Main menu">
   <div class="app-sidebar-head d-flex align-items-center justify-content-between px-3 py-2">
-    <a class="app-brand text-decoration-none text-body fw-semibold" href="/">Lab middleware</a>
-    <label class="btn btn-outline-secondary btn-sm app-nav-button" for="app-nav-toggle">Menu</label>
+    <a class="app-brand text-decoration-none text-body fw-semibold d-flex align-items-center gap-2" href="/">{{icon "hospital"}}<span>Lab middleware</span></a>
+    <label class="btn btn-outline-secondary btn-sm app-nav-button" for="app-nav-toggle">{{icon "list"}}<span>Menu</span></label>
   </div>
   <input type="checkbox" id="app-nav-toggle" class="app-nav-toggle visually-hidden" aria-label="Show the menu">
   <div class="app-nav">
     <nav>
       {{#each nav}}
-      <div class="app-nav-group">
-        <div class="app-nav-heading">{{label}}</div>
+      <details class="app-nav-group" data-group="{{key}}"{{#if current}} data-current{{/if}} open>
+        <summary class="app-nav-heading">{{label}}{{icon "chevron-down"}}</summary>
         <ul class="nav flex-column">
-          {{#each links}}<li class="nav-item"><a class="nav-link{{#if active}} active{{/if}}" href="{{href}}"{{#if active}} aria-current="page"{{/if}}>{{label}}</a></li>{{/each}}
+          {{#each links}}<li class="nav-item"><a class="nav-link{{#if active}} active{{/if}}" href="{{href}}"{{#if active}} aria-current="page"{{/if}}>{{icon icon}}<span>{{label}}</span></a></li>{{/each}}
         </ul>
-      </div>
+      </details>
       {{/each}}
     </nav>
     <div class="app-nav-user border-top px-3 py-3">
@@ -20,7 +20,7 @@
       <div class="small text-body-secondary mb-2">{{#each user.roles}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</div>
       <form method="post" action="/logout">
         <input type="hidden" name="_csrf" value="{{csrf}}">
-        <button class="btn btn-outline-secondary btn-sm w-100" type="submit">Sign out</button>
+        <button class="btn btn-outline-secondary btn-sm w-100 d-inline-flex align-items-center justify-content-center gap-1" type="submit">{{icon "box-arrow-right"}}<span>Sign out</span></button>
       </form>
     </div>
   </div>

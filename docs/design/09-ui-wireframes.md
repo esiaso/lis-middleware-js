@@ -5,6 +5,16 @@ work without JavaScript; small scripts add barcode-scanner focus handling and
 auto-refresh of status panels. Every page shows the logged-in user, role, and
 the hospital time zone.
 
+Navigation is a left-hand menu grouped as Overview, Specimens, Results,
+Quality, Set-up and Administration, with the current page highlighted and
+Audit and Users shown only to the roles that can open them. A group can be
+folded; one script file of our own (`/static/app.js`, allowed by
+`script-src 'self'`) remembers folded groups in that browser only, and the
+group holding the current page is always open. Below 768px the menu folds
+behind a Menu button. Icons are Bootstrap Icons (MIT) from the installed
+package, served as one local sprite (`/static/icons.svg`) and hidden from
+screen readers.
+
 ## Status vocabulary (used everywhere)
 
 | Badge | Meaning | Colour + icon (never colour alone) |
@@ -393,7 +403,7 @@ auditors can download the same as CSV; each download is audited as
 
 ## W-21 HMIS link
 
-**HMIS link** (top menu; any signed-in user; refreshes every minute): how
+**HMIS link** (left-hand menu; any signed-in user; refreshes every minute): how
 the jobs worker's link to the HMIS is going (07 §6.6).
 
 * **Order feed**: the connector, the last poll and whether it worked (or
@@ -413,7 +423,7 @@ released result has waited more than 15 minutes.
 
 ## W-22 Test catalogue
 
-**Catalogue** (top menu; any signed-in user can read it; administrators and
+**Catalogue** (left-hand menu; any signed-in user can read it; administrators and
 approvers change it): the lab's own tests (A-31).
 
 * **Waiting for approval**: drafts with code, version, test, LOINC code,
@@ -435,7 +445,7 @@ approvers change it): the lab's own tests (A-31).
 
 ## W-23 Manual worksheet
 
-**Worksheet** (top menu; technologists and approvers enter results): received
+**Worksheet** (left-hand menu; technologists and approvers enter results): received
 specimens waiting for a test performed by a person, STAT first, then oldest
 first, filtered by bench (A-31).
 

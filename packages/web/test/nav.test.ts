@@ -20,3 +20,21 @@ describe('left-hand menu', () => {
     expect(navFor('/', ['admin', 'auditor']).find((g) => g.label === 'Administration')?.links.map((l) => l.href)).toEqual(['/audit', '/users']);
   });
 });
+
+describe('menu groups and icons', () => {
+  it('marks the group holding the current page, so it is never shown folded', () => {
+    const groups = navFor('/worksheet/qc', ['tech']);
+    expect(groups.filter((g) => g.current).map((g) => g.key)).toEqual(['quality']);
+    expect(navFor('/account/password', ['tech']).some((g) => g.current)).toBe(false);
+  });
+
+  it('draws icons from one local sprite, and refuses a name that is not in it', async () => {
+    const { iconSprite, iconSvg, ICONS } = await import('../src/icons.js');
+    expect(iconSvg('speedometer2')).toBe('<svg class="bi" aria-hidden="true" focusable="false"><use href="/static/icons.svg#speedometer2"></use></svg>');
+    expect(() => iconSvg('../package')).toThrow('unknown icon');
+    const sprite = iconSprite();
+    for (const name of ICONS) expect(sprite).toContain(`<symbol id="${name}" viewBox="0 0 16 16"><path`);
+    expect(sprite).not.toContain('style=');
+    for (const g of navFor('/', ['admin', 'auditor'])) for (const l of g.links) expect(ICONS.has(l.icon)).toBe(true);
+  });
+});

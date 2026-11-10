@@ -163,6 +163,7 @@ describe.skipIf(!url)('web screens over HTTP', () => {
     expect((await b.get('/failed')).status).toBe(200);
     expect((await b.get('/hmis')).html).toContain('No order poll has been recorded');
     expect(dash.html).not.toContain('href="/hmis">Open');
+    expect(dash.html).toContain('No critical calls, QC failures, late results or HMIS link problems right now.');
     await db.hmisPollStatus.create({ data: { name: 'orders', profile: 'fhir-r4@1', lastAttemptAt: new Date(), failuresInARow: 3, lastError: 'ServiceRequest/sr9: no code with system https://hmis.example/test', lastErrorAt: new Date() } });
     expect((await b.get('/')).html).toContain('the last 3 order polls failed');
     const hmisPage = await b.get('/hmis');
@@ -170,6 +171,11 @@ describe.skipIf(!url)('web screens over HTTP', () => {
     expect(hmisPage.html).toContain('ServiceRequest/sr9: no code with system https://hmis.example/test');
     expect((await b.get('/results/not-a-uuid')).status).toBe(404);
     expect((await b.get('/static/bootstrap/bootstrap.min.css')).status).toBe(200);
+    // The menu script is a file of our own, so the CSP still allows only script-src 'self'.
+    expect((await b.get('/')).html).toContain('<script src="/static/app.js" defer></script>');
+    expect((await b.get('/static/app.js')).status).toBe(200);
+    const sprite = await b.get('/static/icons.svg');
+    expect([sprite.status, sprite.html.startsWith('<svg xmlns="http://www.w3.org/2000/svg"><symbol id=')]).toEqual([200, true]);
 
     const token = b.cookies.get('lims_session') as string;
     const csrf = await b.csrf();
