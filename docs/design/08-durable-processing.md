@@ -268,9 +268,9 @@ hospital's email/SMS gateway or monitoring system.
   latest result failed; the dashboard warns until a later result passes.
   **Westgard rules, built** (A-23): a range may carry the control's target
   mean and SD and the lab's choice of 1-2s (warning), 1-3s, 2-2s, 4-1s and
-  10x, checked along that control's earlier accepted results, and R-4s,
-  checked against the test's other controls within a run window the lab
-  sets (A-38); a rejection
+  10x, checked along that control's earlier accepted results, and R-4s
+  and 2-2s within the run, checked against the test's other controls within
+  a run window the lab sets (A-38, A-40); a rejection
   inside the range is `RULE_VIOLATION`. The z score and the rules broken are
   kept on `qc_evaluation`. Each range has a Levey-Jennings chart (W-15).
 * **Critical results**: a configurable critical range per test and patient

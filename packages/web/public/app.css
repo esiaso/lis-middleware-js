@@ -25,6 +25,19 @@
 .lj-key.lj-ok::before { background: var(--bs-success); }
 .lj-key.lj-rule::before { background: var(--bs-warning); }
 .lj-key.lj-bad::before { background: var(--bs-danger); }
+/* Bootstrap Icons, inlined as SVG (icons.ts). */
+.bi { width: 1em; height: 1em; flex: none; vertical-align: -.125em; }
+.app-nav .nav-link .bi { color: var(--bs-secondary-color); }
+.app-nav .nav-link.active .bi { color: inherit; }
+/* Dashboard tiles. */
+.dash-tile { transition: border-color .15s, box-shadow .15s; }
+.dash-tile:hover { box-shadow: var(--bs-box-shadow-sm); }
+.dash-tile .dash-icon { flex: none; font-size: 1.4rem; display: inline-flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
+.dash-tile.dash-busy .dash-icon { background: var(--bs-primary-bg-subtle); color: var(--bs-primary-text-emphasis); }
+.dash-tile.dash-alert { border-color: var(--bs-danger); }
+.dash-tile.dash-alert .dash-icon { background: var(--bs-danger-bg-subtle); color: var(--bs-danger-text-emphasis); }
+.dash-tile .dash-n { font-size: 2rem; font-weight: 600; line-height: 1.1; }
+.dash-banner .bi { font-size: 1.25rem; }
 /* Left-hand menu (09 §1). No script: on narrow screens a checkbox shows and hides it. */
 .app-shell { display: flex; min-height: 100vh; }
 .app-sidebar { width: 14rem; flex: 0 0 14rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
@@ -35,14 +48,20 @@
 .app-nav-button { display: none; }
 .app-nav-group { padding: .375rem .5rem 0; }
 .app-nav-heading { font-size: .7rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--bs-secondary-color); padding: .2rem .75rem; }
-.app-nav .nav-link { color: var(--bs-body-color); padding: .2rem .75rem; border-radius: var(--bs-border-radius); font-size: .925rem; }
+summary.app-nav-heading { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; border-radius: var(--bs-border-radius); user-select: none; }
+summary.app-nav-heading::-webkit-details-marker { display: none; }
+summary.app-nav-heading:hover { color: var(--bs-body-color); }
+summary.app-nav-heading:focus-visible { outline: 2px solid var(--bs-primary); }
+summary.app-nav-heading .bi { transition: transform .15s; }
+details:not([open]) > summary.app-nav-heading .bi { transform: rotate(-90deg); }
+.app-nav .nav-link { display: flex; align-items: center; gap: .55rem; color: var(--bs-body-color); padding: .2rem .75rem; border-radius: var(--bs-border-radius); font-size: .925rem; }
 .app-nav .nav-link:hover { background: var(--bs-secondary-bg); }
 .app-nav .nav-link.active { background: var(--bs-primary); color: #fff; }
 .app-nav-toggle:focus-visible + .app-nav, .app-nav-button:focus-visible { outline: 2px solid var(--bs-primary); }
 @media (max-width: 767.98px) {
   .app-shell { display: block; }
   .app-sidebar { width: auto; height: auto; position: static; border-right: 0 !important; border-bottom: 1px solid var(--bs-border-color); }
-  .app-nav-button { display: inline-block; }
+  .app-nav-button { display: inline-flex; align-items: center; gap: .25rem; }
   .app-nav-toggle:not(:checked) + .app-nav { display: none; }
 }
 @media print {

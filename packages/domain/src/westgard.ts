@@ -9,18 +9,21 @@ import { compareDecimal, isDecimal } from './critical-limits.js';
  * the lab's choice. None are on by default.
  *
  * Assumptions, labelled as such in 01 A-23:
- * - Rules other than R-4s look along one control's own series (across
- *   runs). Instruments send each control as its own QC message, so there is
- *   no run in the messages; for R-4s the lab defines one per range as the
- *   other controls of the same test on the same instrument within a number
- *   of minutes (A-38).
+ * - Rules other than R-4s and 2-2s within the run look along one control's
+ *   own series (across runs). Instruments send each control as its own QC
+ *   message, so there is no run in the messages; for the two within-run
+ *   rules the lab defines one per range as the other controls of the same
+ *   test on the same instrument within a number of minutes (A-38, A-40).
  * - The series is the earlier results for the same range that were
  *   accepted (IN_RANGE). Results already rejected do not count again, so a
  *   rerun after corrective action starts clean, as the lab's QC procedure
  *   would expect.
  */
-export const WESTGARD_RULES = ['1-2s', '1-3s', '2-2s', 'R-4s', '4-1s', '10x'] as const;
+export const WESTGARD_RULES = ['1-2s', '1-3s', '2-2s', '2-2s-run', 'R-4s', '4-1s', '10x'] as const;
 export type WestgardRule = (typeof WESTGARD_RULES)[number];
+
+/** The rules that compare this control with the other controls in its run, so need the run window. */
+export const WESTGARD_RUN_RULES: readonly WestgardRule[] = ['2-2s-run', 'R-4s'];
 
 /** 1-2s is a warning in the classic multirule scheme; the others reject. */
 export const WESTGARD_WARNING: readonly WestgardRule[] = ['1-2s'];
@@ -29,6 +32,7 @@ export const WESTGARD_LABEL: Record<WestgardRule, string> = {
   '1-2s': '1-2s: one result beyond 2 SD (warning)',
   '1-3s': '1-3s: one result beyond 3 SD',
   '2-2s': '2-2s: two results in a row beyond 2 SD on the same side',
+  '2-2s-run': '2-2s within the run: this control and another control in the same run both beyond 2 SD on the same side (needs the run window)',
   'R-4s': 'R-4s: in one run, this control beyond 2 SD and another control beyond 2 SD on the other side (needs the run window)',
   '4-1s': '4-1s: four results in a row beyond 1 SD on the same side',
   '10x': '10x: ten results in a row on the same side of the mean',
@@ -48,7 +52,7 @@ function run(zs: number[], n: number, limit: number): boolean {
 
 /**
  * Checks the current z score with the earlier accepted ones, most recent
- * first, and for R-4s with the z scores of the other controls in the same
+ * first, and for the within-run rules with the z scores of the other controls in the same
  * run (`runPeers`). Returns the rules broken, split into rejections and warnings.
  */
 export function evaluateWestgard(z: number, earlier: number[], rules: readonly WestgardRule[], runPeers: readonly number[] = []): { reject: WestgardRule[]; warn: WestgardRule[] } {
@@ -58,6 +62,7 @@ export function evaluateWestgard(z: number, earlier: number[], rules: readonly W
       case '1-2s': return Math.abs(z) > 2;
       case '1-3s': return Math.abs(z) > 3;
       case '2-2s': return run(zs, 2, 2);
+      case '2-2s-run': return (z > 2 && runPeers.some((p) => p > 2)) || (z < -2 && runPeers.some((p) => p < -2));
       case 'R-4s': return (z > 2 && runPeers.some((p) => p < -2)) || (z < -2 && runPeers.some((p) => p > 2));
       case '4-1s': return run(zs, 4, 1);
       case '10x': return run(zs, 10, 0);
@@ -73,7 +78,7 @@ export interface ParsedWestgard {
   targetMean: string | null;
   targetSd: string | null;
   westgardRules: WestgardRule[];
-  /** For R-4s: other controls of the same test on the same instrument within this many minutes are one run. */
+  /** For the within-run rules (R-4s, 2-2s within the run): other controls of the same test on the same instrument within this many minutes are one run. */
   runMinutes: number | null;
 }
 
@@ -91,8 +96,9 @@ export function parseWestgard(mean: string, sd: string, rules: string[], runMinu
   if (!isDecimal(m)) issues.push('The target mean must be a number such as 4.5, or leave both mean and SD empty.');
   if (!isDecimal(s) || compareDecimal(s, '0') <= 0) issues.push('The target SD must be a number above 0, such as 0.12, or leave both mean and SD empty.');
   const rm = runMinutes.trim();
-  const wantsRun = chosen.includes('R-4s');
-  if (wantsRun && (!/^\d{1,3}$/.test(rm) || Number(rm) < 1 || Number(rm) > 240)) issues.push('R-4s needs the run window: 1 to 240 minutes within which this control and the other controls of the test count as one run.');
+  const runRules = WESTGARD_RUN_RULES.filter((r) => chosen.includes(r));
+  const wantsRun = runRules.length > 0;
+  if (wantsRun && (!/^\d{1,3}$/.test(rm) || Number(rm) < 1 || Number(rm) > 240)) issues.push(`${runRules.join(' and ')} ${runRules.length > 1 ? 'need' : 'needs'} the run window: 1 to 240 minutes within which this control and the other controls of the test count as one run.`);
   if (issues.length) return { ok: false, issues };
   const order = WESTGARD_RULES.filter((r) => chosen.includes(r));
   return { ok: true, value: { targetMean: m, targetSd: s, westgardRules: order, runMinutes: wantsRun ? Number(rm) : null } };

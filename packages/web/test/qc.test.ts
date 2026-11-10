@@ -213,6 +213,27 @@ describe.skipIf(!url)('QC log over HTTP', () => {
     expect([e.outcome, e.westgardReject]).toEqual(['IN_RANGE', []]);
   });
 
+  it('applies 2-2s within the run across two controls on the same side (A-40)', async () => {
+    const dr = await as('dr.lab');
+    const csrf = await dr.csrf('/qc/ranges');
+    const level = { ...rangeForm, _csrf: csrf, targetSd: '0.1', westgardRules: ['2-2s-run'] };
+    const noWindow = await dr.post('/qc/ranges', { ...level, targetMean: '4.5' });
+    expect(noWindow.status).toBe(422);
+    expect(noWindow.html).toContain('2-2s-run needs the run window');
+    expect((await dr.post('/qc/ranges', { ...level, targetMean: '4.5', runMinutes: '30' })).status).toBe(303);
+    expect((await dr.post('/qc/ranges', { ...level, controlLot: 'L777', low: '6.0', high: '8.0', targetMean: '7.0', runMinutes: '30' })).status).toBe(303);
+    expect((await dr.get('/qc/ranges')).html).toContain('2-2s-run (run 30 min)');
+
+    await qc([['K', '4.73']], { lot: 'L123' }); // level 1 at +2.3 SD: alone, nothing broken
+    let e = await db.qcEvaluation.findFirstOrThrow({ orderBy: [{ at: 'desc' }, { id: 'desc' }] });
+    expect([e.outcome, e.westgardReject]).toEqual(['IN_RANGE', []]);
+    await qc([['K', '7.22']], { lot: 'L777' }); // level 2 at +2.2 SD in the same run: 2-2s within the run
+    e = await db.qcEvaluation.findFirstOrThrow({ orderBy: [{ at: 'desc' }, { id: 'desc' }] });
+    expect([e.outcome, e.westgardReject]).toEqual(['RULE_VIOLATION', ['2-2s-run']]);
+    expect(e.detail).toBe('7.22 within 6.0 to 8.0 mmol/L, z 2.20; breaks 2-2s-run');
+    expect((await failingQc(db)).length).toBe(1);
+  });
+
   it('summarises each range over a period, with a CSV for approvers and auditors', async () => {
     const dr = await as('dr.lab');
     const csrf = await dr.csrf('/qc/ranges');

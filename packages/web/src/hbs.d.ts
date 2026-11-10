@@ -5,6 +5,7 @@ declare module 'hbs' {
     __express: (path: string, options: object, cb: (err: Error | null, html?: string) => void) => void;
     registerHelper(name: string, fn: Helper): void;
     registerPartial(name: string, template: string): void;
+    handlebars: { SafeString: new (s: string) => object };
   }
   const hbs: HbsInstance & { create(): HbsInstance };
   export default hbs;

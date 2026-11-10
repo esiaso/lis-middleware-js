@@ -252,12 +252,12 @@ export class DashboardController {
         };
       }),
       tiles: [
-        { label: 'To review', n: counts['received'] ?? 0, href: '/results?status=received' },
-        { label: 'To approve', n: counts['reviewed'] ?? 0, href: '/results?status=reviewed' },
-        { label: 'Approved, not released', n: counts['approved'] ?? 0, href: '/results?status=approved' },
-        { label: 'Unmatched', n: unmatched, href: '/unmatched' },
-        { label: 'Failed deliveries', n: (counts['failed'] ?? 0) + failedOutbox + needsConfirmation, href: '/failed', alert: true },
-      ],
+        { label: 'To review', hint: 'results waiting for a first check', icon: 'inbox', n: counts['received'] ?? 0, href: '/results?status=received' },
+        { label: 'To approve', hint: 'reviewed, waiting for an approver', icon: 'patch-check', n: counts['reviewed'] ?? 0, href: '/results?status=reviewed' },
+        { label: 'Approved, not released', hint: 'ready to send to the HMIS', icon: 'send', n: counts['approved'] ?? 0, href: '/results?status=approved' },
+        { label: 'Unmatched', hint: 'instrument results with no order', icon: 'question-diamond', n: unmatched, href: '/unmatched' },
+        { label: 'Failed deliveries', hint: 'not accepted by the HMIS', icon: 'x-octagon', n: (counts['failed'] ?? 0) + failedOutbox + needsConfirmation, href: '/failed', alert: true },
+      ].map((t) => ({ ...t, tone: t.n === 0 ? '' : t.alert ? 'dash-alert' : 'dash-busy' })),
     });
   }
 }

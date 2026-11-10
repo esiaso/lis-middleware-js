@@ -8,9 +8,11 @@ import { fileURLToPath } from 'node:url';
 import { Module, type DynamicModule } from '@nestjs/common';
 import { APP_GUARD, NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import type { Express } from 'express';
 import type { Db } from '@lis/db';
 import cookieParser from 'cookie-parser';
 import hbs from 'hbs';
+import { ICON_SPRITE_PATH, iconSprite, iconSvg } from './icons.js';
 import { pino, type Logger } from 'pino';
 import { DEFAULT_SESSION_POLICY } from './auth.js';
 import { AuthController, DashboardController, FailedController, HealthController, ResultsController, UnmatchedController } from './controllers.js';
@@ -61,6 +63,7 @@ function viewEngine() {
   const partials = join(pkgRoot, 'views', 'partials');
   for (const f of readdirSync(partials)) if (f.endsWith('.hbs')) engine.registerPartial(basename(f, '.hbs'), readFileSync(join(partials, f), 'utf8'));
   engine.registerHelper('eq', ((a: unknown, b: unknown) => a === b) as never);
+  engine.registerHelper('icon', ((name: unknown) => new engine.handlebars.SafeString(iconSvg(String(name)))) as never);
   return engine;
 }
 
@@ -89,6 +92,8 @@ export async function createApp(db: Db, o: CreateAppOptions = {}): Promise<NestE
   app.use(sessionMiddleware(db, opts.session));
   const bootstrapDist = join(dirname(createRequire(import.meta.url).resolve('bootstrap/package.json')), 'dist');
   app.useStaticAssets(join(bootstrapDist, 'css'), { prefix: '/static/bootstrap/', index: false });
+  const sprite = iconSprite();
+  (app.getHttpAdapter().getInstance() as Express).get(ICON_SPRITE_PATH, (_req, res) => res.type('image/svg+xml').set('Cache-Control', 'public, max-age=3600').send(sprite));
   app.useStaticAssets(join(pkgRoot, 'public'), { prefix: '/static/', index: false });
   app.engine('hbs', viewEngine().__express);
   app.setBaseViewsDir(join(pkgRoot, 'views'));
