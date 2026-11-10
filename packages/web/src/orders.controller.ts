@@ -4,6 +4,7 @@ import type { Db } from '@lis/db';
 import { accessionSpecimen, InvalidInput, matchAddedTest, receiveSpecimen, recordLabelPrint, rejectSpecimen, REJECTION_REASONS, type RejectionReason } from '@lis/lab';
 import bwipjs from 'bwip-js';
 import type { Response } from 'express';
+import { PAGE_SIZE, pageParam, pagerFor, pageWindow } from './paging.js';
 import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
 import { fromZonedLocal, zonedLocal } from '@lis/domain';
 import { displayTimeZone, formatTime, formatValue, STATUS_LABELS } from './format.js';
@@ -32,7 +33,7 @@ export class OrdersController {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   @Get('orders')
-  async list(@Req() req: WebRequest, @Res() res: Response, @Query('filter') f?: string, @Query('q') q?: string, @Query('stat') stat?: string): Promise<void> {
+  async list(@Req() req: WebRequest, @Res() res: Response, @Query('filter') f?: string, @Query('q') q?: string, @Query('stat') stat?: string, @Query('page') p?: string): Promise<void> {
     const filter: Filter = f && f in FILTERS ? (f as Filter) : 'awaiting';
     const search = (q ?? '').trim().slice(0, 60);
     const where = {
@@ -52,11 +53,14 @@ export class OrdersController {
           : {},
       ],
     };
+    const total = await this.db.labOrder.count({ where });
+    const { page: shown, skip } = pageWindow(pageParam(p), total);
     const orders = await this.db.labOrder.findMany({
       where,
       // STAT first, then oldest first: what the collector should do next.
-      orderBy: [{ priority: 'desc' }, { orderedAt: 'asc' }],
-      take: 200,
+      orderBy: [{ priority: 'desc' }, { orderedAt: 'asc' }, { id: 'asc' }],
+      skip,
+      take: PAGE_SIZE,
       include: { patient: true, tests: true },
     });
     // A single exact accession hit goes straight to that order (scanner at the bench).
@@ -67,6 +71,7 @@ export class OrdersController {
       stat: stat === '1',
       filter,
       filters: Object.entries(FILTERS).map(([value, label]) => ({ value, label, active: value === filter })),
+      pager: pagerFor('/orders', { filter: filter === 'awaiting' ? undefined : filter, q: search, stat: stat === '1' ? '1' : undefined }, shown, total),
       rows: orders.map((o) => ({
         id: o.id,
         hmisOrderId: o.hmisOrderId,

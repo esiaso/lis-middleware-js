@@ -1,0 +1,17 @@
+{{#if pager.total}}
+<div class="list-pager d-print-none">
+  <span class="small text-body-secondary">{{pager.from}}–{{pager.to}} of {{pager.total}}</span>
+  {{#if (gt pager.pages 1)}}
+  <nav aria-label="Pages">
+    <ul class="pagination pagination-sm mb-0">
+      <li class="page-item{{#unless pager.prev}} disabled{{/unless}}">{{#if pager.prev}}<a class="page-link" href="{{pager.prev}}" rel="prev">Previous</a>{{else}}<span class="page-link">Previous</span>{{/if}}</li>
+      {{#each pager.links}}
+      {{#if gap}}<li class="page-item disabled"><span class="page-link">…</span></li>{{/if}}
+      <li class="page-item{{#if current}} active{{/if}}">{{#if current}}<span class="page-link" aria-current="page">{{n}}</span>{{else}}<a class="page-link" href="{{href}}">{{n}}</a>{{/if}}</li>
+      {{/each}}
+      <li class="page-item{{#unless pager.next}} disabled{{/unless}}">{{#if pager.next}}<a class="page-link" href="{{pager.next}}" rel="next">Next</a>{{else}}<span class="page-link">Next</span>{{/if}}</li>
+    </ul>
+  </nav>
+  {{/if}}
+</div>
+{{/if}}

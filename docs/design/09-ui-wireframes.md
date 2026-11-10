@@ -36,6 +36,12 @@ License, `public/fonts/inter/OFL.txt`) from the project folder. No page links
 to or loads anything from outside. A white top bar holds the breadcrumbs and
 the signed-in person (initials, name, roles, Sign out).
 
+Long lists show 50 rows a page, with "51–100 of 812" and links to the first,
+last and nearby pages; the list's search and filters stay on every link, and
+a page past the end shows the last page. The results list can be searched by
+accession, MRN, family name, HMIS order or test code, and each status filter
+shows how many results it holds (for the current search).
+
 Explanatory notes on a page, and the hints under form fields, start folded:
 an info icon beside the heading or field label shows them, and a heading's
 icon shows every note under it. With no script they are simply shown.

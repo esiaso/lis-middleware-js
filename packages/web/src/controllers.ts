@@ -1,5 +1,6 @@
 import { navFor } from './nav.js';
 import { crumbsFor } from './crumbs.js';
+import { PAGE_SIZE, pageParam, pagerFor, pageWindow } from './paging.js';
 import { randomBytes } from 'node:crypto';
 import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { ResultValue, VerificationStatus } from '@lis/contracts';
@@ -277,18 +278,53 @@ export class ResultsController {
   ) {}
 
   @Get()
-  async list(@Req() req: WebRequest, @Res() res: Response, @Query('status') status?: string): Promise<void> {
+  async list(@Req() req: WebRequest, @Res() res: Response, @Query('status') status?: string, @Query('q') q?: string, @Query('page') p?: string): Promise<void> {
     const filter = status && status in STATUS_LABELS ? status : undefined;
+    const search = (typeof q === 'string' ? q : '').trim().slice(0, 60);
+    const like = { contains: search, mode: 'insensitive' as const };
+    // Accession, MRN, family name or test code: what is on the tube, the request form or the bench sheet.
+    const matching = search
+      ? {
+          orderedTest: {
+            OR: [
+              { specimen: { accessionNo: like } },
+              { order: { patient: { mrn: like } } },
+              { order: { patient: { familyName: like } } },
+              { order: { hmisOrderId: like } },
+              { localTestCode: { equals: search, mode: 'insensitive' as const } },
+              { hmisTestCode: { equals: search, mode: 'insensitive' as const } },
+            ],
+          },
+        }
+      : {};
+    const where = { AND: [matching, filter ? { status: filter } : {}] };
+    const [total, counts] = await Promise.all([
+      this.db.result.count({ where }),
+      this.db.result.groupBy({ by: ['status'], where: matching, _count: { _all: true } }),
+    ]);
+    const { page: shown, skip } = pageWindow(pageParam(p), total);
     const rows = await this.db.result.findMany({
-      where: filter ? { status: filter } : {},
-      orderBy: { updatedAt: 'desc' },
-      take: 200,
+      where,
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      skip,
+      take: PAGE_SIZE,
       include: { versions: true, orderedTest: { include: { order: { include: { patient: true } }, specimen: true } } },
     });
+    const countOf = new Map(counts.map((c) => [c.status, c._count._all]));
     page(req, res, 'results', {
       title: 'Results',
       filter,
-      statuses: Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label, active: value === filter })),
+      q: search,
+      all: counts.reduce((n, c) => n + c._count._all, 0),
+      statuses: Object.entries(STATUS_LABELS).map(([value, label]) => ({
+        value,
+        label,
+        active: value === filter,
+        count: countOf.get(value) ?? 0,
+        href: `/results?${new URLSearchParams({ status: value, ...(search ? { q: search } : {}) }).toString()}`,
+      })),
+      allHref: search ? `/results?${new URLSearchParams({ q: search }).toString()}` : '/results',
+      pager: pagerFor('/results', { status: filter, q: search }, shown, total),
       rows: rows.map((r) => {
         const v = r.versions.find((x) => x.versionNo === r.selectedVersionNo);
         return {
