@@ -1,8 +1,15 @@
 <div class="d-flex align-items-baseline gap-3 mb-3"><h1 class="h4 mb-0">Results</h1><a href="/reference-ranges">Reference ranges</a><a href="/standard-comments">Standard comments</a></div>
-<div class="mb-3 d-flex flex-wrap gap-1">
-  <a class="btn btn-sm {{#if filter}}btn-outline-secondary{{else}}btn-primary{{/if}}" href="/results">All</a>
+<form method="get" action="/results" class="list-search d-print-none" role="search">
+  {{#if filter}}<input type="hidden" name="status" value="{{filter}}">{{/if}}
+  <label class="visually-hidden" for="q">Search results</label>
+  <input class="form-control" id="q" name="q" value="{{q}}" placeholder="Accession, MRN, name, order or test code" maxlength="60">
+  <button class="btn btn-primary" type="submit">Search</button>
+  {{#if q}}<a class="btn btn-link" href="{{#if filter}}/results?status={{filter}}{{else}}/results{{/if}}">Clear</a>{{/if}}
+</form>
+<div class="mb-3 d-flex flex-wrap gap-1 status-pills">
+  <a class="btn btn-sm {{#if filter}}btn-outline-secondary{{else}}btn-primary{{/if}}" href="{{allHref}}">All <span class="pill-count">{{all}}</span></a>
   {{#each statuses}}
-  <a class="btn btn-sm {{#if active}}btn-primary{{else}}btn-outline-secondary{{/if}}" href="/results?status={{value}}">{{label}}</a>
+  <a class="btn btn-sm {{#if active}}btn-primary{{else}}btn-outline-secondary{{/if}}" href="{{href}}">{{label}} <span class="pill-count">{{count}}</span></a>
   {{/each}}
 </div>
 <table class="table table-sm table-hover align-middle">
@@ -19,7 +26,8 @@
       <td class="small">{{updated}}</td>
     </tr>
     {{else}}
-    <tr><td colspan="7" class="text-body-secondary">No results.</td></tr>
+    <tr><td colspan="7" class="text-body-secondary">{{#if q}}No results match “{{q}}”.{{else}}No results.{{/if}}</td></tr>
     {{/each}}
   </tbody>
 </table>
+{{> pager}}

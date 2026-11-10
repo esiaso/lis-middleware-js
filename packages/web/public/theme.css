@@ -228,3 +228,10 @@ body:has(.login-card) { background: var(--lims-page); }
 .login-card .card-body { padding: 2rem; }
 .login-card h1 { font-size: 1.4rem; font-weight: 700; }
 .bi { fill: currentColor; }
+
+/* Search and paging on long lists. */
+.list-search { display: flex; gap: .5rem; align-items: center; max-width: 36rem; margin-bottom: .75rem; }
+.status-pills .pill-count { display: inline-block; min-width: 1.4em; margin-left: .25rem; padding: 0 .4em; border-radius: 999px; background: rgba(0, 0, 0, .06); font-size: .75em; font-weight: 600; text-align: center; }
+.status-pills .btn-primary .pill-count { background: rgba(255, 255, 255, .25); }
+.list-pager { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin: -.25rem 0 1rem; }
+.pagination .page-link { border-radius: .4rem; margin: 0 .1rem; }

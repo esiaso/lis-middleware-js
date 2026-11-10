@@ -64,6 +64,7 @@ function viewEngine() {
   const partials = join(pkgRoot, 'views', 'partials');
   for (const f of readdirSync(partials)) if (f.endsWith('.hbs')) engine.registerPartial(basename(f, '.hbs'), readFileSync(join(partials, f), 'utf8'));
   engine.registerHelper('eq', ((a: unknown, b: unknown) => a === b) as never);
+  engine.registerHelper('gt', ((a: unknown, b: unknown) => Number(a) > Number(b)) as never);
   engine.registerHelper('icon', ((name: unknown) => new engine.handlebars.SafeString(iconSvg(String(name)))) as never);
   return engine;
 }

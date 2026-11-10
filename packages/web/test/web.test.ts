@@ -93,6 +93,13 @@ describe.skipIf(!url)('web screens over HTTP', () => {
     const list = await tech.get('/results?status=received');
     expect(list.html).toContain('EXAMPLE, Ann (MRN1)');
     expect(list.html).toContain('1.50 uIU/mL');
+    // Searching by accession, MRN or test code finds it; something else does not.
+    for (const q of ['L26110300001', 'mrn1', 'tsh', 'exam']) expect((await tech.get(`/results?q=${q}`)).html).toContain('EXAMPLE, Ann (MRN1)');
+    const none = await tech.get('/results?q=nothing-like-it');
+    expect(none.html).toContain('No results match');
+    expect(none.html).not.toContain('EXAMPLE, Ann (MRN1)');
+    expect(list.html).toMatch(/To review <span class="pill-count">1<\/span>/);
+    expect((await tech.get('/results?page=7')).html).toContain('EXAMPLE, Ann (MRN1)'); // past the end shows the last page
 
     // A form posted without the session token is refused (CSRF).
     expect((await tech.post(`/results/${resultId}/review`, { versionNo: '1' })).status).toBe(403);

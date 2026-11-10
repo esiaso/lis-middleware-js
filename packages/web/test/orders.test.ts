@@ -62,6 +62,21 @@ describe.skipIf(!url)('orders, collection, labels and specimens over HTTP', () =
     return b.post(`/orders/${orderId}/collect`, { _csrf: csrf, testIds: ids, ...extra });
   }
 
+  it('pages through a long order list, keeping the filter', async () => {
+    const patient = await db.patient.findFirstOrThrow();
+    await db.labOrder.createMany({
+      data: Array.from({ length: 60 }, (_, i) => ({ id: uuidv7(), hmisOrderId: `BULK-${String(i).padStart(3, '0')}`, patientId: patient.id, priority: 'routine', orderedAt: new Date(Date.UTC(2026, 10, 4, 0, i)), status: 'active', sourceJson: {} })),
+    });
+    const b = await as('phleb');
+    const first = await b.get('/orders?filter=all');
+    expect(first.html).toContain('1–50 of 62');
+    expect(first.html.replaceAll('&#x3D;', '=').replaceAll('&amp;', '&')).toContain('href="/orders?filter=all&page=2"');
+    const second = await b.get('/orders?filter=all&page=2');
+    expect(second.html).toContain('51–62 of 62');
+    expect(second.html).toContain('BULK-059');
+    expect(second.html).not.toContain('BULK-000');
+  });
+
   it('lists STAT orders first, searches, and sends an exact accession scan to its order', async () => {
     const b = await as('phleb');
     const list = await b.get('/orders');
