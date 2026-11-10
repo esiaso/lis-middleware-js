@@ -527,6 +527,20 @@ first, filtered by bench (A-31).
   pass or fail, and who ran it. Records are never changed; a mistake is
   corrected by running the control again.
 
+## W-25 Instrument down
+
+**Specimens → Instrument down** (also from the Downtime page): received
+specimens with instrument tests that have no result yet, one card per
+specimen, STAT first, with an accession box for a scanned tube. Each card has
+a field per waiting test (number with its unit, or a pick list of answers),
+then the instrument, the run or printout reference, why the results are typed
+in, and who ran the sample (the person typing if empty). Saving checks every
+filled value against the catalogue before any is saved; empty fields stay.
+The result page shows "typed in from the printout" with the run, who ran it,
+who typed it and why, and the person who typed it cannot approve it (A-41).
+The Downtime page links here and to downtime order registration, so both
+"HMIS down" and "instrument down" start from one place.
+
 ## W-10 Audit search and export
 
 ```
