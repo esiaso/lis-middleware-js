@@ -26,6 +26,12 @@ order, a QC chart under QC ranges, and an instrument's edit pages under the
 instrument. The breadcrumbs replace the old "back to …" links and are not
 printed.
 
+Explanatory notes on a page, and the hints under form fields, start folded:
+an info icon beside the heading or field label shows them, and a heading's
+icon shows every note under it. With no script they are simply shown.
+Required fields are starred, and the longer forms (a test, an instrument) are
+laid out in titled sections with the Save and Cancel buttons kept in view.
+
 ## Status vocabulary (used everywhere)
 
 | Badge | Meaning | Colour + icon (never colour alone) |
@@ -449,16 +455,23 @@ approvers change it): the lab's own tests (A-31).
   a reason; the proposer sees "Another person approves this."
 * **Tests in use**: the active version of each test, with bench, LOINC code
   and name, SHA code if any, result type with unit or answers (abnormal
-  answers marked *, critical answers marked !), specimen, and who approved it. "Change" fills the form
-  from the active version; "Retire" takes a reason and the password.
-* **Add a test / Change**: local code, name, bench, specimen, LOINC code
-  (check digit checked) and name, SHA code, performed by (a person or an
-  instrument), result type, unit (UCUM) and decimals for numbers, answers one
-  per line as `code | words`, then `| abnormal` (or `| critical`, A-36) and
-  a LOINC answer code if any, and why. Saving makes a draft. A panel lists its component tests'
-  local codes, one per line, in report order (A-32). A test read by a person
-  also says what QC entering a result needs (no check, warn or block) and how
-  many hours a passing control counts, empty for the whole lot (A-33).
+  answers marked *, critical answers marked !), specimen, and who approved it.
+  It can be narrowed by a search (code, name, LOINC or SHA), by bench and by
+  who performs the test. "Change" opens the test's change page filled from
+  the active version; "Retire" takes a reason and the password.
+* **Add a test** (`/catalogue/new`) and **Change** (`/catalogue/{code}/edit`,
+  the code kept as it is): a page of its own in sections. *The test*: local code, name, bench
+  and specimen (offering the benches and specimens already in use). *Who
+  performs it*: a person or an instrument; a test read by a person also says
+  what QC entering a result needs (no check, warn or block) and how many
+  hours a passing control counts, empty for the whole lot (A-33). *The
+  result*: the result type, then only what that type needs: unit (UCUM) and
+  decimals for numbers; for choices, one row per answer with its code, words,
+  flag (normal, abnormal, or critical, A-36) and LOINC answer code if any;
+  for a panel, its component tests' local codes, one per line, in report
+  order (A-32). *Codes for the HMIS*: LOINC code (check digit checked) and
+  name, SHA code. *Why*. Saving makes a draft. The answer list is still
+  accepted as text, one `code | words | flag | LA code` per line.
 
 ## W-23 Manual worksheet
 

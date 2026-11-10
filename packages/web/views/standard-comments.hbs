@@ -1,5 +1,5 @@
 <div class="d-flex align-items-baseline gap-3"><h1 class="h4">Standard comments</h1><a href="/results">Results</a></div>
-<p class="text-body-secondary">Comments the lab uses often, ready to pick on a result page instead of typing them. The middleware comes with none: every comment here was entered by the lab. Picking one copies its text into the result's comment, so retiring or rewording a standard comment later never changes a comment already made. Whether a picked comment is for the lab only or printed on the report is chosen on the result page, as for a typed one. A comment can be offered on every test or on one test only.</p>
+<p class="note text-body-secondary">Comments the lab uses often, ready to pick on a result page instead of typing them. The middleware comes with none: every comment here was entered by the lab. Picking one copies its text into the result's comment, so retiring or rewording a standard comment later never changes a comment already made. Whether a picked comment is for the lab only or printed on the report is chosen on the result page, as for a typed one. A comment can be offered on every test or on one test only.</p>
 
 <table class="table table-sm align-middle">
   <thead><tr><th>Code</th><th>Text</th><th>Offered on</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
@@ -28,7 +28,7 @@
 
 {{#if can.approve}}
 <h2 class="h5 mt-4">Add a standard comment</h2>
-<p class="small text-body-secondary">To reword one, retire it and add the new wording. Both stay in the history.</p>
+<p class="note small text-body-secondary">To reword one, retire it and add the new wording. Both stay in the history.</p>
 {{> issues}}
 <form method="post" action="/standard-comments" class="row g-3">
   <input type="hidden" name="_csrf" value="{{csrf}}">

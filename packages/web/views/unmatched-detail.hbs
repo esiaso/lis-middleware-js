@@ -54,7 +54,7 @@
     <form method="post" action="/unmatched/{{u.id}}/propose" class="card card-body">
       <input type="hidden" name="_csrf" value="{{csrf}}">
       <h2 class="h6">Link to a specimen</h2>
-      <p class="small text-body-secondary">Only to the same test ({{obs.local}}) on that specimen. A different person checks the patient and confirms before the result is attached.</p>
+      <p class="note small text-body-secondary">Only to the same test ({{obs.local}}) on that specimen. A different person checks the patient and confirms before the result is attached.</p>
       <label class="form-label" for="accessionNo">Accession number (scan the tube)</label>
       <input class="form-control mb-2 font-monospace" id="accessionNo" name="accessionNo" required maxlength="40">
       <label class="form-label" for="link-reason">Why it belongs there (at least 10 characters)</label>
@@ -65,7 +65,7 @@
     <form method="post" action="/unmatched/{{u.id}}/add-test" class="card card-body mt-3">
       <input type="hidden" name="_csrf" value="{{csrf}}">
       <h2 class="h6">Add {{obs.local}} to the order</h2>
-      <p class="small text-body-secondary">When a clinician asked for {{obs.local}} on a specimen already in the lab and it is not on the order yet. A different person confirms. The result can be reviewed and approved, but is held from the HMIS until the clinician orders it in the HMIS and that line is matched on the order page.</p>
+      <p class="note small text-body-secondary">When a clinician asked for {{obs.local}} on a specimen already in the lab and it is not on the order yet. A different person confirms. The result can be reviewed and approved, but is held from the HMIS until the clinician orders it in the HMIS and that line is matched on the order page.</p>
       <label class="form-label" for="add-accessionNo">Accession number (scan the tube)</label>
       <input class="form-control mb-2 font-monospace" id="add-accessionNo" name="accessionNo" required maxlength="40" value="{{obs.accession}}">
       <label class="form-label" for="requestedBy">Asked for by (clinician)</label>

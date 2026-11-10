@@ -1,0 +1,94 @@
+<div class="page-head">
+  <h1 class="h4 mb-0">{{#if editing}}Change {{v.localCode}}{{else}}Add a test{{/if}}</h1>
+</div>
+<p class="note text-body-secondary">Saving makes a draft. Another person approves it on the catalogue page before it is used, and results already made keep the version they were made with. Pick each LOINC code from the LOINC release the HMIS uses, for this method and specimen: a malaria smear and a malaria rapid test have different codes.</p>
+{{> issues}}
+<form method="post" action="/catalogue" class="catalogue-form">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+
+  <fieldset class="form-section">
+    <legend>The test</legend>
+    <div class="row g-3">
+      <div class="col-sm-4 col-lg-2"><label class="form-label" for="localCode">Local code</label><input class="form-control font-monospace text-uppercase" id="localCode" name="localCode" value="{{v.localCode}}" required maxlength="20" autocomplete="off"{{#if editing}} readonly{{/if}}><div class="form-text">{{#if editing}}The code stays the same; saving makes its next version.{{else}}1 to 20 capital letters, digits, dots, dashes or underscores.{{/if}}</div></div>
+      <div class="col-sm-8 col-lg-5"><label class="form-label" for="name">Name</label><input class="form-control" id="name" name="name" value="{{v.name}}" required maxlength="120"></div>
+      <div class="col-sm-6 col-lg-3"><label class="form-label" for="section">Bench</label><input class="form-control" id="section" name="section" value="{{v.section}}" required maxlength="40" list="bench-list" autocomplete="off"><datalist id="bench-list">{{#each benches}}<option value="{{this}}">{{/each}}</datalist><div class="form-text">Pick a bench already in use, or type a new one.</div></div>
+      <div class="col-sm-6 col-lg-2"><label class="form-label" for="specimenType">Specimen</label><input class="form-control" id="specimenType" name="specimenType" value="{{v.specimenType}}" maxlength="40" list="specimen-list" autocomplete="off"><datalist id="specimen-list">{{#each specimens}}<option value="{{this}}">{{/each}}</datalist></div>
+    </div>
+  </fieldset>
+
+  <fieldset class="form-section">
+    <legend>Who performs it</legend>
+    <div class="choice-cards mb-3">
+      {{#each performed}}
+      <div class="form-check"><input class="form-check-input" type="radio" name="performedBy" id="performedBy-{{value}}" value="{{value}}" {{#if checked}}checked{{/if}}><label class="form-check-label" for="performedBy-{{value}}"><strong>{{label}}</strong><span class="d-block small text-body-secondary">{{hint}}</span></label></div>
+      {{/each}}
+    </div>
+    <div class="row g-3" data-show-for="performedBy:MANUAL">
+      <div class="col-sm-6 col-lg-4"><label class="form-label" for="qcRule">QC before results</label><select class="form-select" id="qcRule" name="qcRule">{{#each qcRules}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select><div class="form-text">For tests read by a person. Instrument QC is set on the QC pages. On a panel it covers every component.</div></div>
+      <div class="col-sm-6 col-lg-3"><label class="form-label" for="qcValidHours">QC counts for (hours)</label><input class="form-control" id="qcValidHours" name="qcValidHours" value="{{v.qcValidHours}}" inputmode="numeric" maxlength="4" placeholder="Whole lot"><div class="form-text">Empty: the whole lot. 24: daily.</div></div>
+    </div>
+  </fieldset>
+
+  <fieldset class="form-section">
+    <legend>The result</legend>
+    <div class="choice-cards mb-3">
+      {{#each types}}
+      <div class="form-check"><input class="form-check-input" type="radio" name="resultType" id="resultType-{{value}}" value="{{value}}" {{#if checked}}checked{{/if}}><label class="form-check-label" for="resultType-{{value}}"><strong>{{label}}</strong><span class="d-block small text-body-secondary">{{hint}}</span></label></div>
+      {{/each}}
+    </div>
+
+    <div class="row g-3" data-show-for="resultType:NUMERIC">
+      <div class="col-sm-6 col-lg-3"><label class="form-label" for="unit">Unit (UCUM)</label><input class="form-control" id="unit" name="unit" value="{{v.unit}}" maxlength="40"></div>
+      <div class="col-sm-6 col-lg-2"><label class="form-label" for="decimals">Decimals</label><input class="form-control" id="decimals" name="decimals" value="{{v.decimals}}" inputmode="numeric" maxlength="1"><div class="form-text">How many decimal places to report, 0 to 6.</div></div>
+    </div>
+
+    <div data-show-for="resultType:ORDINAL NOMINAL">
+      <label class="form-label" for="answer-0-code">Answers</label>
+      <div class="form-text">One row per answer, in the order they are read (Negative, Trace, 1+, ...). Mark an answer abnormal if it is outside normal, or critical if it must be phoned to the clinician before approval. Give an LA code only if the lab has chosen a LOINC answer code. Empty rows are ignored.</div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle answer-rows mb-2">
+          <thead><tr><th>Code</th><th>Words shown</th><th>Flag</th><th>LOINC answer</th></tr></thead>
+          <tbody data-answer-rows>
+            {{#each answerRows}}
+            <tr>
+              <td><input class="form-control form-control-sm font-monospace" id="answer-{{n}}-code" name="answer-{{n}}-code" value="{{code}}" maxlength="20" aria-label="Answer {{n}} code"></td>
+              <td><input class="form-control form-control-sm" name="answer-{{n}}-display" value="{{display}}" maxlength="80" aria-label="Answer {{n}} words"></td>
+              <td><select class="form-select form-select-sm" name="answer-{{n}}-flag" aria-label="Answer {{n}} flag">{{#each flags}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></td>
+              <td><input class="form-control form-control-sm font-monospace" name="answer-{{n}}-la" value="{{la}}" maxlength="12" aria-label="Answer {{n}} LOINC answer code"></td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+      <button class="btn btn-outline-secondary btn-sm" type="button" data-add-answer hidden>{{icon "plus-lg"}} Add an answer</button>
+    </div>
+
+    <div class="row g-3" data-show-for="resultType:PANEL">
+      <div class="col-md-5"><label class="form-label" for="components">Component tests</label><textarea class="form-control font-monospace text-uppercase" id="components" name="components" rows="6">{{v.components}}</textarea><div class="form-text">Local codes, one per line, in report order. Each must already be in the catalogue.</div></div>
+      {{#if others.length}}
+      <div class="col-md-7"><span class="form-label d-block">Tests that can be components</span><div class="small">{{#each others}}<span class="badge text-bg-light border me-1 mb-1"><span class="font-monospace">{{code}}</span> {{name}}</span>{{/each}}</div></div>
+      {{/if}}
+    </div>
+  </fieldset>
+
+  <fieldset class="form-section">
+    <legend>Codes for the HMIS</legend>
+    <div class="row g-3">
+      <div class="col-sm-4 col-lg-2"><label class="form-label" for="loincCode">LOINC code</label><input class="form-control font-monospace" id="loincCode" name="loincCode" value="{{v.loincCode}}" maxlength="10" autocomplete="off"><div class="form-text">The check digit is checked when you save.</div></div>
+      <div class="col-sm-8 col-lg-7"><label class="form-label" for="loincDisplay">LOINC name</label><input class="form-control" id="loincDisplay" name="loincDisplay" value="{{v.loincDisplay}}" maxlength="255"></div>
+      <div class="col-sm-4 col-lg-3"><label class="form-label" for="shaCode">SHA code</label><input class="form-control" id="shaCode" name="shaCode" value="{{v.shaCode}}" maxlength="40"><div class="form-text">Only from SHA's own list.</div></div>
+    </div>
+  </fieldset>
+
+  <fieldset class="form-section">
+    <legend>Why</legend>
+    <label class="form-label visually-hidden" for="reason">Why</label>
+    <input class="form-control" id="reason" name="reason" value="{{reason}}" required minlength="5" maxlength="500" placeholder="{{#if editing}}What changes and why{{else}}Why the lab is adding this test{{/if}}">
+  </fieldset>
+
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">Save draft</button>
+    <a class="btn btn-outline-secondary" href="/catalogue">Cancel</a>
+    <span class="small text-body-secondary ms-auto">Another person approves it before it is used.</span>
+  </div>
+</form>

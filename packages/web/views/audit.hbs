@@ -9,11 +9,11 @@
 <p class="small text-body-secondary">The chain has not been verified from this screen yet.</p>
 {{/if}}
 {{#if signing.keyId}}
-<p class="small text-body-secondary">Exports are signed with key <span class="font-monospace">{{signing.keyId}}</span>. Give the <a href="/audit/signing-key.pem">public key</a> to whoever checks an export; <code>lims audit verify-export</code> checks the file with it.</p>
+<p class="note small text-body-secondary">Exports are signed with key <span class="font-monospace">{{signing.keyId}}</span>. Give the <a href="/audit/signing-key.pem">public key</a> to whoever checks an export; <code>lims audit verify-export</code> checks the file with it.</p>
 {{else if signing.error}}
 <div class="alert alert-danger" role="alert"><strong>Exports are refused:</strong> {{signing.error}}. Hospital IT must fix or remove the audit signing key (11 §11).</div>
 {{else}}
-<p class="small text-body-secondary">Exports are not signed: no audit signing key is set (11 §11). Each export still carries its events' hashes and a manifest.</p>
+<p class="note small text-body-secondary">Exports are not signed: no audit signing key is set (11 §11). Each export still carries its events' hashes and a manifest.</p>
 {{/if}}
 
 <form method="get" action="/audit" class="row g-2 align-items-end mb-3">

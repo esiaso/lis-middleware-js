@@ -90,7 +90,7 @@ details:not([open]) > summary.app-nav-heading .bi { transform: rotate(-90deg); }
 .app-crumbs .breadcrumb a { text-decoration: none; }
 .app-crumbs .breadcrumb a:hover { text-decoration: underline; }
 .app-main h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -.01em; }
-.app-main .page-head { margin-bottom: 1rem; }
+.app-main .page-head { margin-bottom: 1rem; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .app-main .section-title { font-size: .8rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--bs-secondary-color); margin: 1.5rem 0 .5rem; }
 /* Result page summary. */
 .result-summary .result-label { font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--bs-secondary-color); }
@@ -128,3 +128,101 @@ details:not([open]) > summary.app-nav-heading .bi { transform: rotate(-90deg); }
   .result-report .report-critical td { background: none; font-weight: 600; }
   .result-report tr { break-inside: avoid; }
 }
+
+/* "More info": page notes and field hints fold behind an info icon (app.js). */
+.js .app-main .note:not(.note-open),
+.js .app-main .form-text:not(.note-open) { display: none; }
+.app-main .note.note-open {
+  border-left: 3px solid var(--bs-info-border-subtle, #9eeaf9);
+  background: var(--bs-info-bg-subtle, #cff4fc);
+  color: var(--bs-body-color);
+  padding: .5rem .75rem;
+  border-radius: .25rem;
+  font-size: .875rem;
+}
+.app-main .form-text.note-open { margin-top: .25rem; }
+.more-info-btn {
+  border: 0;
+  background: none;
+  padding: 0 .25rem;
+  margin-left: .25rem;
+  color: var(--bs-secondary-color);
+  font-size: .875rem;
+  line-height: 1;
+  vertical-align: baseline;
+  cursor: pointer;
+}
+h1 .more-info-btn, .h4 .more-info-btn { font-size: 1rem; }
+.more-info-btn:hover, .more-info-btn[aria-expanded="true"] { color: var(--bs-primary); }
+.more-info-btn:focus-visible { outline: 2px solid var(--bs-primary); border-radius: .25rem; }
+.more-info-inline { display: inline-flex; align-items: center; gap: .25rem; padding: 0; margin: 0 0 .5rem; }
+@media print { .more-info-btn { display: none; } }
+
+/* Data-entry forms: the add forms sit in a framed panel, required fields are
+   starred, and labels read as labels. */
+.app-main form.row.g-3,
+.app-main form.form-panel {
+  margin-left: 0;
+  margin-right: 0;
+  padding: .5rem .25rem 1rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: .5rem;
+  background: var(--bs-body-bg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+}
+.app-main .form-label { font-weight: 500; font-size: .875rem; margin-bottom: .25rem; }
+.app-main div:has(> [required]) > .form-label::after,
+.app-main div:has(> [required]) > label.form-label::after { content: " *"; color: var(--bs-danger); }
+.app-main .form-control:focus, .app-main .form-select:focus { box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .15); }
+.app-main .card.card-body > .h6, .app-main form.card .h6 { font-weight: 600; }
+.form-section {
+  border: 1px solid var(--bs-border-color);
+  border-radius: .5rem;
+  background: var(--bs-body-bg);
+  padding: 1rem 1.25rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.form-section > legend {
+  float: none;
+  width: auto;
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  font-weight: 600;
+  color: var(--bs-secondary-color);
+  margin-bottom: .75rem;
+  padding: 0;
+}
+.form-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  padding: .75rem 0;
+  background: var(--bs-body-bg);
+  border-top: 1px solid var(--bs-border-color);
+  z-index: 2;
+}
+.choice-cards { display: flex; flex-wrap: wrap; gap: .5rem; }
+.choice-cards .form-check {
+  border: 1px solid var(--bs-border-color);
+  border-radius: .5rem;
+  padding: .5rem .75rem .5rem 2rem;
+  margin: 0;
+  min-width: 9rem;
+}
+.choice-cards .form-check:has(input:checked) { border-color: var(--bs-primary); background: var(--bs-primary-bg-subtle); }
+.answer-rows td { padding: .25rem; }
+.answer-rows input, .answer-rows select { min-width: 5rem; }
+.js [data-show-for]:not(.is-shown) { display: none; }
+
+/* Catalogue list */
+.catalogue-filter { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; margin-bottom: .75rem; }
+.catalogue-filter .form-control, .catalogue-filter .form-select { min-width: 10rem; }
+.draft-card { border-left: 4px solid var(--bs-warning); }
+/* Row actions folded in a table cell (Retire, Discard). */
+.app-main td details > summary { cursor: pointer; white-space: nowrap; font-size: .875rem; color: var(--bs-danger); }
+.app-main td details[open] { min-width: 14rem; }
+.form-actions .btn { white-space: nowrap; }
+@media (max-width: 575.98px) { .form-actions > span { display: none; } }

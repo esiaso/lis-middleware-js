@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { Db } from '@lis/db';
 import { answersText, type CatalogueForm } from '@lis/domain';
 import {
@@ -60,48 +60,128 @@ const view = (e: CatalogueEntry) => ({
   approvedAt: formatTime(e.approvedAt ?? null),
 });
 
+/** One answer row on the form: code, words, flag and LOINC answer code. */
+interface AnswerRow { n: number; code: string; display: string; flag: string; la: string }
+
+/** The answer rows of the form's answer text (one `code | words | flag | LA` per line). */
+function rowsOf(text: string): AnswerRow[] {
+  return text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((line, i) => {
+    const [code = '', display = '', ...rest] = line.split('|').map((p) => p.trim());
+    const flag = rest.find((r) => /^(abnormal|critical)$/i.test(r))?.toLowerCase() ?? '';
+    const la = rest.find((r) => !/^(abnormal|critical)$/i.test(r)) ?? '';
+    return { n: i, code, display, flag, la };
+  });
+}
+
+/** The answer text from the row editor (`answer-N-code` and so on), or the plain `answers` text when that was sent. */
+function answersFrom(body: Form): string {
+  const ns = Object.keys(body ?? {}).map((k) => /^answer-(\d{1,3})-code$/.exec(k)?.[1]).filter((n): n is string => n !== undefined).map(Number).sort((a, b) => a - b);
+  if (!ns.length) return str(body, 'answers');
+  return ns
+    .map((n) => [str(body, `answer-${n}-code`).trim(), str(body, `answer-${n}-display`).trim(), str(body, `answer-${n}-flag`).trim(), str(body, `answer-${n}-la`).trim()])
+    .filter(([code, display]) => code || display)
+    .map(([code, display, flag, la]) => [code, display, ...(flag ? [flag] : []), ...(la ? [la] : [])].join(' | '))
+    .join('\n');
+}
+
+const BLANK: CatalogueForm = { localCode: '', name: '', section: '', loincCode: '', loincDisplay: '', shaCode: '', specimenType: '', performedBy: 'MANUAL', resultType: 'NUMERIC', answers: '', unit: '', decimals: '', components: '', qcRule: 'NONE', qcValidHours: '' };
+const FLAGS = [{ value: '', label: 'Normal' }, { value: 'abnormal', label: 'Abnormal' }, { value: 'critical', label: 'Critical' }];
+const TYPE_HINTS: Record<string, string> = { NUMERIC: 'A measured number', ORDINAL: 'Answers in order (Neg, Trace, 1+)', NOMINAL: 'Answers in no order', TEXT: 'Free text', PANEL: 'A group of tests' };
+
 /** The lab's test catalogue with LOINC codes (design: "Test catalogue and LOINC"). */
 @Controller('catalogue')
 export class CatalogueController {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   @Get()
-  async list(@Req() req: WebRequest, @Res() res: Response, @Query('edit') edit?: string): Promise<void> {
-    const current = typeof edit === 'string' && edit ? await activeEntry(this.db, edit) : null;
-    await this.render(req, res, current ? formOf(current) : undefined, [], undefined);
-  }
-
-  private async render(req: WebRequest, res: Response, f: CatalogueForm | undefined, issues: string[], reason: string | undefined, status = 200): Promise<void> {
+  async list(
+    @Req() req: WebRequest,
+    @Res() res: Response,
+    @Query('edit') edit?: string,
+    @Query('q') q?: string,
+    @Query('bench') bench?: string,
+    @Query('by') by?: string,
+  ): Promise<void> {
+    // The old address of the edit form still works.
+    if (typeof edit === 'string' && edit) return res.redirect(303, `/catalogue/${encodeURIComponent(edit)}/edit`);
     const [active, drafts] = await Promise.all([activeCatalogue(this.db), catalogueDrafts(this.db)]);
-    const v = f ?? { localCode: '', name: '', section: '', loincCode: '', loincDisplay: '', shaCode: '', specimenType: '', performedBy: 'MANUAL', resultType: 'NUMERIC', answers: '', unit: '', decimals: '', components: '', qcRule: 'NONE', qcValidHours: '' };
+    const query = typeof q === 'string' ? q.trim() : '';
+    const benchSel = typeof bench === 'string' ? bench : '';
+    const bySel = by === 'MANUAL' || by === 'INSTRUMENT' ? by : '';
+    const needle = query.toLowerCase();
+    const shown = active.filter(
+      (e) =>
+        (!benchSel || e.section === benchSel) &&
+        (!bySel || e.performedBy === bySel) &&
+        (!needle || [e.localCode, e.name, e.loincCode ?? '', e.loincDisplay ?? '', e.shaCode ?? ''].some((t) => t.toLowerCase().includes(needle))),
+    );
     const roles = req.user?.roles ?? [];
-    res.status(status);
     page(req, res, 'catalogue', {
       title: 'Test catalogue',
-      tests: active.map(view),
+      tests: shown.map(view),
+      total: active.length,
+      filtered: shown.length !== active.length,
+      q: query,
+      benches: [...new Set(active.map((e) => e.section))].sort().map((b) => ({ name: b, selected: b === benchSel })),
+      by: [
+        { value: 'MANUAL', label: 'By a person', selected: bySel === 'MANUAL' },
+        { value: 'INSTRUMENT', label: 'By an instrument', selected: bySel === 'INSTRUMENT' },
+      ],
       drafts: drafts.map((d) => ({ ...view(d), mine: d.createdBy === req.user?.username })),
       canEdit: roles.includes('admin') || roles.includes('approver'),
+    });
+  }
+
+  @Get('new')
+  @Roles('admin', 'approver')
+  async create(@Req() req: WebRequest, @Res() res: Response): Promise<void> {
+    await this.form(req, res, BLANK, [], '', false);
+  }
+
+  @Get(':code/edit')
+  @Roles('admin', 'approver')
+  async edit(@Req() req: WebRequest, @Res() res: Response, @Param('code') code: string): Promise<void> {
+    const current = await activeEntry(this.db, code);
+    if (!current) throw new NotFoundException();
+    await this.form(req, res, formOf(current), [], '', true);
+  }
+
+  private async form(req: WebRequest, res: Response, v: CatalogueForm, issues: string[], reason: string, editing: boolean, status = 200): Promise<void> {
+    const active = await activeCatalogue(this.db);
+    const rows = rowsOf(v.answers);
+    const blanks = Math.max(2, 6 - rows.length);
+    for (let i = 0; i < blanks; i++) rows.push({ n: rows.length, code: '', display: '', flag: '', la: '' });
+    res.status(status);
+    page(req, res, 'catalogue-form', {
+      title: editing ? `Change ${v.localCode}` : 'Add a test',
+      editing,
       v,
-      reason: reason ?? '',
-      editing: Boolean(f?.localCode && active.some((e) => e.localCode === f.localCode)),
+      reason,
+      issues,
+      benches: [...new Set(active.map((e) => e.section))].sort(),
+      specimens: [...new Set(active.map((e) => e.specimenType).filter(Boolean))].sort(),
+      others: active.filter((e) => e.resultType !== 'PANEL' && e.localCode !== v.localCode).map((e) => ({ code: e.localCode, name: e.name })),
+      answerRows: rows.map((r) => ({ ...r, flags: FLAGS.map((f) => ({ ...f, selected: f.value === r.flag })) })),
       performed: [
-        { value: 'MANUAL', label: 'A person (worksheet)', selected: v.performedBy === 'MANUAL' },
-        { value: 'INSTRUMENT', label: 'An instrument', selected: v.performedBy === 'INSTRUMENT' },
+        { value: 'MANUAL', label: 'A person', hint: 'Read at the bench and entered on the worksheet', checked: v.performedBy === 'MANUAL' },
+        { value: 'INSTRUMENT', label: 'An instrument', hint: 'Sent by an analyser through its mapping', checked: v.performedBy === 'INSTRUMENT' },
       ],
       qcRules: Object.entries(QC_WORDS).map(([value, label]) => ({ value, label, selected: (v.qcRule || 'NONE') === value })),
-      types: Object.entries(TYPE_WORDS).map(([value, label]) => ({ value, label, selected: v.resultType === value })),
-      issues,
+      types: Object.entries(TYPE_WORDS).map(([value, label]) => ({ value, label, hint: TYPE_HINTS[value] ?? '', checked: v.resultType === value })),
     });
   }
 
   @Post()
   @Roles('admin', 'approver')
   async propose(@Req() req: WebRequest, @Res() res: Response, @Body() body: Form): Promise<void> {
-    const f = formFrom(body);
+    const f = { ...formFrom(body), answers: answersFrom(body) };
     try {
       await proposeCatalogueEntry(this.db, req.user!.username, f, str(body, 'reason'));
     } catch (e) {
-      if (e instanceof InvalidInput) return this.render(req, res, f, e.issues, str(body, 'reason'), 422);
+      if (e instanceof InvalidInput) {
+        const editing = Boolean(f.localCode && (await activeEntry(this.db, f.localCode.trim().toUpperCase())));
+        return this.form(req, res, f, e.issues, str(body, 'reason'), editing, 422);
+      }
       throw e;
     }
     res.redirect(303, '/catalogue?notice=catalogue-proposed');

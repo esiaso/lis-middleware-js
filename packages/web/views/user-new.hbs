@@ -8,7 +8,7 @@
     <div class="col-md-4"><label class="form-label" for="password">Temporary password (at least 12 characters)</label><input class="form-control" id="password" name="password" type="password" required minlength="12" autocomplete="new-password"><div class="form-text">Give it to the person in private. They must choose their own at first sign-in.</div></div>
   </div>
   {{> role-boxes}}
-  <p class="small text-body-secondary">An administrator cannot approve results unless also given the approver role. Give each person only the roles their job needs.</p>
+  <p class="note small text-body-secondary">An administrator cannot approve results unless also given the approver role. Give each person only the roles their job needs.</p>
   <div class="row g-2 align-items-end">
     <div class="col-auto">{{> confirm id="adminPassword" name="adminPassword" label="Your password" labelClass="form-label" inputClass="form-control"}}</div>
     <div class="col-auto"><button class="btn btn-primary" type="submit">Create user</button></div>

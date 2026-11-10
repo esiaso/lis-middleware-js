@@ -69,7 +69,37 @@ describe.skipIf(!url)('test catalogue and manual worksheet over HTTP', () => {
     expect(page).toContain('Urine protein (dipstick)');
     expect(page).toContain('1+ *');
     // Changing it starts from the active version.
-    expect((await dr.get('/catalogue?edit=U-PROT')).html).toContain('NEG | Negative\nTR | Trace\n1P | 1+ | abnormal');
+    expect((await dr.get('/catalogue?edit=U-PROT')).location).toBe('/catalogue/U-PROT/edit');
+    const edit = (await dr.get('/catalogue/U-PROT/edit')).html;
+    expect(edit).toContain('name="answer-2-code" value="1P"');
+    expect(edit).toMatch(/name="answer-2-flag"[^>]*>.*<option value="abnormal" selected>/s);
+    expect((await dr.get('/catalogue/NOPE/edit')).status).toBe(404);
+    expect((await tech.get('/catalogue/new')).status).toBe(403);
+  });
+
+  it('the answer rows are saved as the answer list, and the list can be filtered', async () => {
+    const mgr = await as('manager');
+    const { answers: _answers, ...rest } = DIPSTICK;
+    const rows = {
+      'answer-0-code': 'NEG', 'answer-0-display': 'Negative', 'answer-0-flag': '', 'answer-0-la': '',
+      'answer-1-code': '', 'answer-1-display': '', 'answer-1-flag': '', 'answer-1-la': '',
+      'answer-2-code': '3P', 'answer-2-display': '3+', 'answer-2-flag': 'critical', 'answer-2-la': '',
+    };
+    expect((await mgr.post('/catalogue', { ...rest, ...rows, _csrf: await mgr.csrf('/catalogue') })).location).toBe('/catalogue?notice=catalogue-proposed');
+    const draft = await db.testCatalogueEntry.findFirstOrThrow();
+    expect(draft.answers).toEqual([{ code: 'NEG', display: 'Negative' }, { code: '3P', display: '3+', abnormal: true, critical: true }]);
+    const one = await mgr.post('/catalogue', { ...rest, 'answer-0-code': 'NEG', 'answer-0-display': 'Negative', _csrf: await mgr.csrf('/catalogue') });
+    expect(one.status).toBe(422);
+    expect(one.html).toContain('A choice result needs at least two answers');
+    expect(one.html).toContain('name="answer-0-code" value="NEG"');
+
+    const dr = await as('dr.lab');
+    await dr.post(`/catalogue/${draft.id}/approve`, { _csrf: await dr.csrf('/catalogue'), password: PW });
+    expect((await dr.get('/catalogue?q=prot')).html).toContain('Urine protein (dipstick)');
+    const none = (await dr.get('/catalogue?q=zzz')).html;
+    expect(none).toContain('No tests match.');
+    expect(none).not.toContain('Urine protein (dipstick)');
+    expect((await dr.get('/catalogue?by=INSTRUMENT')).html).toContain('No tests match.');
   });
 
   it('a technologist enters a manual result on the worksheet, and it shows who performed it', async () => {
