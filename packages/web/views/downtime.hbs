@@ -2,11 +2,11 @@
   <h1 class="h4 mb-0">Downtime orders</h1>
   {{#if can.collect}}<a class="btn btn-primary btn-sm" href="/downtime/new">Downtime registration</a>{{/if}}
 </div>
-<p class="text-body-secondary">Orders registered by hand while the HMIS could not be reached. Their results are held from the HMIS until each is reconciled to the HMIS order.</p>
+<p class="note text-body-secondary">Orders registered by hand while the HMIS could not be reached. Their results are held from the HMIS until each is reconciled to the HMIS order.</p>
 
 <h2 class="h6">To reconcile</h2>
 {{#if work}}
-<p class="small text-body-secondary">Orders with approved results waiting come first. The suggestion is the HMIS order that matches best; it is "clear" only when it matches on the MRN written on the form, or on birth date and family name, has every test, and no other order comes close. Open each one, check the patient, and reconcile it with your password.{{#if clearCount}} {{clearCount}} {{#if (eq clearCount 1)}}has{{else}}have{{/if}} a clear match.{{/if}}</p>
+<p class="note small text-body-secondary">Orders with approved results waiting come first. The suggestion is the HMIS order that matches best; it is "clear" only when it matches on the MRN written on the form, or on birth date and family name, has every test, and no other order comes close. Open each one, check the patient, and reconcile it with your password.{{#if clearCount}} {{clearCount}} {{#if (eq clearCount 1)}}has{{else}}have{{/if}} a clear match.{{/if}}</p>
 <table class="table table-sm align-middle">
   <thead><tr><th>Downtime order</th><th>Provisional patient</th><th>Held results</th><th>Registered</th><th>Suggested HMIS order</th><th></th></tr></thead>
   <tbody>

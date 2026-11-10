@@ -1,6 +1,6 @@
 <h1 class="h4">QC ranges</h1>
-<p class="text-body-secondary">The acceptable range for one control on one instrument and test, both ends included. The middleware comes with no ranges: take them from the control insert or the lab's own QC plan. Name the control exactly as the instrument sends it (lot, name, or both); a range with only a lot matches any name, and the other way round. A range applies to QC results that arrive after it is saved.</p>
-<p class="small text-body-secondary">To apply Westgard rules, also enter the control's target mean and SD from the lab's own QC data or the insert, and tick the rules the lab's QC plan uses. Most rules look along one control's own results, across runs; R-4s and 2-2s within the run compare this control with the other controls of the same test on the same instrument in one run, which the lab defines by a run window. A 1-2s result is a warning only; any other rule broken marks the QC as failed, even inside the range.</p>
+<p class="note text-body-secondary">The acceptable range for one control on one instrument and test, both ends included. The middleware comes with no ranges: take them from the control insert or the lab's own QC plan. Name the control exactly as the instrument sends it (lot, name, or both); a range with only a lot matches any name, and the other way round. A range applies to QC results that arrive after it is saved.</p>
+<p class="note small text-body-secondary">To apply Westgard rules, also enter the control's target mean and SD from the lab's own QC data or the insert, and tick the rules the lab's QC plan uses. Most rules look along one control's own results, across runs; R-4s and 2-2s within the run compare this control with the other controls of the same test on the same instrument in one run, which the lab defines by a run window. A 1-2s result is a warning only; any other rule broken marks the QC as failed, even inside the range.</p>
 
 <table class="table table-sm align-middle">
   <thead><tr><th>Instrument</th><th>Test</th><th>Control</th><th>Range</th><th>Units</th><th>Mean ± SD</th><th>Westgard</th><th>Source</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
@@ -29,7 +29,7 @@
 
 {{#if can.approve}}
 <h2 class="h5 mt-4">Add a range</h2>
-<p class="small text-body-secondary">For a new control lot, add its range and retire the old one. Both stay in the history.</p>
+<p class="note small text-body-secondary">For a new control lot, add its range and retire the old one. Both stay in the history.</p>
 {{> issues}}
 <form method="post" action="/qc/ranges" class="row g-3">
   <input type="hidden" name="_csrf" value="{{csrf}}">

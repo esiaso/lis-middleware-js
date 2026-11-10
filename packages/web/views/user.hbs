@@ -27,7 +27,7 @@
       <input type="hidden" name="_csrf" value="{{csrf}}">
       <input type="hidden" name="active" value="{{#if u.active}}no{{else}}yes{{/if}}">
       <h2 class="h6">{{#if u.active}}Disable account{{else}}Enable account{{/if}}</h2>
-      {{#if u.active}}<p class="small text-body-secondary">Ends every session at once. The account and its history are kept.</p>{{/if}}
+      {{#if u.active}}<p class="note small text-body-secondary">Ends every session at once. The account and its history are kept.</p>{{/if}}
       <label class="form-label small" for="active-reason">Reason</label>
       <input class="form-control form-control-sm mb-2" id="active-reason" name="reason" minlength="5" required>
       {{> confirm id="pw-active" name="adminPassword" label="Your password" labelClass="form-label small" inputClass="form-control form-control-sm mb-2"}}
@@ -37,7 +37,7 @@
     <form method="post" action="/users/{{u.id}}/password" class="card card-body mb-3">
       <input type="hidden" name="_csrf" value="{{csrf}}">
       <h2 class="h6">Set a temporary password</h2>
-      <p class="small text-body-secondary">Ends their sessions. They must choose their own password at next sign-in.</p>
+      <p class="note small text-body-secondary">Ends their sessions. They must choose their own password at next sign-in.</p>
       <label class="form-label small" for="temp">Temporary password (at least 12 characters)</label>
       <input class="form-control form-control-sm mb-2" id="temp" name="password" type="password" minlength="12" required autocomplete="new-password">
       {{> confirm id="pw-reset" name="adminPassword" label="Your password" labelClass="form-label small" inputClass="form-control form-control-sm mb-2"}}

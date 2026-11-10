@@ -1,5 +1,5 @@
 <h1 class="h4">Reference ranges</h1>
-<p class="text-body-secondary">The lab's own reference ranges, both ends included. The middleware comes with none: every value here was entered by the lab, for example from its verified ranges or the reagent insert. Where one applies, result pages and the printed report show it, with a mark when a value is below or above it; otherwise they show the range the instrument sent, if any. A range applies only when it certainly fits the patient: a range for one sex needs the patient's sex, and an age band needs the birth date. The mark is for people reading the result; it is not sent to the HMIS and autoverification does not use it. Units must match exactly. A range covers values stored while it was in force, so retiring one never changes an older report.</p>
+<p class="note text-body-secondary">The lab's own reference ranges, both ends included. The middleware comes with none: every value here was entered by the lab, for example from its verified ranges or the reagent insert. Where one applies, result pages and the printed report show it, with a mark when a value is below or above it; otherwise they show the range the instrument sent, if any. A range applies only when it certainly fits the patient: a range for one sex needs the patient's sex, and an age band needs the birth date. The mark is for people reading the result; it is not sent to the HMIS and autoverification does not use it. Units must match exactly. A range covers values stored while it was in force, so retiring one never changes an older report.</p>
 
 <table class="table table-sm align-middle">
   <thead><tr><th>Test</th><th>Applies to</th><th>Lower limit</th><th>Upper limit</th><th>Units</th><th>Source</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
@@ -28,7 +28,7 @@
 
 {{#if can.approve}}
 <h2 class="h5 mt-4">Add a range</h2>
-<p class="small text-body-secondary">To change a range, retire the old one and add the new one. Both stay in the history.</p>
+<p class="note small text-body-secondary">To change a range, retire the old one and add the new one. Both stay in the history.</p>
 {{> issues}}
 <form method="post" action="/reference-ranges" class="row g-3">
   <input type="hidden" name="_csrf" value="{{csrf}}">

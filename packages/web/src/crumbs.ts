@@ -38,6 +38,7 @@ const RULES: Rule[] = [
   [/^\/users\/[^/]+$/, () => [top('/users')]],
   [/^\/unmatched\/[^/]+$/, () => [top('/unmatched')]],
   [/^\/critical\/[^/]+$/, () => [top('/critical')]],
+  [/^\/catalogue\/(new|[^/]+\/edit)$/, () => [top('/catalogue')]],
   [/^\/delta-checks$/, () => [top('/autoverification')]],
   [/^\/qc\/(ranges|summary)$/, () => [top('/qc')]],
   [/^\/qc\/ranges\/[^/]+\/chart$/, () => [top('/qc'), { href: '/qc/ranges', label: 'QC ranges' }]],

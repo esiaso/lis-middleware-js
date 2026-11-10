@@ -3,7 +3,7 @@
   <button class="btn btn-primary btn-sm ms-auto d-inline-flex align-items-center gap-1" type="button" data-print>{{icon "printer"}}<span>Print</span></button>
 </div>
 <div class="d-print-none mb-3">
-  <p class="small text-body-secondary mb-2">Print with the button or Ctrl+P. Only approved results carry a value; the rest print as pending.</p>
+  <p class="note small text-body-secondary mb-2">Print with the button or Ctrl+P. Only approved results carry a value; the rest print as pending.</p>
   {{#unless approved}}<div class="alert alert-warning">No result on this order is approved yet, so the report has no values.</div>{{/unless}}
 </div>
 <article class="result-report">

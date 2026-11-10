@@ -1,5 +1,5 @@
 <h1 class="h4">Delta checks</h1>
-<p class="text-body-secondary">A delta check compares a new value with the patient's most recent approved result for the same test, collected within the rule's window. A change larger than the rule allows is marked for the reviewer, with the previous value and a link to it. It does not block approval, but autoverification leaves any flagged value for a person. Units must match exactly; when they differ the values are not compared and the version says so. The middleware comes with no rules: every value here was entered by the lab. A rule applies to results that arrive after it is saved.</p>
+<p class="note text-body-secondary">A delta check compares a new value with the patient's most recent approved result for the same test, collected within the rule's window. A change larger than the rule allows is marked for the reviewer, with the previous value and a link to it. It does not block approval, but autoverification leaves any flagged value for a person. Units must match exactly; when they differ the values are not compared and the version says so. The middleware comes with no rules: every value here was entered by the lab. A rule applies to results that arrive after it is saved.</p>
 
 <table class="table table-sm align-middle">
   <thead><tr><th>Test</th><th>Flag a change of more than</th><th>Compared with</th><th>Source</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
@@ -28,7 +28,7 @@
 
 {{#if can.approve}}
 <h2 class="h5 mt-4">Add a rule</h2>
-<p class="small text-body-secondary">One rule per test. Give a change in units, as a percentage of the previous value, or both (either one crossed raises the flag). To change a rule, retire it and add the new one.</p>
+<p class="note small text-body-secondary">One rule per test. Give a change in units, as a percentage of the previous value, or both (either one crossed raises the flag). To change a rule, retire it and add the new one.</p>
 {{> issues}}
 <form method="post" action="/delta-checks" class="row g-3">
   <input type="hidden" name="_csrf" value="{{csrf}}">

@@ -6,7 +6,7 @@
 <div class="card card-body mb-3 border-warning">
   <h2 class="h6">Undoing this merge is waiting for a second person</h2>
   <p class="small mb-2">Proposed by {{mergedAway.undo.by}} at {{mergedAway.undo.at}}, reference {{mergedAway.undo.reference}}: {{mergedAway.undo.reason}}</p>
-  <p class="small text-body-secondary">Once confirmed, MRN {{p.mrn}} has its own history again and MRN {{mergedAway.into.mrn}} no longer includes it. Delta flags already on results stay as they are.</p>
+  <p class="note small text-body-secondary">Once confirmed, MRN {{p.mrn}} has its own history again and MRN {{mergedAway.into.mrn}} no longer includes it. Delta flags already on results stay as they are.</p>
   {{#if canUndo}}
   <div class="d-flex flex-wrap gap-3 align-items-end">
     {{#if mergedAway.undo.mine}}<p class="mb-0">A different person must confirm.</p>{{else}}
@@ -25,7 +25,7 @@
   <form method="post" action="/patients/{{p.id}}/merge/{{mergedAway.id}}/undo" class="row g-2 mt-1 align-items-end">
     <input type="hidden" name="_csrf" value="{{csrf}}">
     {{#if undoIssues}}<div class="col-12"><div class="alert alert-danger py-2" role="alert">{{#each undoIssues}}<div>{{this}}</div>{{/each}}</div></div>{{/if}}
-    <p class="col-12 small text-body-secondary mb-0">When medical records reversed the merge in the HMIS, or it was recorded here in error. A different person confirms.</p>
+    <p class="note col-12 small text-body-secondary mb-0">When medical records reversed the merge in the HMIS, or it was recorded here in error. A different person confirms.</p>
     <div class="col-md-4"><label class="form-label small" for="undo-reference">HMIS or medical records reference</label><input class="form-control" id="undo-reference" name="reference" value="{{u.reference}}" required maxlength="100"></div>
     <div class="col-md-6"><label class="form-label small" for="undo-reason">Why</label><input class="form-control" id="undo-reason" name="reason" value="{{u.reason}}" required minlength="10" maxlength="500"></div>
     <div class="col-md-2"><button class="btn btn-outline-warning" type="submit">Propose undo</button></div>
@@ -64,7 +64,7 @@
   <form method="post" action="/patients/{{p.id}}/merge" class="row g-2 mt-1 align-items-end">
     <input type="hidden" name="_csrf" value="{{csrf}}">
     {{#if issues}}<div class="col-12"><div class="alert alert-danger py-2" role="alert">{{#each issues}}<div>{{this}}</div>{{/each}}</div></div>{{/if}}
-    <p class="col-12 small text-body-secondary mb-0">When medical records have merged MRN {{p.mrn}} into another MRN in the HMIS. Orders and results keep the MRN they came with; the history of the MRN that stays will include this one. A different person confirms.</p>
+    <p class="note col-12 small text-body-secondary mb-0">When medical records have merged MRN {{p.mrn}} into another MRN in the HMIS. Orders and results keep the MRN they came with; the history of the MRN that stays will include this one. A different person confirms.</p>
     <div class="col-md-3"><label class="form-label small" for="intoMrn">MRN that stays</label><input class="form-control font-monospace" id="intoMrn" name="intoMrn" value="{{v.intoMrn}}" required maxlength="64"></div>
     <div class="col-md-3"><label class="form-label small" for="reference">HMIS or medical records reference</label><input class="form-control" id="reference" name="reference" value="{{v.reference}}" required maxlength="100"></div>
     <div class="col-md-4"><label class="form-label small" for="merge-reason">Why</label><input class="form-control" id="merge-reason" name="reason" value="{{v.reason}}" required minlength="10" maxlength="500"></div>
@@ -72,7 +72,7 @@
   </form>
 </details>
 {{/if}}{{/if}}
-<p class="small text-body-secondary">Results from this middleware only, newest collection first. Values in italics are not yet approved. Each value links to its result. Results from before the middleware went live, or done elsewhere, are not here.</p>
+<p class="note small text-body-secondary">Results from this middleware only, newest collection first. Values in italics are not yet approved. Each value links to its result. Results from before the middleware went live, or done elsewhere, are not here.</p>
 
 {{#if c.rows}}
 <div class="table-responsive">

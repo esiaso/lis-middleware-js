@@ -1,8 +1,8 @@
 <h1 class="h4">Register an instrument</h1>
-<p class="text-body-secondary">A new instrument starts unverified and turned off. Its results are received and shown for verification work, but cannot be released to the HMIS until it passes the interface test and lab acceptance.</p>
+<p class="note text-body-secondary">A new instrument starts unverified and turned off. Its results are received and shown for verification work, but cannot be released to the HMIS until it passes the interface test and lab acceptance.</p>
 {{> issues}}
 <form method="post" action="/instruments">
   <input type="hidden" name="_csrf" value="{{csrf}}">
   {{> instrument-fields}}
-  <button class="btn btn-primary" type="submit">Register</button>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">Register</button><a class="btn btn-outline-secondary" href="/instruments">Cancel</a></div>
 </form>

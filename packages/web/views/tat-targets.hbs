@@ -1,5 +1,5 @@
 <h1 class="h4">Turnaround targets</h1>
-<p class="text-body-secondary">The lab's target time from receipt of the specimen in the lab to release of the result. The middleware comes with no targets. The most specific target applies: test and priority, then test, then priority, then one for every test. Targets apply to the report and the overdue list as soon as they are saved, including for earlier results.</p>
+<p class="note text-body-secondary">The lab's target time from receipt of the specimen in the lab to release of the result. The middleware comes with no targets. The most specific target applies: test and priority, then test, then priority, then one for every test. Targets apply to the report and the overdue list as soon as they are saved, including for earlier results.</p>
 
 <table class="table table-sm align-middle">
   <thead><tr><th>Test</th><th>Priority</th><th>Target</th><th>Source</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
@@ -28,7 +28,7 @@
 
 {{#if can.approve}}
 <h2 class="h5 mt-4">Add a target</h2>
-<p class="small text-body-secondary">One target per test and priority. To change one, retire it and add the new one.</p>
+<p class="note small text-body-secondary">One target per test and priority. To change one, retire it and add the new one.</p>
 {{> issues}}
 <form method="post" action="/reports/targets" class="row g-3">
   <input type="hidden" name="_csrf" value="{{csrf}}">

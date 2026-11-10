@@ -1,5 +1,5 @@
 <div class="d-flex align-items-baseline gap-3"><h1 class="h4">Critical limits</h1><a href="/reference-ranges">Reference ranges</a></div>
-<p class="text-body-secondary">A result is critical when it is below the low limit or above the high limit (the limit itself is not critical). The middleware comes with no limits: every value here was entered by the lab from its own policy. A limit applies to results that arrive after it is saved. When a patient's sex or age is not known, every limit for the test applies. Units must match exactly; when they differ the result is marked for a person to compare.</p>
+<p class="note text-body-secondary">A result is critical when it is below the low limit or above the high limit (the limit itself is not critical). The middleware comes with no limits: every value here was entered by the lab from its own policy. A limit applies to results that arrive after it is saved. When a patient's sex or age is not known, every limit for the test applies. Units must match exactly; when they differ the result is marked for a person to compare.</p>
 
 <table class="table table-sm align-middle">
   <thead><tr><th>Test</th><th>Applies to</th><th>Low</th><th>High</th><th>Units</th><th>Source</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
@@ -28,7 +28,7 @@
 
 {{#if can.approve}}
 <h2 class="h5 mt-4">Add a limit</h2>
-<p class="small text-body-secondary">To change a limit, add the new one and retire the old one. Both stay in the history.</p>
+<p class="note small text-body-secondary">To change a limit, add the new one and retire the old one. Both stay in the history.</p>
 {{> issues}}
 <form method="post" action="/critical/limits" class="row g-3">
   <input type="hidden" name="_csrf" value="{{csrf}}">
@@ -52,7 +52,7 @@
 {{/if}}
 
 <h2 class="h5 mt-4" id="targets">Call target times</h2>
-<p class="text-body-secondary">How soon a critical result must be phoned, counted from when it arrives. A target for one test replaces the lab-wide target for that test. There is no target until the lab sets one; the Critical page and dashboard then show which calls are past it. Nothing is escalated automatically.</p>
+<p class="note text-body-secondary">How soon a critical result must be phoned, counted from when it arrives. A target for one test replaces the lab-wide target for that test. There is no target until the lab sets one; the Critical page and dashboard then show which calls are past it. Nothing is escalated automatically.</p>
 <table class="table table-sm align-middle">
   <thead><tr><th>Test</th><th>Call within</th><th>Source</th><th>Set by</th>{{#if can.approve}}<th></th>{{/if}}</tr></thead>
   <tbody>

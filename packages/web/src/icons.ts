@@ -13,7 +13,7 @@ const dir = join(dirname(createRequire(import.meta.url).resolve('bootstrap-icons
 
 /** Every icon the pages use: the menu's, and these. A name outside the list is refused. */
 const PAGE_ICONS = [
-  'box-arrow-right', 'check2-circle', 'printer', 'chevron-down', 'cloud-slash', 'cpu', 'exclamation-triangle-fill', 'graph-down-arrow', 'hospital', 'list', 'stopwatch',
+  'box-arrow-right', 'check2-circle', 'info-circle', 'plus-lg', 'printer', 'chevron-down', 'cloud-slash', 'cpu', 'exclamation-triangle-fill', 'graph-down-arrow', 'hospital', 'list', 'stopwatch',
   // dashboard tiles
   'inbox', 'patch-check', 'send', 'question-diamond', 'x-octagon',
 ];
