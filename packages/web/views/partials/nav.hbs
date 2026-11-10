@@ -1,4 +1,4 @@
-<aside class="app-sidebar border-end bg-body-tertiary d-print-none" aria-label="Main menu">
+<aside class="app-sidebar d-print-none" aria-label="Main menu">
   <div class="app-sidebar-head d-flex align-items-center justify-content-between px-3 py-2">
     <a class="app-brand text-decoration-none text-body fw-semibold d-flex align-items-center gap-2" href="/">{{icon "hospital"}}<span>Lab middleware</span></a>
     <label class="btn btn-outline-secondary btn-sm app-nav-button" for="app-nav-toggle">{{icon "list"}}<span>Menu</span></label>
@@ -15,13 +15,5 @@
       </details>
       {{/each}}
     </nav>
-    <div class="app-nav-user border-top px-3 py-3">
-      {{#if user.external}}<div class="small fw-semibold">{{user.displayName}}</div>{{else}}<a class="small fw-semibold d-block" href="/account/password" title="Change password">{{user.displayName}}</a>{{/if}}
-      <div class="small text-body-secondary mb-2">{{#each user.roles}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</div>
-      <form method="post" action="/logout">
-        <input type="hidden" name="_csrf" value="{{csrf}}">
-        <button class="btn btn-outline-secondary btn-sm w-100 d-inline-flex align-items-center justify-content-center gap-1" type="submit">{{icon "box-arrow-right"}}<span>Sign out</span></button>
-      </form>
-    </div>
   </div>
 </aside>

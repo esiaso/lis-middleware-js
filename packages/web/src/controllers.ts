@@ -32,6 +32,10 @@ export async function requireStepUp(db: Db, req: WebRequest, password: string): 
   throw new ForbiddenException(req.user!.sso ? 'Confirm with the hospital sign-in first; each confirmation is good for one action within 5 minutes. Nothing was changed.' : 'Password not confirmed. Nothing was changed.');
 }
 
+/** Up to two initials for the avatar in the top bar ("Demo Approver One" gives "DA"). */
+export const initialsOf = (name: string): string =>
+  name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => [...w][0]!.toUpperCase()).join('');
+
 /** Render with the signed-in person, their CSRF token, and a fixed notice if the redirect asked for one. */
 export function page(req: WebRequest, res: Response, view: string, data: Record<string, unknown>): void {
   const roles = req.user?.roles ?? [];
@@ -43,6 +47,7 @@ export function page(req: WebRequest, res: Response, view: string, data: Record<
     notice,
     timeZone: displayTimeZone(),
     crumbs: req.user ? crumbsFor(req.path, data) : [],
+    initials: initialsOf(req.user?.displayName ?? req.user?.username ?? ''),
     nav: req.user ? navFor(req.path, roles, (res.locals['navCounts'] as Record<string, number> | undefined) ?? {}) : [],
     // For hospital sign-in accounts, forms that need re-confirmation show a link back to this page.
     stepUp: req.user?.sso
@@ -297,6 +302,7 @@ export class ResultsController {
           critical: criticalLabel(v?.criticalFlag),
           delta: v?.deltaFlag === 'EXCEEDED' ? (v.deltaDetail ?? '') : '',
           status: STATUS_LABELS[r.status] ?? r.status,
+          statusTone: STATUS_TONE[r.status] ?? 'secondary',
           attention: r.newDataAfterApproval || r.needsConfirmation,
           updated: formatTime(r.updatedAt),
         };
