@@ -142,6 +142,10 @@ export const approve = (db: Db, resultId: string, user: string, policy: Workflow
     if (entry && (entry.detail as { transcribed?: unknown } | null)?.transcribed && entry.actor === user) {
       throw new WorkflowRejected({ code: 'SAME_PERSON', detail: 'the person who typed a result in from the instrument printout does not approve it; another person checks it against the printout' });
     }
+    // Likewise a result typed in from a referral lab's report (A-43).
+    if (entry && (entry.detail as { referral?: unknown } | null)?.referral && entry.actor === user) {
+      throw new WorkflowRejected({ code: 'SAME_PERSON', detail: "the person who typed a result in from the referral lab's report does not approve it; another person checks it against the report" });
+    }
     if (policy.twoPersonRule) {
       // A manual result is approved by someone other than the person who read it.
       const performedBy = (entry?.detail as { performedBy?: string } | null)?.performedBy ?? entry?.actor;

@@ -44,6 +44,8 @@ const RULES: Rule[] = [
   [/^\/qc\/ranges\/[^/]+\/chart$/, () => [top('/qc'), { href: '/qc/ranges', label: 'QC ranges' }]],
   [/^\/reports\/(overdue|targets)$/, () => [top('/reports/turnaround')]],
   [/^\/downtime\/.+$/, () => [top('/downtime')]],
+  [/^\/send-outs\/[^/]+$/, () => [top('/send-outs')]],
+  [/^\/referral-labs\/[^/]+$/, () => [top('/referral-labs')]],
 ];
 
 export function crumbsFor(path: string, data: Data): Crumb[] {

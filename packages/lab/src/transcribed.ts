@@ -54,6 +54,7 @@ export async function transcribeWorksheet(db: Db | Tx, opts: { accessionNo?: str
       localTestCode: { in: [...byCode.keys()] },
       status: 'active',
       result: null,
+      sendOuts: { none: { active: true } }, // sent to a referral lab (A-43)
       specimen: { status: 'received', ...(accession ? { accessionNo: accession } : {}) },
       order: { status: { not: 'cancelled' } },
     },

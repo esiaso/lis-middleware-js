@@ -567,6 +567,34 @@ print. Until the details are saved, reports keep the `LIMS_REPORT_HEADER`
 line (A-42).
 
 
+## W-27 Send-outs and referral labs
+
+**Set-up → Referral labs**: the outside labs, with the tests each does and its
+agreed turnaround (hours, shown as days when whole), what to send, and how
+many send-outs are out now. A lab's page edits its details, adds a test with
+its turnaround, retires one, or stops using the lab (A-43).
+
+**Specimens → Send-outs** has two tabs. **Sent tests** (the default) lists
+every sent-out test: test, patient, accession, lab, when sent and the waybill,
+turnaround, when due, when its result was typed in, how long it took, and
+where it stands (overdue, awaiting result, resulted on time or late,
+cancelled), overdue first, filtered by lab, state, or an accession, MRN or
+test code, 50 a page. **To send** lists received specimens with tests a
+referral lab does and no result yet, STAT first; scanning an accession shows
+every waiting test of that specimen. Each card has the tests to tick, the lab
+(defaulting to the one that does most of them), the time sent and the waybill,
+and **Record as sent**.
+
+A **send-out** page shows the specimen, patient, lab and its contacts, when it
+was sent, received there (with their number) and due, and each test with its
+turnaround and result. Below are **Type in results from the referral lab's
+report** (a field per waiting test and their report number), **Received at
+the referral lab**, the **Papers** with an upload (what it is, the file, a
+note), and **Cancel this send-out**. A result typed in this way shows on its
+result page as typed in from the referral lab's report, with the report
+number, the typist and a link back to the send-out.
+
+
 ## W-10 Audit search and export
 
 ```

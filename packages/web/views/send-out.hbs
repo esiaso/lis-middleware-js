@@ -1,0 +1,108 @@
+<div class="page-head">
+  <h1 class="h4 mb-0">Send-out <span class="font-monospace">{{s.accessionNo}}</span> to {{s.lab.code}}</h1>
+  <span class="badge text-bg-{{#if s.cancelled}}secondary{{else}}{{#if s.overdue}}danger{{else}}{{#if (eq s.status "resulted")}}success{{else}}warning{{/if}}{{/if}}{{/if}} ms-2">{{#if s.overdue}}overdue{{else}}{{s.status}}{{/if}}</span>
+  <a class="btn btn-outline-secondary btn-sm ms-auto" href="/orders/{{s.orderId}}">Order {{s.hmisOrderId}}</a>
+</div>
+{{#if issues}}<div class="alert alert-danger" role="alert"><strong>Not saved.</strong>{{#each issues}}<div>{{this}}</div>{{/each}}</div>{{/if}}
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-6"><div class="card h-100"><div class="card-body">
+    <h2 class="h6">Specimen and patient</h2>
+    <dl class="row mb-0 small">
+      <dt class="col-4">Patient</dt><dd class="col-8"><a href="/patients/{{s.patient.id}}">{{s.patient.name}}</a> ({{s.patient.mrn}})</dd>
+      <dt class="col-4">Accession</dt><dd class="col-8"><a class="font-monospace" href="/specimens/{{s.specimenId}}">{{s.accessionNo}}</a></dd>
+      <dt class="col-4">Referral lab</dt><dd class="col-8"><a href="/referral-labs/{{s.lab.id}}">{{s.lab.name}}</a>{{#if s.lab.phone}}<br>{{s.lab.phone}}{{/if}}{{#if s.lab.email}}<br>{{s.lab.email}}{{/if}}</dd>
+    </dl>
+  </div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-body">
+    <h2 class="h6">Tracking</h2>
+    <dl class="row mb-0 small">
+      <dt class="col-4">Sent</dt><dd class="col-8">{{s.dispatchedAt}} by {{s.dispatchedBy}}{{#if s.dispatchRef}}, waybill <span class="font-monospace">{{s.dispatchRef}}</span>{{/if}}</dd>
+      <dt class="col-4">Received there</dt><dd class="col-8">{{#if s.labReceivedAt}}{{s.labReceivedAt}}{{#if s.labRef}}, their no. <span class="font-monospace">{{s.labRef}}</span>{{/if}} (recorded by {{s.labReceivedBy}}){{else}}<span class="text-body-secondary">not recorded yet</span>{{/if}}</dd>
+      <dt class="col-4">Result due</dt><dd class="col-8">{{s.dueAt}}{{#if s.overdue}} <strong class="text-danger-emphasis">overdue</strong>{{/if}}</dd>
+      {{#if s.resultedAt}}<dt class="col-4">All resulted</dt><dd class="col-8">{{s.resultedAt}}</dd>{{/if}}
+      {{#if s.cancelled}}<dt class="col-4">Cancelled</dt><dd class="col-8">{{s.cancelled.at}} by {{s.cancelled.by}}: {{s.cancelled.reason}}</dd>{{/if}}
+    </dl>
+  </div></div></div>
+</div>
+
+<h2 class="h5">Tests</h2>
+<table class="table table-sm align-middle">
+  <thead><tr><th>Test</th><th>Turnaround</th><th>Due</th><th>Result</th></tr></thead>
+  <tbody>
+    {{#each tests}}
+    <tr class="{{#unless active}}text-body-secondary{{/unless}}">
+      <td><span class="font-monospace">{{code}}</span> {{name}}</td><td>{{tat}}</td><td class="small">{{dueAt}}</td>
+      <td>{{#if result}}<a class="font-monospace" href="/results/{{result.id}}">{{result.value}}</a> {{result.units}} <span class="small text-body-secondary">({{result.status}})</span>{{else}}{{#if active}}<span class="text-body-secondary">waiting</span>{{else}}cancelled{{/if}}{{/if}}</td>
+    </tr>
+    {{/each}}
+  </tbody>
+</table>
+
+{{#if canWork}}{{#if s.open}}{{#if waiting}}
+<h2 class="h5 mt-4">Type in results from the referral lab's report</h2>
+<form method="post" action="/send-outs/{{s.id}}/results" class="card mb-3"><div class="card-body">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <p class="note small text-body-secondary">Copy each value exactly as on the report and upload the report below. Leave a test empty if it is not on this report; it stays waiting. Another person checks the values against the report and approves them before they go to the HMIS.</p>
+  <div class="row g-3 mb-2">
+    {{#each waiting}}
+    <div class="col-sm-6 col-md-4">
+      <label class="form-label" for="value-{{id}}">{{name}} <span class="font-monospace small text-body-secondary">{{code}}</span></label>
+      {{#if choice}}
+      <select class="form-select" id="value-{{id}}" name="value-{{id}}"><option value="">Not typed yet</option>{{#each answers}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{display}}</option>{{/each}}</select>
+      {{else}}
+      <div class="input-group"><input class="form-control font-monospace" id="value-{{id}}" name="value-{{id}}" value="{{value}}" maxlength="40" autocomplete="off">{{#if unit}}<span class="input-group-text">{{unit}}</span>{{/if}}</div>
+      {{/if}}
+    </div>
+    {{/each}}
+  </div>
+  <div class="row g-3 align-items-end">
+    <div class="col-sm-6 col-md-4"><label class="form-label" for="reportRef">Their report no.</label><input class="form-control font-monospace" id="reportRef" name="reportRef" value="{{f.reportRef}}" required maxlength="60" autocomplete="off"></div>
+    <div class="col-sm-6 col-md-3"><button class="btn btn-primary" type="submit">Save results</button></div>
+  </div>
+</div></form>
+{{/if}}
+
+{{#unless s.labReceivedAt}}
+<h2 class="h5 mt-4">Received at the referral lab</h2>
+<form method="post" action="/send-outs/{{s.id}}/received" class="card mb-3"><div class="card-body row g-3 align-items-end">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <div class="col-sm-6 col-md-4"><label class="form-label" for="receivedAt">When ({{timeZone}})</label><input class="form-control" type="datetime-local" id="receivedAt" name="receivedAt" value="{{#if f.receivedAt}}{{f.receivedAt}}{{else}}{{now}}{{/if}}"></div>
+  <div class="col-sm-6 col-md-4"><label class="form-label" for="labRef">Their specimen no.</label><input class="form-control font-monospace" id="labRef" name="labRef" value="{{f.labRef}}" maxlength="60" autocomplete="off"></div>
+  <div class="col-md-4"><button class="btn btn-outline-primary" type="submit">Record receipt</button></div>
+  <p class="note small text-body-secondary col-12 mb-0">From their receiving report, a call or their portal. Upload the receiving report below if there is one.</p>
+</div></form>
+{{/unless}}
+{{/if}}{{/if}}
+
+<h2 class="h5 mt-4">Papers</h2>
+<table class="table table-sm align-middle">
+  <thead><tr><th>What</th><th>File</th><th>Size</th><th>Uploaded</th><th>Note</th></tr></thead>
+  <tbody>
+    {{#each documents}}
+    <tr><td>{{kindLabel}}</td><td><a class="d-inline-flex align-items-center gap-1" href="/send-outs/{{@root.s.id}}/documents/{{id}}">{{icon "download"}}<span>{{fileName}}</span></a></td><td class="small">{{size}}</td><td class="small">{{uploadedBy}}, {{uploadedAt}}</td><td class="small">{{note}}</td></tr>
+    {{else}}
+    <tr><td colspan="5" class="text-body-secondary">No papers uploaded yet.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+{{#if canWork}}{{#unless s.cancelled}}
+<form method="post" action="/send-outs/{{s.id}}/documents" enctype="multipart/form-data" class="card mb-3"><div class="card-body row g-3 align-items-end">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <div class="col-sm-6 col-md-3"><label class="form-label" for="kind">What it is</label><select class="form-select" id="kind" name="kind">{{#each kinds}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></div>
+  <div class="col-sm-6 col-md-4"><label class="form-label" for="file">File</label><input class="form-control" id="file" name="file" type="file" accept="application/pdf,image/png,image/jpeg" required><div class="form-text">PDF, PNG or JPEG scan or photo, up to 5 MB.</div></div>
+  <div class="col-sm-8 col-md-3"><label class="form-label" for="note">Note</label><input class="form-control" id="note" name="note" value="{{f.note}}" maxlength="300"></div>
+  <div class="col-sm-4 col-md-2"><button class="btn btn-outline-primary w-100 d-inline-flex align-items-center justify-content-center gap-1" type="submit">{{icon "paperclip"}}<span>Upload</span></button></div>
+</div></form>
+{{/unless}}{{/if}}
+
+{{#if canWork}}{{#if s.open}}
+<details class="mt-4"{{#if (eq form "cancel")}} open{{/if}}><summary class="small">Cancel this send-out</summary>
+  <form method="post" action="/send-outs/{{s.id}}/cancel" class="row g-2 mt-1 align-items-end">
+    <input type="hidden" name="_csrf" value="{{csrf}}">
+    <div class="col-md-6"><label class="form-label small" for="reason">Why</label><input class="form-control" id="reason" name="reason" value="{{f.reason}}" required minlength="5" maxlength="300" placeholder="Specimen leaked in transit"></div>
+    <div class="col-md-3"><button class="btn btn-outline-danger" type="submit">Cancel send-out</button></div>
+    <p class="note small text-body-secondary col-12 mb-0">Only before any result is typed in. Its tests go back to To send.</p>
+  </form>
+</details>
+{{/if}}{{/if}}

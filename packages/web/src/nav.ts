@@ -26,10 +26,10 @@ type Item = [href: string, label: string, icon: string, show?: (roles: readonly 
 
 const GROUPS: [key: string, label: string, Item[]][] = [
   ['overview', 'Overview', [['/', 'Dashboard', 'speedometer2']]],
-  ['specimens', 'Specimens', [['/orders', 'Orders', 'card-checklist'], ['/patients', 'Patients', 'people'], ['/worksheet', 'Worksheet', 'pencil-square'], ['/transcribe', 'Instrument down', 'plug'], ['/downtime', 'Downtime', 'cloud-slash']]],
+  ['specimens', 'Specimens', [['/orders', 'Orders', 'card-checklist'], ['/patients', 'Patients', 'people'], ['/worksheet', 'Worksheet', 'pencil-square'], ['/transcribe', 'Instrument down', 'plug'], ['/send-outs', 'Send-outs', 'truck'], ['/downtime', 'Downtime', 'cloud-slash']]],
   ['results', 'Results', [['/results', 'Results', 'clipboard2-pulse'], ['/critical', 'Critical', 'exclamation-triangle'], ['/unmatched', 'Unmatched', 'question-diamond'], ['/failed', 'Failed deliveries', 'x-octagon']]],
   ['quality', 'Quality', [['/qc', 'QC', 'graph-up'], ['/worksheet/qc', 'Manual QC', 'eyedropper'], ['/autoverification', 'Autoverification', 'check2-circle'], ['/reports/turnaround', 'Turnaround', 'stopwatch'], ['/reports/workload', 'Workload', 'bar-chart']]],
-  ['setup', 'Set-up', [['/instruments', 'Instruments', 'cpu'], ['/catalogue', 'Catalogue', 'journal-medical'], ['/hmis', 'HMIS link', 'hospital'], ['/settings/report', 'Report header', 'card-heading', (r) => r.includes('admin')]]],
+  ['setup', 'Set-up', [['/instruments', 'Instruments', 'cpu'], ['/catalogue', 'Catalogue', 'journal-medical'], ['/hmis', 'HMIS link', 'hospital'], ['/referral-labs', 'Referral labs', 'building'], ['/settings/report', 'Report header', 'card-heading', (r) => r.includes('admin')]]],
   ['admin', 'Administration', [['/audit', 'Audit', 'shield-check', (r) => r.includes('auditor')], ['/users', 'Users', 'person-gear', (r) => r.includes('admin')]]],
 ];
 

@@ -31,6 +31,8 @@ import { StandardCommentsController } from './standard-comments.controller.js';
 import { HmisController } from './hmis.controller.js';
 import { TranscribeController } from './transcribe.controller.js';
 import { logoUpload, ReportSettingsController } from './report-settings.controller.js';
+import { ReferralLabsController } from './referral-labs.controller.js';
+import { documentUpload, SendOutsController } from './send-outs.controller.js';
 import { CatalogueController, WorksheetController } from './catalogue.controller.js';
 import { ReportsController } from './reports.controller.js';
 import { CriticalCallController, CriticalController } from './critical.controller.js';
@@ -49,7 +51,7 @@ class WebModule {
   static with(db: Db, opts: WebOptions, logger: Logger): DynamicModule {
     return {
       module: WebModule,
-      controllers: [AuthController, DashboardController, ResultsController, UnmatchedController, FailedController, HmisController, InstrumentsController, OrdersController, DowntimeController, AuditController, CriticalController, CriticalCallController, AutoverificationController, DeltaController, QcController, ReferenceRangesController, StandardCommentsController, CatalogueController, WorksheetController, TranscribeController, ReportSettingsController, PatientsController, OrderReportController, ReportsController, UsersController, AccountController, HealthController],
+      controllers: [AuthController, DashboardController, ResultsController, UnmatchedController, FailedController, HmisController, InstrumentsController, OrdersController, DowntimeController, AuditController, CriticalController, CriticalCallController, AutoverificationController, DeltaController, QcController, ReferenceRangesController, StandardCommentsController, CatalogueController, WorksheetController, TranscribeController, ReportSettingsController, ReferralLabsController, SendOutsController, PatientsController, OrderReportController, ReportsController, UsersController, AccountController, HealthController],
       providers: [
         { provide: DB, useValue: db },
         { provide: WEB_OPTIONS, useValue: opts },
@@ -95,8 +97,9 @@ export async function createApp(db: Db, o: CreateAppOptions = {}): Promise<NestE
   app.use(cookieParser());
   app.use(sessionMiddleware(db, opts.session));
   app.use(navCountsMiddleware(db, logger));
-  // The logo form is the one multipart form; it is read here so the CSRF check sees its fields.
+  // The two multipart forms (logo, send-out papers) are read here so the CSRF check sees their fields.
   app.use('/settings/report/logo', logoUpload());
+  app.use(/^\/send-outs\/[0-9a-f-]{36}\/documents$/, documentUpload());
   const bootstrapDist = join(dirname(createRequire(import.meta.url).resolve('bootstrap/package.json')), 'dist');
   app.useStaticAssets(join(bootstrapDist, 'css'), { prefix: '/static/bootstrap/', index: false });
   const sprite = iconSprite();
