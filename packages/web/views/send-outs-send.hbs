@@ -1,0 +1,47 @@
+<div class="page-head">
+  <h1 class="h4 mb-0">Send-outs</h1>
+  <a class="btn btn-outline-secondary btn-sm ms-auto" href="/referral-labs">Referral labs</a>
+</div>
+<p class="note text-body-secondary">Received specimens with tests a referral lab does and no result yet, STAT first. Scan an accession to send any waiting test of that specimen, such as one the lab usually does in house. Pick the lab, tick the tests going in this package, and record when it left and the courier or waybill number. A test can go only to a lab that has it on its list, with its turnaround.</p>
+{{> tabs}}
+{{> issues}}
+<form method="get" action="/send-outs" class="list-search d-print-none" role="search">
+  <input type="hidden" name="tab" value="send">
+  <label class="visually-hidden" for="accession">Accession</label>
+  <input class="form-control font-monospace" id="accession" name="accession" value="{{accession}}" placeholder="Scan or type an accession" maxlength="20" autofocus>
+  <button class="btn btn-primary" type="submit">Find</button>
+  {{#if accession}}<a class="btn btn-link" href="/send-outs?tab=send">Show all</a>{{/if}}
+</form>
+{{#unless anyLab}}<div class="alert alert-warning">No referral lab is set up yet. Add one, with the tests it does, on <a href="/referral-labs">Referral labs</a>.</div>{{/unless}}
+{{#each cards}}
+<div class="card mb-3{{#if stat}} border-danger{{/if}}"><div class="card-body">
+  <div class="d-flex flex-wrap gap-3 align-items-baseline mb-3">
+    <a class="font-monospace fw-semibold" href="/specimens/{{specimenId}}">{{accessionNo}}</a>
+    <span>{{patient.name}} ({{patient.mrn}})</span>
+    <span class="small text-body-secondary">{{hmisOrderId}}{{#if received}}, received {{received}}{{/if}}</span>
+    {{#if stat}}<span class="badge text-bg-danger">STAT</span>{{/if}}
+  </div>
+  {{#if issues}}<div class="alert alert-danger py-2" role="alert"><strong>Not sent.</strong>{{#each issues}}<div>{{this}}</div>{{/each}}</div>{{/if}}
+  <form method="post" action="/send-outs">
+    <input type="hidden" name="_csrf" value="{{@root.csrf}}">
+    <input type="hidden" name="specimenId" value="{{specimenId}}">
+    <input type="hidden" name="accession" value="{{@root.accession}}">
+    <div class="mb-3">
+      {{#each tests}}
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="testIds" value="{{orderedTestId}}" id="t-{{orderedTestId}}" {{#if checked}}checked{{/if}}>
+        <label class="form-check-label" for="t-{{orderedTestId}}"><span class="font-monospace">{{code}}</span> {{name}} <span class="small text-body-secondary">{{#if where}}({{where}}){{else}}(no referral lab has this test yet){{/if}}</span></label>
+      </div>
+      {{/each}}
+    </div>
+    <div class="row g-3 align-items-end">
+      <div class="col-sm-6 col-lg-4"><label class="form-label" for="lab-{{@index}}">Referral lab</label><select class="form-select" id="lab-{{@index}}" name="labId" required><option value="">Pick one</option>{{#each labs}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{code}}: {{name}}{{#if does}} (does {{does}}){{/if}}</option>{{/each}}</select></div>
+      <div class="col-sm-6 col-lg-3"><label class="form-label" for="at-{{@index}}">Sent at ({{@root.timeZone}})</label><input class="form-control" type="datetime-local" id="at-{{@index}}" name="dispatchedAt" value="{{dispatchedAt}}"></div>
+      <div class="col-sm-6 col-lg-3"><label class="form-label" for="ref-{{@index}}">Courier or waybill no.</label><input class="form-control font-monospace" id="ref-{{@index}}" name="dispatchRef" value="{{dispatchRef}}" maxlength="100" autocomplete="off"></div>
+      <div class="col-sm-6 col-lg-2">{{#if @root.can.review}}<button class="btn btn-primary w-100" type="submit">Record as sent</button>{{/if}}</div>
+    </div>
+  </form>
+</div></div>
+{{else}}
+<p class="text-body-secondary">{{#if accession}}Specimen {{accession}} has no received tests waiting for a result.{{else}}Nothing to send: no received specimen has a test that a referral lab does and that has no result yet.{{/if}}</p>
+{{/each}}

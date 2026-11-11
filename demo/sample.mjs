@@ -14,7 +14,7 @@ import { acquireLease, createDb, PrismaRawMessageStore, releaseLease, startLinkS
 import {
   accessionSpecimen, addAutoverifyRule, addCriticalLimit, addDeltaRule, addQcRange, addReferenceRange, addResultComment, addStandardComment, addTatTarget,
   approve, approveAndActivateMappings, approveCatalogueEntry, confirmMerge, enterManualResult, ingestOrder, proposeCatalogueEntry, proposeMerge,
-  recordCriticalCall, recordInstrumentEvidence, recordLabelPrint, recordManualQc, receiveSpecimen, registerDowntimeOrder, registerInstrumentRecord,
+  addReferralTest, createReferralLab, createSendOut, recordCriticalCall, recordInstrumentEvidence, recordLabelPrint, recordManualQc, receiveSpecimen, registerDowntimeOrder, registerInstrumentRecord,
   release, review, saveMappingDraft, setInstrumentEnabled,
 } from '@lis/lab';
 import { runIntakeBatch } from '@lis/result-intake';
@@ -125,10 +125,34 @@ async function instrumentDownSample() {
   return true;
 }
 
+/**
+ * A referral lab with the tests it does, and a specimen sent to it: its FT4
+ * goes out, waiting for the referral lab's result. Runs on its own, like the
+ * one above. The lab, its turnaround and the waybill are made up.
+ */
+async function sendOutSample() {
+  if (await db.referralLab.findUnique({ where: { code: 'DEMO-REF' } })) return false;
+  const labId = await createReferralLab(db, people.a1, { code: 'DEMO-REF', name: 'Demo Reference Laboratory', address: 'DEMO ONLY: not a real laboratory', phone: '', email: '', notes: 'Courier collects on weekdays (demo).' });
+  await addReferralTest(db, people.a1, labId, { localTestCode: 'FT4', tatHours: '72', specimenNote: '1 mL serum, cold chain (demo)' });
+  await addReferralTest(db, people.a1, labId, { localTestCode: 'PT', tatHours: '24', specimenNote: 'Citrate tube, within 4 hours (demo)' });
+  const hmisOrderId = 'DEMO-MRN3016';
+  const order = { hmisOrderId, patient: { mrn: 'MRN3016', familyName: 'Nyambura', givenName: 'Alice', sex: 'F', birthDate: '1972-04-08' }, encounter: { hmisEncounterId: 'E-MRN3016', type: 'outpatient', location: 'OPD' }, priority: 'routine', orderedAt: minutesAgo(240).toISOString(), orderingClinician: 'Dr Demo', lines: ['3016-3', '3024-7'].map((testCode, i) => ({ hmisLineId: `${hmisOrderId}-${i + 1}`, testCode })) };
+  const { orderId } = await db.$transaction((tx) => ingestOrder(tx, HmisOrder.parse(order)));
+  const tests = await db.orderedTest.findMany({ where: { orderId }, orderBy: { hmisLineId: 'asc' } });
+  const { specimenId } = await accessionSpecimen(db, { orderId, orderedTestIds: tests.map((x) => x.id), user: 'tech' });
+  await recordLabelPrint(db, specimenId, 'tech');
+  await receiveSpecimen(db, specimenId, 'tech');
+  const ft4 = tests.find((t) => t.localTestCode === 'FT4');
+  if (ft4) await createSendOut(db, 'tech', { specimenId, labId, orderedTestIds: [ft4.id], dispatchedAt: minutesAgo(120), dispatchRef: 'DEMO-WB-0001' });
+  console.log('sample: added a referral lab and a send-out waiting for its result');
+  return true;
+}
+
 async function main() {
   if (!(await db.appUser.count())) throw new Error('run demo/seed.mjs first');
   if (await db.instrument.findUnique({ where: { id: MARK } })) {
-    if (!(await instrumentDownSample())) console.log('sample: sample data already present, nothing to do');
+    const added = [await instrumentDownSample(), await sendOutSample()];
+    if (!added.some(Boolean)) console.log('sample: sample data already present, nothing to do');
     return;
   }
 
@@ -257,6 +281,7 @@ async function main() {
   const mergeId = await proposeMerge(db, people.a1, { fromPatientId: from.id, intoMrn: 'MRN3010', reference: 'DEMO-MR-0001', reason: 'Duplicate registration (demo)' });
   await confirmMerge(db, people.a2, mergeId);
   await instrumentDownSample();
+  await sendOutSample();
 
   const counts = Object.fromEntries(await Promise.all(['instrument', 'patient', 'labOrder', 'specimen', 'result', 'qcEvaluation', 'unmatchedResult', 'outboxMessage', 'auditEvent'].map(async (m) => [m, await db[m].count()])));
   console.log('sample: added demo sample data', JSON.stringify(counts));

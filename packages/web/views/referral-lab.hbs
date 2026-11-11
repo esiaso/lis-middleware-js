@@ -1,0 +1,49 @@
+<div class="page-head">
+  <h1 class="h4 mb-0"><span class="font-monospace">{{lab.code}}</span> {{lab.name}}{{#unless lab.active}} <span class="badge text-bg-secondary">not used</span>{{/unless}}</h1>
+  <a class="btn btn-outline-secondary btn-sm ms-auto" href="/send-outs?lab={{lab.id}}">Its send-outs</a>
+</div>
+
+<h2 class="h5">Tests it does</h2>
+<p class="note small text-body-secondary">The turnaround is from dispatch here to the referral lab's result report. To change a turnaround, retire the line and add it again; send-outs already made keep the turnaround they were sent with.</p>
+<table class="table table-sm align-middle">
+  <thead><tr><th>Test</th><th>Turnaround</th><th>What to send</th><th>Added</th>{{#if canEdit}}<th></th>{{/if}}</tr></thead>
+  <tbody>
+    {{#each tests}}
+    <tr>
+      <td><span class="font-monospace">{{code}}</span> <span class="small text-body-secondary">{{name}}</span></td>
+      <td>{{tat}}</td>
+      <td class="small">{{note}}</td>
+      <td class="small">{{by}}, {{at}}</td>
+      {{#if @root.canEdit}}<td class="text-end"><form method="post" action="/referral-labs/{{@root.lab.id}}/tests/{{id}}/retire"><input type="hidden" name="_csrf" value="{{@root.csrf}}"><button class="btn btn-outline-danger btn-sm" type="submit">Retire</button></form></td>{{/if}}
+    </tr>
+    {{else}}
+    <tr><td colspan="5" class="text-body-secondary">No tests yet, so nothing can be sent here.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+{{#if retired}}<p class="small text-body-secondary">Retired: {{#each retired}}<span class="font-monospace">{{code}}</span> ({{tat}}, by {{by}} {{at}}){{#unless @last}}; {{/unless}}{{/each}}</p>{{/if}}
+
+{{#if canEdit}}
+<form method="post" action="/referral-labs/{{lab.id}}/tests" class="card mb-4"><div class="card-body row g-3 align-items-end">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  {{#if testIssues}}<div class="col-12"><div class="alert alert-danger py-2 mb-0" role="alert"><strong>Not saved.</strong>{{#each testIssues}}<div>{{this}}</div>{{/each}}</div></div>{{/if}}
+  <div class="col-md-4"><label class="form-label" for="localTestCode">Test</label><select class="form-select" id="localTestCode" name="localTestCode" required><option value="">Pick a test</option>{{#each catalogue}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{code}}: {{name}}</option>{{/each}}</select></div>
+  <div class="col-md-2"><label class="form-label" for="tatHours">Turnaround, hours</label><input class="form-control" id="tatHours" name="tatHours" value="{{t.tatHours}}" required inputmode="numeric" pattern="[0-9]{1,4}" placeholder="72"></div>
+  <div class="col-md-4"><label class="form-label" for="specimenNote">What to send</label><input class="form-control" id="specimenNote" name="specimenNote" value="{{t.specimenNote}}" maxlength="300" placeholder="2 mL serum, frozen"></div>
+  <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Add test</button></div>
+</div></form>
+
+<h2 class="h5">Details</h2>
+<form method="post" action="/referral-labs/{{lab.id}}" class="card"><div class="card-body row g-3">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  {{#if labIssues}}<div class="col-12"><div class="alert alert-danger py-2 mb-0" role="alert"><strong>Not saved.</strong>{{#each labIssues}}<div>{{this}}</div>{{/each}}</div></div>{{/if}}
+  <div class="col-sm-4 col-lg-2"><label class="form-label" for="code">Code</label><input class="form-control font-monospace text-uppercase" id="code" name="code" value="{{v.code}}" required maxlength="20"></div>
+  <div class="col-sm-8 col-lg-5"><label class="form-label" for="name">Name</label><input class="form-control" id="name" name="name" value="{{v.name}}" required maxlength="120"></div>
+  <div class="col-sm-6 col-lg-2"><label class="form-label" for="phone">Phone</label><input class="form-control" id="phone" name="phone" value="{{v.phone}}" maxlength="60"></div>
+  <div class="col-sm-6 col-lg-3"><label class="form-label" for="email">Email</label><input class="form-control" id="email" name="email" value="{{v.email}}" maxlength="120" type="email"></div>
+  <div class="col-lg-6"><label class="form-label" for="address">Address</label><textarea class="form-control" id="address" name="address" rows="2" maxlength="300">{{v.address}}</textarea></div>
+  <div class="col-lg-6"><label class="form-label" for="notes">Notes</label><textarea class="form-control" id="notes" name="notes" rows="2" maxlength="500">{{v.notes}}</textarea></div>
+  <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="active" name="active" value="1" {{#if lab.active}}checked{{/if}}><label class="form-check-label" for="active">In use (untick to stop new send-outs to this lab)</label></div></div>
+  <div class="col-12"><button class="btn btn-primary" type="submit">Save details</button></div>
+</div></form>
+{{/if}}

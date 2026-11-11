@@ -226,3 +226,18 @@ h1 .more-info-btn, .h4 .more-info-btn { font-size: 1rem; }
 .app-main td details[open] { min-width: 14rem; }
 .form-actions .btn { white-space: nowrap; }
 @media (max-width: 575.98px) { .form-actions > span { display: none; } }
+/* Report letterhead from the Report header settings (A-42). */
+.report-brand { display: flex; align-items: flex-start; gap: .75rem; min-width: 0; }
+.report-logo { max-height: 20mm; max-width: 45mm; object-fit: contain; }
+.report-subtitle { font-size: .95rem; font-weight: 600; }
+.report-contact { font-size: .78rem; color: var(--bs-secondary-color); }
+.report-contact span + span::before { content: " · "; }
+.report-accreditation { font-size: .72rem; font-style: italic; color: var(--bs-secondary-color); }
+.report-footer-note { white-space: pre-line; }
+.report-preview { font-size: .9rem; }
+.report-ids { flex-shrink: 0; white-space: nowrap; }
+/* Test codes on the patient's orders: approved, pending, cancelled. */
+.test-chip { display: inline-block; padding: 0 .3rem; border-radius: .25rem; border: 1px solid var(--bs-border-color); }
+.test-approved { background: var(--bs-success-bg-subtle); border-color: var(--bs-success-border-subtle); }
+.test-pending { background: var(--bs-warning-bg-subtle); border-color: var(--bs-warning-border-subtle); }
+.test-cancelled { text-decoration: line-through; color: var(--bs-secondary-color); }

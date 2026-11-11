@@ -1,0 +1,36 @@
+<div class="page-head">
+  <h1 class="h4 mb-0">Referral labs</h1>
+  <a class="btn btn-outline-secondary btn-sm ms-auto" href="/send-outs">Send-outs</a>
+</div>
+<p class="note text-body-secondary">Outside labs the lab sends specimens to, and for each the tests it does with the agreed turnaround (from dispatch to its result report). A test can only be sent to a lab that has it on its list, so every send-out has a turnaround to be measured against. Admins and approvers keep this list; each change is in the audit log.</p>
+<table class="table table-sm align-middle">
+  <thead><tr><th>Code</th><th>Name</th><th>Contact</th><th>Tests</th><th>Out now</th></tr></thead>
+  <tbody>
+    {{#each labs}}
+    <tr class="{{#unless active}}text-body-secondary{{/unless}}">
+      <td class="font-monospace"><a href="/referral-labs/{{id}}">{{code}}</a></td>
+      <td>{{name}}{{#unless active}} <span class="badge text-bg-secondary">not used</span>{{/unless}}</td>
+      <td class="small">{{phone}}{{#if email}}{{#if phone}} · {{/if}}{{email}}{{/if}}</td>
+      <td class="font-monospace small">{{tests}}</td>
+      <td>{{open}}</td>
+    </tr>
+    {{else}}
+    <tr><td colspan="5" class="text-body-secondary">No referral labs yet.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+
+{{#if canEdit}}
+<h2 class="h5 mt-4">Add a referral lab</h2>
+{{> issues}}
+<form method="post" action="/referral-labs" class="card"><div class="card-body row g-3">
+  <input type="hidden" name="_csrf" value="{{csrf}}">
+  <div class="col-sm-4 col-lg-2"><label class="form-label" for="code">Code</label><input class="form-control font-monospace text-uppercase" id="code" name="code" value="{{v.code}}" required maxlength="20" autocomplete="off"></div>
+  <div class="col-sm-8 col-lg-5"><label class="form-label" for="name">Name</label><input class="form-control" id="name" name="name" value="{{v.name}}" required maxlength="120"></div>
+  <div class="col-sm-6 col-lg-2"><label class="form-label" for="phone">Phone</label><input class="form-control" id="phone" name="phone" value="{{v.phone}}" maxlength="60" inputmode="tel"></div>
+  <div class="col-sm-6 col-lg-3"><label class="form-label" for="email">Email</label><input class="form-control" id="email" name="email" value="{{v.email}}" maxlength="120" type="email"></div>
+  <div class="col-lg-6"><label class="form-label" for="address">Address</label><textarea class="form-control" id="address" name="address" rows="2" maxlength="300">{{v.address}}</textarea></div>
+  <div class="col-lg-6"><label class="form-label" for="notes">Notes</label><textarea class="form-control" id="notes" name="notes" rows="2" maxlength="500">{{v.notes}}</textarea><div class="form-text">Such as the courier, pick-up days, or the contract reference.</div></div>
+  <div class="col-12"><button class="btn btn-primary" type="submit">Add lab</button></div>
+</div></form>
+{{/if}}

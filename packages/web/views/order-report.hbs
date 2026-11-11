@@ -7,16 +7,12 @@
   {{#unless approved}}<div class="alert alert-warning">No result on this order is approved yet, so the report has no values.</div>{{/unless}}
 </div>
 <article class="result-report">
-  <header class="report-letterhead">
-    <div>
-      <div class="report-lab">{{header}}</div>
-      <div class="report-kind">Laboratory report</div>
-    </div>
+  {{#> letterhead lh=letterhead}}
     <div class="report-ids">
       <div><span>Order</span> <strong>{{o.hmisOrderId}}</strong>{{#if o.downtime}} (downtime order){{/if}}</div>
       <div><span>Priority</span> {{o.priority}}</div>
     </div>
-  </header>
+  {{/letterhead}}
   <section class="report-boxes">
     <div class="report-box">
       <div class="report-box-title">Patient</div>
@@ -60,6 +56,7 @@
   </table>
   <footer class="report-footer">
     <p class="mb-1">Values as reported by the instrument and approved in the laboratory. {{#if pending}}Pending tests have no approved result yet; do not act on them from this report. {{/if}}The HMIS record is the official result where it has been received.</p>
+    {{#if letterhead.footerNote}}<p class="mb-1 report-footer-note">{{letterhead.footerNote}}</p>{{/if}}
     <p class="mb-0">Printed {{printed}} by {{printedBy}}</p>
   </footer>
 </article>

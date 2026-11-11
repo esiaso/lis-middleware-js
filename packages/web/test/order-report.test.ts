@@ -7,7 +7,7 @@ import { pino } from 'pino';
 import { Browser, PW } from './browser.js';
 
 const url = process.env['TEST_DATABASE_URL'];
-const TABLES = 'result_comment, standard_comment, reference_range, user_session, app_user, audit_event, result_event, result_version, result, observation, normalized_message, specimen, ordered_test, lab_order, patient';
+const TABLES = 'report_settings, result_comment, standard_comment, reference_range, user_session, app_user, audit_event, result_event, result_version, result, observation, normalized_message, specimen, ordered_test, lab_order, patient';
 
 describe.skipIf(!url)('printed result report', () => {
   let db: Db;

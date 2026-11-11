@@ -90,9 +90,13 @@ describe.skipIf(!url)('patient history over HTTP', () => {
 
     const b = new Browser(base);
     expect((await b.signIn('tech')).status).toBe(303);
-    const found = await b.get('/patients?q=examp');
+    const found = await b.get('/patients?show=all&q=examp');
     expect(found.html).toContain('EXAMPLE, Ben');
     expect(found.html).toContain('EXAMPLETON, Ann');
+    // By default only patients with a result still pending: Ann's is approved.
+    const pending = await b.get('/patients?q=examp');
+    expect(pending.html).toContain('EXAMPLE, Ben');
+    expect(pending.html).not.toContain('EXAMPLETON, Ann');
     expect((await b.get('/patients?q=mrn9')).location).toBe(`/patients/${ben}`);
 
     const page = await b.get(`/patients/${ben}`);
@@ -104,6 +108,48 @@ describe.skipIf(!url)('patient history over HTTP', () => {
 
     expect((await b.get(`/results/${old}`)).html).toContain(`href="/patients/${ben}"`);
     expect((await b.get(`/patients/${uuidv7()}`)).status).toBe(404);
+  });
+
+  it('lists patients waiting for results by default, STAT first, and shows current and past orders with print links', async () => {
+    const ben = uuidv7();
+    const ann = uuidv7();
+    const cy = uuidv7();
+    await db.patient.create({ data: { id: ben, mrn: 'MRN9', familyName: 'Example', givenName: 'Ben' } });
+    await db.patient.create({ data: { id: ann, mrn: 'MRN10', familyName: 'Other', givenName: 'Ann' } });
+    await db.patient.create({ data: { id: cy, mrn: 'MRN11', familyName: 'Done', givenName: 'Cy' } });
+    await add(ben, 'K', '3.9', new Date('2026-11-01T07:00:00Z')); // approved: a past order
+    await add(ben, 'NA', '140', new Date('2026-11-03T07:00:00Z'), 'received'); // still pending
+    await add(cy, 'K', '4.0', new Date('2026-11-02T07:00:00Z')); // nothing pending
+    // Ann: a STAT order not yet collected, so it comes first though newer.
+    const statOrder = uuidv7();
+    await db.labOrder.create({ data: { id: statOrder, hmisOrderId: 'ORD-STAT', patientId: ann, priority: 'stat', orderedAt: new Date('2026-11-04T07:00:00Z'), status: 'active', sourceJson: {} } });
+    await db.orderedTest.create({ data: { id: uuidv7(), orderId: statOrder, hmisLineId: '1', hmisTestCode: 'HMIS-HB', localTestCode: 'HB', status: 'active' } });
+    await db.orderedTest.create({ data: { id: uuidv7(), orderId: statOrder, hmisLineId: '2', hmisTestCode: 'HMIS-X', localTestCode: 'X', status: 'cancelled' } });
+
+    const b = await as('tech');
+    const list = await b.get('/patients');
+    expect(list.status).toBe(200);
+    expect(list.html).toContain('Pending results');
+    expect(list.html).toContain('EXAMPLE, Ben');
+    expect(list.html).toContain('OTHER, Ann');
+    expect(list.html).not.toContain('DONE, Cy');
+    expect(list.html.indexOf('OTHER, Ann')).toBeLessThan(list.html.indexOf('EXAMPLE, Ben'));
+    expect((await b.get('/patients?show=all')).html).toContain('DONE, Cy');
+
+    const page = (await b.get(`/patients/${ben}`)).html;
+    const current = page.indexOf('>Current<');
+    const past = page.indexOf('>Past<');
+    expect(current).toBeGreaterThan(0);
+    expect(past).toBeGreaterThan(current);
+    const orders = await db.labOrder.findMany({ where: { patientId: ben }, orderBy: { orderedAt: 'asc' } });
+    // The past order has an approved result to print; the current one has none yet.
+    expect(page.slice(past)).toContain(`href="/orders/${orders[0]!.id}/report"`);
+    expect(page).not.toContain(`href="/orders/${orders[1]!.id}/report"`);
+    expect(page.slice(current, past)).toContain(`href="/orders/${orders[1]!.id}"`);
+    expect(page).toContain('Print this page');
+    const annPage = (await b.get(`/patients/${ann}`)).html;
+    expect(annPage).toContain('test-cancelled');
+    expect(annPage).toContain('0 of 2');
   });
 
   it('records a merge from the HMIS with two people, and the MRN that stays shows both histories (A-35)', async () => {

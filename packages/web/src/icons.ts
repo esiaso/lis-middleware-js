@@ -16,6 +16,8 @@ const PAGE_ICONS = [
   'box-arrow-right', 'check2-circle', 'info-circle', 'plus-lg', 'printer', 'chevron-down', 'cloud-slash', 'cpu', 'exclamation-triangle-fill', 'graph-down-arrow', 'hospital', 'list', 'stopwatch',
   // dashboard tiles
   'inbox', 'patch-check', 'send', 'question-diamond', 'x-octagon',
+  // send-outs
+  'download', 'paperclip',
 ];
 export const ICONS: ReadonlySet<string> = new Set([...PAGE_ICONS, ...navFor('/', ['admin', 'auditor']).flatMap((g) => g.links.map((l) => l.icon))]);
 

@@ -1,0 +1,38 @@
+<div class="page-head">
+  <h1 class="h4 mb-0">Send-outs</h1>
+  <a class="btn btn-outline-secondary btn-sm ms-auto" href="/referral-labs">Referral labs</a>
+</div>
+<p class="note text-body-secondary">Every test sent to a referral lab, with its agreed turnaround, when it is due, and how long it took. The clock runs from dispatch until its result is typed in from the referral lab's report. Overdue tests come first. Open a row for the send-out: its receipt at the referral lab, the papers kept with it, and result entry.</p>
+{{> tabs}}
+{{#if waiting}}<div class="alert alert-info py-2">{{waiting}} specimen{{#unless (eq waiting 1)}}s{{/unless}} with tests to send. <a href="/send-outs?tab=send">To send</a></div>{{/if}}
+<form method="get" action="/send-outs" class="row g-2 mb-3 align-items-end d-print-none">
+  <div class="col-sm-4 col-lg-3"><label class="form-label small" for="lab">Referral lab</label><select class="form-select form-select-sm" id="lab" name="lab"><option value="">All labs</option>{{#each labs}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{code}}: {{name}}</option>{{/each}}</select></div>
+  <div class="col-sm-4 col-lg-3"><label class="form-label small" for="state">Where it stands</label><select class="form-select form-select-sm" id="state" name="state"><option value="">All but cancelled</option>{{#each states}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}} ({{count}})</option>{{/each}}</select></div>
+  <div class="col-sm-4 col-lg-3"><label class="form-label small" for="q">Accession, MRN or test</label><input class="form-control form-control-sm" id="q" name="q" value="{{q}}" maxlength="40"></div>
+  <div class="col-auto"><button class="btn btn-outline-primary btn-sm" type="submit">Show</button></div>
+</form>
+{{#if overdue}}<p class="text-danger-emphasis"><strong>{{overdue}} overdue</strong>: past their turnaround with no result yet. Call the referral lab.</p>{{/if}}
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+  <thead><tr><th>Test</th><th>Patient</th><th>Accession</th><th>Lab</th><th>Sent</th><th>Turnaround</th><th>Due</th><th>Result</th><th>Took</th><th>State</th></tr></thead>
+  <tbody>
+    {{#each rows}}
+    <tr>
+      <td class="font-monospace"><a href="/send-outs/{{sendOutId}}">{{code}}</a></td>
+      <td class="small"><a href="/patients/{{patient.id}}">{{patient.name}}</a><br>{{patient.mrn}}</td>
+      <td class="font-monospace small">{{accessionNo}}</td>
+      <td class="font-monospace text-nowrap">{{lab.code}}</td>
+      <td class="small text-nowrap">{{dispatchedAt}}{{#if dispatchRef}}<br><span class="text-body-secondary">{{dispatchRef}}</span>{{/if}}</td>
+      <td>{{tat}}</td>
+      <td class="small text-nowrap">{{dueAt}}</td>
+      <td class="small text-nowrap">{{#if resultId}}<a href="/results/{{resultId}}">{{resultedAt}}</a>{{/if}}</td>
+      <td class="text-nowrap">{{took}}</td>
+      <td class="text-nowrap"><span class="badge text-bg-{{tone}}">{{stateLabel}}</span></td>
+    </tr>
+    {{else}}
+    <tr><td colspan="10" class="text-body-secondary">No sent-out tests match.</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+</div>
+{{> pager}}

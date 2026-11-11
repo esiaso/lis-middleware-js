@@ -335,14 +335,26 @@ dashboard shows a warning while any are.
 
 ## W-13 Patient history
 
-**Patients**: search by MRN (an exact MRN opens the patient) or by the start
-of the family name, among patients the HMIS has sent orders for. The patient
-page is a cumulative report: one row per test, one column per collection
-time (newest first, the newest 12), each value linking to its result, with
-abnormal, critical and delta flags; values not yet approved are in italics.
-It holds results from this middleware only. A reconciled provisional record
-points to the HMIS patient its results moved to. The result and order pages
-link to it.
+**Patients** opens on **Pending results**: patients with a test on an open
+order (not cancelled or reconciled) that has no approved result yet, STAT
+first, then urgent, then whoever has waited longest, with the number of
+pending tests and orders and when the oldest was ordered. **All patients**
+lists everyone the HMIS has sent orders for (or registered at downtime), by
+family name. Either can be searched by the start of the MRN, family or given
+name, and an exact MRN opens the patient. Both are paged, 50 a page.
+
+The patient page lists the patient's **orders** (and those of MRNs merged
+into it), newest first, split into **Current** (a test still without an
+approved result) and **Past**. Each row has the order, when, priority,
+location, the tests coloured by state (approved, pending, cancelled), how many
+are approved, and **Print results**, which opens the order's printable report
+(W-14) when it has an approved result. Below that is the cumulative report:
+one row per test, one column per collection time (newest first, the newest
+12), each value linking to its result, with abnormal, critical and delta
+flags; values not yet approved are in italics. It holds results from this
+middleware only. A reconciled provisional record points to the HMIS patient
+its results moved to. The result and order pages link to it. **Print this
+page** prints the orders and the cumulative report.
 
 **Record a merge from the HMIS** (administrators and approvers, A-35): on the
 page of the MRN that goes, the MRN that stays, the HMIS or medical records
@@ -361,7 +373,8 @@ undone merge with who did it and why.
 ## W-14 Printed result report
 
 **Order → Print result report**: an A4 page for the browser's print dialog,
-headed by `LIMS_REPORT_HEADER` (11), with the patient, the order, the
+headed by the letterhead from **Set-up → Report header** (W-26), or by
+`LIMS_REPORT_HEADER` (11) until one is saved, with the patient, the order, the
 specimens and one line per ordered test. Only approved results (by a person
 or by autoverification) carry a value, with units, abnormal and critical
 flags, "corrected" where it applies, the reference range text the
@@ -540,6 +553,47 @@ The result page shows "typed in from the printout" with the run, who ran it,
 who typed it and why, and the person who typed it cannot approve it (A-41).
 The Downtime page links here and to downtime order registration, so both
 "HMIS down" and "instrument down" start from one place.
+
+## W-26 Report header
+
+**Set-up → Report header** (admins only): the letterhead printed on every lab
+report (W-14). A form for the lab name, a second line (such as the
+department), the address (up to 4 lines), phone, email, accreditation
+wording, the report title and a footer note, then a separate logo upload
+(PNG or JPEG, at most 256 KB) once the details are saved, with a "Remove the
+logo" fold. Each save needs the admin's password (or the hospital sign-in
+confirmation). Beside the form, a preview of the letterhead as it will
+print. Until the details are saved, reports keep the `LIMS_REPORT_HEADER`
+line (A-42).
+
+
+## W-27 Send-outs and referral labs
+
+**Set-up → Referral labs**: the outside labs, with the tests each does and its
+agreed turnaround (hours, shown as days when whole), what to send, and how
+many send-outs are out now. A lab's page edits its details, adds a test with
+its turnaround, retires one, or stops using the lab (A-43).
+
+**Specimens → Send-outs** has two tabs. **Sent tests** (the default) lists
+every sent-out test: test, patient, accession, lab, when sent and the waybill,
+turnaround, when due, when its result was typed in, how long it took, and
+where it stands (overdue, awaiting result, resulted on time or late,
+cancelled), overdue first, filtered by lab, state, or an accession, MRN or
+test code, 50 a page. **To send** lists received specimens with tests a
+referral lab does and no result yet, STAT first; scanning an accession shows
+every waiting test of that specimen. Each card has the tests to tick, the lab
+(defaulting to the one that does most of them), the time sent and the waybill,
+and **Record as sent**.
+
+A **send-out** page shows the specimen, patient, lab and its contacts, when it
+was sent, received there (with their number) and due, and each test with its
+turnaround and result. Below are **Type in results from the referral lab's
+report** (a field per waiting test and their report number), **Received at
+the referral lab**, the **Papers** with an upload (what it is, the file, a
+note), and **Cancel this send-out**. A result typed in this way shows on its
+result page as typed in from the referral lab's report, with the report
+number, the typist and a link back to the send-out.
+
 
 ## W-10 Audit search and export
 

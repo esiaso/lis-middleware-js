@@ -1,14 +1,27 @@
-<h1 class="h4">Patients</h1>
-<form method="get" action="/patients" class="row g-2 mb-3">
-  <div class="col-md-4"><input class="form-control" name="q" value="{{q}}" placeholder="MRN or family name" aria-label="MRN or family name" minlength="2" maxlength="60" autofocus></div>
-  <div class="col-auto"><button class="btn btn-outline-secondary" type="submit">Search</button></div>
-</form>
-{{#if searched}}
+<div class="page-head">
+  <h1 class="h4 mb-0">Patients</h1>
+  <form method="get" action="/patients" class="ms-auto d-flex gap-2" role="search">
+    {{#if all}}<input type="hidden" name="show" value="all">{{/if}}
+    <label class="visually-hidden" for="q">MRN or name</label>
+    <input class="form-control form-control-sm" id="q" name="q" value="{{q}}" placeholder="MRN or name" minlength="2" maxlength="60" autofocus>
+    <button class="btn btn-outline-primary btn-sm" type="submit">Search</button>
+    {{#if q}}<a class="btn btn-link btn-sm" href="/patients{{#if all}}?show=all{{/if}}">Clear</a>{{/if}}
+  </form>
+</div>
+<p class="note text-body-secondary">"Pending results" lists patients with a test on an open order that has no approved result yet, STAT first, then whoever has waited longest. "All patients" lists everyone the middleware knows, by family name: patients come with HMIS orders or downtime registration. An exact MRN opens that patient.</p>
+<ul class="nav nav-tabs mb-3">
+  {{#each tabs}}<li class="nav-item"><a class="nav-link{{#if active}} active{{/if}}" {{#if active}}aria-current="page"{{/if}} href="{{href}}">{{label}}</a></li>{{/each}}
+</ul>
 <table class="table table-sm align-middle">
-  <thead><tr><th>Name</th><th>MRN</th><th>Sex</th><th>Born</th></tr></thead>
+  <thead><tr><th>Name</th><th>MRN</th><th>Sex</th><th>Born</th>{{#unless all}}<th>Pending tests</th><th>Orders</th><th>Waiting since</th>{{/unless}}</tr></thead>
   <tbody>
-    {{#each rows}}<tr><td><a href="/patients/{{id}}">{{name}}</a>{{#if provisional}} <span class="badge text-bg-warning">provisional</span>{{/if}}{{#if merged}} <span class="badge text-bg-secondary">reconciled</span>{{/if}}</td><td>{{mrn}}</td><td>{{sex}}</td><td>{{birthDate}}</td></tr>
-    {{else}}<tr><td colspan="4" class="text-body-secondary">No patient found. The middleware only knows patients the HMIS has sent orders for.</td></tr>{{/each}}
+    {{#each rows}}<tr>
+      <td><a href="/patients/{{id}}">{{name}}</a>{{#if stat}} <span class="badge text-bg-danger">STAT</span>{{/if}}{{#if urgent}} <span class="badge text-bg-warning">urgent</span>{{/if}}{{#if provisional}} <span class="badge text-bg-warning">provisional</span>{{/if}}{{#if merged}} <span class="badge text-bg-secondary">reconciled</span>{{/if}}</td>
+      <td class="font-monospace">{{mrn}}</td><td>{{sex}}</td><td>{{birthDate}}</td>
+      {{#unless @root.all}}<td>{{pendingTests}}</td><td>{{orders}}</td><td class="small">{{waitingSince}}</td>{{/unless}}
+    </tr>
+    {{else}}<tr><td colspan="7" class="text-body-secondary">{{#if q}}No patient matches "{{q}}"{{#unless all}} with results pending. Try All patients{{/unless}}.{{else}}{{#if all}}No patients yet. The middleware only knows patients the HMIS has sent orders for.{{else}}No patient is waiting for results.{{/if}}{{/if}}</td></tr>{{/each}}
   </tbody>
 </table>
-{{/if}}
+{{#if capped}}<p class="small text-body-secondary">Only the first 5000 pending tests are counted.</p>{{/if}}
+{{> pager}}

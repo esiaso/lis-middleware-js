@@ -43,7 +43,7 @@ export async function manualWorksheet(db: Db | Tx, opts: { section?: string } = 
   const order = new Map(all.filter((e) => e.resultType === 'PANEL').map((e) => [e.localCode, e.components ?? []]));
   const position = (r: WorksheetRow) => (r.panel ? (order.get(r.panel.code) ?? []).indexOf(r.test.localCode) : 0);
   const tests = await db.orderedTest.findMany({
-    where: { localTestCode: { in: [...byCode.keys()] }, status: 'active', result: null, specimen: { status: 'received' }, order: { status: { not: 'cancelled' } } },
+    where: { localTestCode: { in: [...byCode.keys()] }, status: 'active', result: null, sendOuts: { none: { active: true } }, specimen: { status: 'received' }, order: { status: { not: 'cancelled' } } },
     include: { specimen: true, order: { include: { patient: true } } },
     take: 500,
   });

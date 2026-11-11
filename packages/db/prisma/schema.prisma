@@ -371,6 +371,7 @@ model OrderedTest {
   order         LabOrder @relation(fields: [orderId], references: [id])
   specimen      Specimen? @relation(fields: [specimenId], references: [id])
   result        Result?
+  sendOuts      SendOutTest[]
 
   @@unique([orderId, hmisLineId, componentCode])
   @@map("ordered_test")
@@ -424,6 +425,7 @@ model Specimen {
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
   order       LabOrder      @relation(fields: [orderId], references: [id])
   tests       OrderedTest[]
+  sendOuts    SendOut[]
 
   @@index([barcode])
   @@map("specimen")
@@ -965,4 +967,138 @@ model TatTarget {
 
   @@index([active])
   @@map("tat_target")
+}
+
+/// The letterhead on printed lab reports (01 A-42): one row, edited by an admin.
+model ReportSettings {
+  /// Always "lab": there is one letterhead.
+  id            String   @id @default("lab")
+  labName       String   @map("lab_name")
+  /// A second line under the name, such as the department.
+  subtitle      String?
+  address       String?
+  phone         String?
+  email         String?
+  /// Accreditation or licence wording, printed as typed.
+  accreditation String?
+  /// The heading under the letterhead, such as "Laboratory report".
+  reportTitle   String   @map("report_title")
+  /// Extra wording printed at the foot of every report.
+  footerNote    String?  @map("footer_note")
+  /// PNG or JPEG, at most 256 KB, checked by its first bytes.
+  logo          Bytes?
+  logoType      String?  @map("logo_type")
+  logoSha256    String?  @map("logo_sha256")
+  updatedBy     String   @map("updated_by")
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  @@map("report_settings")
+}
+
+/// An outside laboratory the lab sends specimens to (01 A-43).
+model ReferralLab {
+  id        String         @id @db.Uuid
+  /// Short code staff know it by, such as KEMRI.
+  code      String         @unique
+  name      String
+  address   String?
+  phone     String?
+  email     String?
+  notes     String?
+  active    Boolean        @default(true)
+  createdBy String         @map("created_by")
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedBy String?        @map("updated_by")
+  updatedAt DateTime?      @map("updated_at") @db.Timestamptz
+  tests     ReferralTest[]
+  sendOuts  SendOut[]
+
+  @@map("referral_lab")
+}
+
+/// A test a referral lab does for this lab, with its agreed turnaround.
+model ReferralTest {
+  id            String      @id @db.Uuid
+  labId         String      @map("lab_id") @db.Uuid
+  localTestCode String      @map("local_test_code")
+  /// Agreed turnaround, from dispatch to the result report, in hours.
+  tatHours      Int         @map("tat_hours")
+  /// What to send: tube, volume, storage and transport.
+  specimenNote  String?     @map("specimen_note")
+  active        Boolean     @default(true)
+  createdBy     String      @map("created_by")
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  retiredBy     String?     @map("retired_by")
+  retiredAt     DateTime?   @map("retired_at") @db.Timestamptz
+  lab           ReferralLab @relation(fields: [labId], references: [id], onDelete: Restrict)
+
+  @@index([localTestCode])
+  @@map("referral_test")
+}
+
+/// A specimen (or part of it) sent to a referral lab, with its tests.
+model SendOut {
+  id            String            @id @db.Uuid
+  specimenId    String            @map("specimen_id") @db.Uuid
+  labId         String            @map("lab_id") @db.Uuid
+  /// sent, received (by the referral lab), resulted, cancelled.
+  status        String
+  dispatchedAt  DateTime          @map("dispatched_at") @db.Timestamptz
+  dispatchedBy  String            @map("dispatched_by")
+  /// Courier, waybill or manifest number.
+  dispatchRef   String?           @map("dispatch_ref")
+  /// When the result report is due: dispatch plus the longest test turnaround.
+  dueAt         DateTime          @map("due_at") @db.Timestamptz
+  labReceivedAt DateTime?         @map("lab_received_at") @db.Timestamptz
+  labReceivedBy String?           @map("lab_received_by")
+  /// The referral lab's own number for the specimen.
+  labRef        String?           @map("lab_ref")
+  resultedAt    DateTime?         @map("resulted_at") @db.Timestamptz
+  cancelledAt   DateTime?         @map("cancelled_at") @db.Timestamptz
+  cancelledBy   String?           @map("cancelled_by")
+  cancelReason  String?           @map("cancel_reason")
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  specimen      Specimen          @relation(fields: [specimenId], references: [id], onDelete: Restrict)
+  lab           ReferralLab       @relation(fields: [labId], references: [id], onDelete: Restrict)
+  tests         SendOutTest[]
+  documents     SendOutDocument[]
+
+  @@index([status, dueAt])
+  @@index([specimenId])
+  @@map("send_out")
+}
+
+/// One ordered test on a send-out. An ordered test is on at most one send-out that is not cancelled.
+model SendOutTest {
+  id            String      @id @db.Uuid
+  sendOutId     String      @map("send_out_id") @db.Uuid
+  orderedTestId String      @map("ordered_test_id") @db.Uuid
+  tatHours      Int         @map("tat_hours")
+  /// False once the send-out is cancelled, so the test can be sent again.
+  active        Boolean     @default(true)
+  sendOut       SendOut     @relation(fields: [sendOutId], references: [id], onDelete: Restrict)
+  orderedTest   OrderedTest @relation(fields: [orderedTestId], references: [id], onDelete: Restrict)
+
+  @@index([orderedTestId])
+  @@map("send_out_test")
+}
+
+/// A file kept with a send-out: the referral lab's receiving report, its result report, or another paper.
+model SendOutDocument {
+  id          String   @id @db.Uuid
+  sendOutId   String   @map("send_out_id") @db.Uuid
+  /// receiving-report, result-report or other.
+  kind        String
+  fileName    String   @map("file_name")
+  contentType String   @map("content_type")
+  bytes       Bytes
+  size        Int
+  sha256      String
+  note        String?
+  uploadedBy  String   @map("uploaded_by")
+  uploadedAt  DateTime @default(now()) @map("uploaded_at") @db.Timestamptz
+  sendOut     SendOut  @relation(fields: [sendOutId], references: [id], onDelete: Restrict)
+
+  @@index([sendOutId])
+  @@map("send_out_document")
 }

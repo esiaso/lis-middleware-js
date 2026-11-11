@@ -1,0 +1,18 @@
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+  <thead><tr><th>Order</th><th>Ordered</th><th>Priority</th><th>Location</th><th>Tests</th><th>Approved</th><th class="d-print-none"></th></tr></thead>
+  <tbody>
+    {{#each orders}}
+    <tr class="{{#if cancelled}}text-body-secondary{{/if}}">
+      <td><a href="/orders/{{id}}">{{hmisOrderId}}</a>{{#if cancelled}} (cancelled){{/if}}{{#if reconciled}} (reconciled){{/if}}{{#if downtime}} <span class="badge text-bg-warning">downtime</span>{{/if}}{{#unless (eq mrn @root.p.mrn)}} <span class="small text-body-secondary">MRN {{mrn}}</span>{{/unless}}</td>
+      <td class="small text-nowrap">{{orderedAt}}</td>
+      <td>{{#if stat}}<span class="badge text-bg-danger">STAT</span>{{else}}{{priority}}{{/if}}</td>
+      <td class="small">{{location}}</td>
+      <td class="small">{{#each tests}}<span class="font-monospace test-chip test-{{state}}" title="{{state}}">{{code}}</span> {{/each}}</td>
+      <td class="text-nowrap">{{approved}} of {{tests.length}}{{#if pending}} <span class="small text-body-secondary">({{pending}} pending)</span>{{/if}}</td>
+      <td class="d-print-none text-end">{{#if printable}}<a class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1" href="/orders/{{id}}/report">{{icon "printer"}}<span>Print results</span></a>{{/if}}</td>
+    </tr>
+    {{/each}}
+  </tbody>
+</table>
+</div>

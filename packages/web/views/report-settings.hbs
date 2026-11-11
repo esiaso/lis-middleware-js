@@ -1,0 +1,62 @@
+<div class="page-head">
+  <h1 class="h4 mb-0">Report header</h1>
+</div>
+<p class="note text-body-secondary">The logo and lab details printed at the top of every lab report, and a note printed at the foot. Only an admin changes them, confirming with their password, and each change is in the audit log with what it was before. Reports already printed keep what was on them. {{#unless saved}}Until this is saved, reports print "{{fallback}}" from the server setting.{{/unless}}</p>
+{{> issues}}
+
+<div class="row g-4">
+  <div class="col-xl-7">
+    <form method="post" action="/settings/report" class="card"><div class="card-body">
+      <input type="hidden" name="_csrf" value="{{csrf}}">
+      <h2 class="h6 mb-3">Lab details</h2>
+      <div class="row g-3">
+        <div class="col-md-8"><label class="form-label" for="labName">Lab name</label><input class="form-control" id="labName" name="labName" value="{{v.labName}}" required maxlength="120" placeholder="County Referral Hospital Laboratory"></div>
+        <div class="col-md-4"><label class="form-label" for="reportTitle">Report title</label><input class="form-control" id="reportTitle" name="reportTitle" value="{{v.reportTitle}}" required maxlength="60"></div>
+        <div class="col-12"><label class="form-label" for="subtitle">Second line</label><input class="form-control" id="subtitle" name="subtitle" value="{{v.subtitle}}" maxlength="120" placeholder="Department of Laboratory Medicine"></div>
+        <div class="col-md-6"><label class="form-label" for="address">Address</label><textarea class="form-control" id="address" name="address" rows="3" maxlength="300">{{v.address}}</textarea><div class="form-text">Up to 4 lines, printed as typed.</div></div>
+        <div class="col-md-6">
+          <label class="form-label" for="phone">Phone</label><input class="form-control mb-3" id="phone" name="phone" value="{{v.phone}}" maxlength="60" inputmode="tel">
+          <label class="form-label" for="email">Email</label><input class="form-control" id="email" name="email" value="{{v.email}}" maxlength="120" type="email">
+        </div>
+        <div class="col-12"><label class="form-label" for="accreditation">Accreditation</label><input class="form-control" id="accreditation" name="accreditation" value="{{v.accreditation}}" maxlength="200"><div class="form-text">Printed exactly as typed, such as the accrediting body, the standard and the certificate number. Only put what the lab holds now.</div></div>
+        <div class="col-12"><label class="form-label" for="footerNote">Footer note</label><textarea class="form-control" id="footerNote" name="footerNote" rows="2" maxlength="500">{{v.footerNote}}</textarea><div class="form-text">Printed at the foot of every report, above the printed-by line.</div></div>
+        <div class="col-md-6">{{> confirm id="header-password" label="Your password" labelClass="form-label" inputClass="form-control"}}</div>
+        <div class="col-md-6 d-flex align-items-end"><button class="btn btn-primary" type="submit">Save details</button></div>
+      </div>
+    </div></form>
+
+    <div class="card mt-4"><div class="card-body">
+      <h2 class="h6 mb-3">Logo</h2>
+      {{#if saved}}
+      <form method="post" action="/settings/report/logo" enctype="multipart/form-data" class="row g-3">
+        <input type="hidden" name="_csrf" value="{{csrf}}">
+        <div class="col-md-6"><label class="form-label" for="logo">{{#if logoVersion}}Replace the logo{{else}}Logo file{{/if}}</label><input class="form-control" id="logo" name="logo" type="file" accept="image/png,image/jpeg" required><div class="form-text">PNG or JPEG, at most {{maxKb}} KB. It prints up to 2 cm high; a square or wide image with a white or clear background prints best.</div></div>
+        <div class="col-md-4">{{> confirm id="logo-password" label="Your password" labelClass="form-label" inputClass="form-control"}}</div>
+        <div class="col-md-2 d-flex align-items-start pt-md-4"><button class="btn btn-primary mt-md-2" type="submit">Upload</button></div>
+      </form>
+      {{#if logoVersion}}
+      <details class="mt-3"><summary class="small">Remove the logo</summary>
+        <form method="post" action="/settings/report/remove-logo" class="row g-2 mt-1">
+          <input type="hidden" name="_csrf" value="{{csrf}}">
+          <div class="col-md-6">{{> confirm id="remove-password" inputClass="form-control form-control-sm"}}</div>
+          <div class="col-md-6"><button class="btn btn-outline-danger btn-sm" type="submit">Remove logo</button></div>
+        </form>
+      </details>
+      {{/if}}
+      {{else}}
+      <p class="text-body-secondary mb-0">Save the lab details first, then add the logo.</p>
+      {{/if}}
+    </div></div>
+    {{#if updated}}<p class="small text-body-secondary mt-2">Last changed by {{updated.by}}, {{updated.at}}.</p>{{/if}}
+  </div>
+
+  <div class="col-xl-5">
+    <h2 class="h6">Preview</h2>
+    <div class="result-report report-preview">
+      {{#> letterhead lh=preview}}<div class="report-ids"><div><span>Order</span> <strong>ORD-0001</strong></div><div><span>Priority</span> routine</div></div>{{/letterhead}}
+      <p class="small text-body-secondary mb-2">Patient, request and results print here.</p>
+      <footer class="report-footer">{{#if preview.footerNote}}<p class="mb-1 report-footer-note">{{preview.footerNote}}</p>{{/if}}<p class="mb-0">Printed … by …</p></footer>
+    </div>
+    <p class="small text-body-secondary mt-2">The preview shows what is saved, or what you just typed when it was not saved.</p>
+  </div>
+</div>
