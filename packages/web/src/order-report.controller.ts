@@ -1,7 +1,7 @@
 import { Controller, Get, Inject, NotFoundException, Param, Req, Res } from '@nestjs/common';
 import type { Db } from '@lis/db';
 import { AUTOVERIFY_ACTOR } from '@lis/domain';
-import { appendAudit, orderReport } from '@lis/lab';
+import { appendAudit, orderReport, reportHeader } from '@lis/lab';
 import type { Response } from 'express';
 import { page, uuidParam } from './controllers.js';
 import { formatTime, formatValue, REFERENCE_MARK } from './format.js';
@@ -29,7 +29,7 @@ export class OrderReportController {
     const p = o.patient;
     page(req, res, 'order-report', {
       title: `Report ${o.hmisOrderId}`,
-      header: this.opts.reportHeader ?? 'Laboratory report',
+      letterhead: (await reportHeader(this.db)) ?? { labName: this.opts.reportHeader ?? 'Laboratory report', reportTitle: 'Laboratory report', addressLines: [], logoVersion: null },
       printed: formatTime(now),
       printedBy: req.user!.displayName,
       o: { id: o.id, hmisOrderId: o.hmisOrderId, priority: o.priority, location: o.location ?? '', clinician: o.orderingClinician ?? '', orderedAt: formatTime(o.orderedAt), downtime: o.source === 'MANUAL_DOWNTIME' },

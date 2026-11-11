@@ -361,7 +361,8 @@ undone merge with who did it and why.
 ## W-14 Printed result report
 
 **Order → Print result report**: an A4 page for the browser's print dialog,
-headed by `LIMS_REPORT_HEADER` (11), with the patient, the order, the
+headed by the letterhead from **Set-up → Report header** (W-26), or by
+`LIMS_REPORT_HEADER` (11) until one is saved, with the patient, the order, the
 specimens and one line per ordered test. Only approved results (by a person
 or by autoverification) carry a value, with units, abnormal and critical
 flags, "corrected" where it applies, the reference range text the
@@ -540,6 +541,19 @@ The result page shows "typed in from the printout" with the run, who ran it,
 who typed it and why, and the person who typed it cannot approve it (A-41).
 The Downtime page links here and to downtime order registration, so both
 "HMIS down" and "instrument down" start from one place.
+
+## W-26 Report header
+
+**Set-up → Report header** (admins only): the letterhead printed on every lab
+report (W-14). A form for the lab name, a second line (such as the
+department), the address (up to 4 lines), phone, email, accreditation
+wording, the report title and a footer note, then a separate logo upload
+(PNG or JPEG, at most 256 KB) once the details are saved, with a "Remove the
+logo" fold. Each save needs the admin's password (or the hospital sign-in
+confirmation). Beside the form, a preview of the letterhead as it will
+print. Until the details are saved, reports keep the `LIMS_REPORT_HEADER`
+line (A-42).
+
 
 ## W-10 Audit search and export
 

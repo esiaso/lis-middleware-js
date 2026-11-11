@@ -1,0 +1,15 @@
+{{!-- The report letterhead (A-42): logo, lab name and details, report title. Anything in the block prints on the right. --}}
+<header class="report-letterhead">
+  <div class="report-brand">
+    {{#if lh.logoVersion}}<img class="report-logo" src="/settings/report/logo?v={{lh.logoVersion}}" alt="">{{/if}}
+    <div>
+      <div class="report-lab">{{lh.labName}}</div>
+      {{#if lh.subtitle}}<div class="report-subtitle">{{lh.subtitle}}</div>{{/if}}
+      {{#if lh.addressLines}}<div class="report-contact">{{#each lh.addressLines}}<span>{{this}}</span>{{/each}}</div>{{/if}}
+      {{#if lh.phone}}<div class="report-contact"><span>Tel {{lh.phone}}</span>{{#if lh.email}}<span>{{lh.email}}</span>{{/if}}</div>{{else}}{{#if lh.email}}<div class="report-contact"><span>{{lh.email}}</span></div>{{/if}}{{/if}}
+      {{#if lh.accreditation}}<div class="report-accreditation">{{lh.accreditation}}</div>{{/if}}
+      <div class="report-kind">{{lh.reportTitle}}</div>
+    </div>
+  </div>
+  {{> @partial-block}}
+</header>

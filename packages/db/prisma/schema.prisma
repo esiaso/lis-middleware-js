@@ -966,3 +966,29 @@ model TatTarget {
   @@index([active])
   @@map("tat_target")
 }
+
+/// The letterhead on printed lab reports (01 A-42): one row, edited by an admin.
+model ReportSettings {
+  /// Always "lab": there is one letterhead.
+  id            String   @id @default("lab")
+  labName       String   @map("lab_name")
+  /// A second line under the name, such as the department.
+  subtitle      String?
+  address       String?
+  phone         String?
+  email         String?
+  /// Accreditation or licence wording, printed as typed.
+  accreditation String?
+  /// The heading under the letterhead, such as "Laboratory report".
+  reportTitle   String   @map("report_title")
+  /// Extra wording printed at the foot of every report.
+  footerNote    String?  @map("footer_note")
+  /// PNG or JPEG, at most 256 KB, checked by its first bytes.
+  logo          Bytes?
+  logoType      String?  @map("logo_type")
+  logoSha256    String?  @map("logo_sha256")
+  updatedBy     String   @map("updated_by")
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  @@map("report_settings")
+}
