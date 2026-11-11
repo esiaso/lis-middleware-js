@@ -1,0 +1,58 @@
+<div class="page-head">
+  <h1 class="h4 mb-0">Instrument down</h1>
+  <div class="ms-auto d-flex gap-2 d-print-none">
+    <a class="btn btn-outline-secondary btn-sm" href="/downtime">HMIS down: downtime orders</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/worksheet">Manual worksheet</a>
+  </div>
+</div>
+<p class="note text-body-secondary">When an analyser still measures but its link to the middleware is down, type its results in here from the printout or screen. Each specimen's results are saved together with the instrument, the run or printout reference, why they were typed in, and who ran the sample. They go through review and approval like any other result, and are approved by someone other than the person who typed them, checking each value against the printout. Release still needs the instrument cleared for clinical use. If the HMIS is down too, register the order on the downtime page first; its results are held until the order is reconciled.</p>
+
+{{> issues}}
+<form method="get" action="/transcribe" class="list-search d-print-none" role="search">
+  <label class="visually-hidden" for="accession">Accession</label>
+  <input class="form-control font-monospace" id="accession" name="accession" value="{{accession}}" placeholder="Scan or type an accession" maxlength="20" autofocus>
+  <button class="btn btn-primary" type="submit">Find</button>
+  {{#if accession}}<a class="btn btn-link" href="/transcribe">Show all</a>{{/if}}
+</form>
+
+{{#each cards}}
+<div class="card mb-3{{#if stat}} border-danger{{/if}}">
+  <div class="card-body">
+    <div class="d-flex flex-wrap gap-3 align-items-baseline mb-3">
+      <span class="font-monospace fw-semibold">{{accessionNo}}</span>
+      <span>{{patient.name}} ({{patient.mrn}})</span>
+      <span class="small text-body-secondary">{{hmisOrderId}}{{#if received}}, received {{received}}{{/if}}</span>
+      {{#if stat}}<span class="badge text-bg-danger">STAT</span>{{/if}}
+      {{#if downtimeOrder}}<span class="badge text-bg-warning">downtime order: held until reconciled</span>{{/if}}
+    </div>
+    {{#if issues}}<div class="alert alert-danger py-2" role="alert"><strong>Not saved.</strong>{{#each issues}}<div>{{this}}</div>{{/each}}</div>{{/if}}
+    <form method="post" action="/transcribe">
+      <input type="hidden" name="_csrf" value="{{@root.csrf}}">
+      <input type="hidden" name="specimenId" value="{{specimenId}}">
+      <input type="hidden" name="accession" value="{{@root.accession}}">
+      <div class="row g-3 mb-2">
+        {{#each tests}}
+        <div class="col-sm-6 col-md-4 col-xl-3">
+          <label class="form-label" for="value-{{id}}">{{name}} <span class="font-monospace text-body-secondary small">{{code}}{{#if panel}} · {{panel}}{{/if}}</span></label>
+          {{#if choice}}
+          <select class="form-select" id="value-{{id}}" name="value-{{id}}"><option value="">Not typed yet</option>{{#each answers}}<option value="{{code}}" {{#if selected}}selected{{/if}}>{{display}}</option>{{/each}}</select>
+          {{else}}
+          <div class="input-group"><input class="form-control font-monospace" id="value-{{id}}" name="value-{{id}}" value="{{value}}" inputmode="decimal" maxlength="20" autocomplete="off">{{#if unit}}<span class="input-group-text">{{unit}}</span>{{/if}}</div>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+      <div class="row g-3 align-items-end transcribe-meta">
+        <div class="col-sm-6 col-lg-3"><label class="form-label" for="inst-{{@index}}">Instrument</label><select class="form-select" id="inst-{{@index}}" name="instrumentId" required><option value="">Pick one</option>{{#each instruments}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></div>
+        <div class="col-sm-6 col-lg-2"><label class="form-label" for="run-{{@index}}">Run or printout ref</label><input class="form-control font-monospace" id="run-{{@index}}" name="runRef" value="{{runRef}}" required maxlength="60" autocomplete="off" placeholder="e.g. 0457" title="The sample or run number on the printout, so the value can be found again."></div>
+        <div class="col-sm-6 col-lg-3"><label class="form-label" for="why-{{@index}}">Why typed in</label><input class="form-control" id="why-{{@index}}" name="reason" value="{{reason}}" required minlength="5" maxlength="300" placeholder="Link down since 08:10"></div>
+        <div class="col-sm-6 col-lg-2"><label class="form-label" for="by-{{@index}}">Run by</label><input class="form-control" id="by-{{@index}}" name="performedBy" value="{{performedBy}}" maxlength="100" placeholder="You, if empty"></div>
+        <div class="col-lg-2">{{#if @root.can.review}}<button class="btn btn-primary w-100" type="submit">Save results</button>{{/if}}</div>
+      </div>
+      <p class="small text-body-secondary mt-2 mb-0">Leave a test empty if its value is not on the printout yet; it stays here. Every value you type is checked before any is saved.</p>
+    </form>
+  </div>
+</div>
+{{else}}
+<p class="text-body-secondary">{{#if accession}}No received specimen {{accession}} has instrument tests waiting for a result.{{else}}No received specimens are waiting for an instrument result.{{/if}}</p>
+{{/each}}

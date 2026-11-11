@@ -107,10 +107,28 @@ async function intake(instrumentId, store) {
   for (let i = 0; i < 20; i++) if ((await runIntakeBatch(db, 'demo-sample')).length === 0) break;
 }
 
+/**
+ * A full blood count received in the lab while the haematology analyser's link
+ * is down: no analyser message, so its results wait on the Instrument down page.
+ * Runs on its own, so it is also added to a demo that already has sample data.
+ */
+async function instrumentDownSample() {
+  if (await db.patient.findUnique({ where: { mrn: 'MRN3014' } })) return false;
+  const hmisOrderId = 'DEMO-MRN3014';
+  const order = { hmisOrderId, patient: { mrn: 'MRN3014', familyName: 'Ouma', givenName: 'Samuel', sex: 'M', birthDate: '1981-10-19' }, encounter: { hmisEncounterId: 'E-MRN3014', type: 'inpatient', location: 'Medical ward' }, priority: 'urgent', orderedAt: minutesAgo(45).toISOString(), orderingClinician: 'Dr Demo', lines: ['718-7', '6690-2', '777-3'].map((testCode, i) => ({ hmisLineId: `${hmisOrderId}-${i + 1}`, testCode })) };
+  const { orderId } = await db.$transaction((tx) => ingestOrder(tx, HmisOrder.parse(order)));
+  const tests = await db.orderedTest.findMany({ where: { orderId }, orderBy: { hmisLineId: 'asc' } });
+  const { specimenId } = await accessionSpecimen(db, { orderId, orderedTestIds: tests.map((x) => x.id), user: 'tech' });
+  await recordLabelPrint(db, specimenId, 'tech');
+  await receiveSpecimen(db, specimenId, 'tech');
+  console.log('sample: added a received blood count with no analyser result (instrument link down)');
+  return true;
+}
+
 async function main() {
   if (!(await db.appUser.count())) throw new Error('run demo/seed.mjs first');
   if (await db.instrument.findUnique({ where: { id: MARK } })) {
-    console.log('sample: sample data already present, nothing to do');
+    if (!(await instrumentDownSample())) console.log('sample: sample data already present, nothing to do');
     return;
   }
 
@@ -238,6 +256,7 @@ async function main() {
   const from = await db.patient.findUniqueOrThrow({ where: { mrn: 'MRN3011' } });
   const mergeId = await proposeMerge(db, people.a1, { fromPatientId: from.id, intoMrn: 'MRN3010', reference: 'DEMO-MR-0001', reason: 'Duplicate registration (demo)' });
   await confirmMerge(db, people.a2, mergeId);
+  await instrumentDownSample();
 
   const counts = Object.fromEntries(await Promise.all(['instrument', 'patient', 'labOrder', 'specimen', 'result', 'qcEvaluation', 'unmatchedResult', 'outboxMessage', 'auditEvent'].map(async (m) => [m, await db[m].count()])));
   console.log('sample: added demo sample data', JSON.stringify(counts));

@@ -137,9 +137,13 @@ export const review = (db: Db, resultId: string, user: string, versionNo: number
 
 export const approve = (db: Db, resultId: string, user: string, policy: WorkflowPolicy) =>
   command(db, resultId, user, 'approve', (a) => unwrap(approveResult(a, user, policy)), undefined, async (tx, a) => {
+    const entry = await tx.resultEvent.findFirst({ where: { resultId, kind: 'enter' }, orderBy: { at: 'asc' } });
+    // A result typed in from an instrument's printout is checked against it by someone else, whatever the policy (A-41).
+    if (entry && (entry.detail as { transcribed?: unknown } | null)?.transcribed && entry.actor === user) {
+      throw new WorkflowRejected({ code: 'SAME_PERSON', detail: 'the person who typed a result in from the instrument printout does not approve it; another person checks it against the printout' });
+    }
     if (policy.twoPersonRule) {
       // A manual result is approved by someone other than the person who read it.
-      const entry = await tx.resultEvent.findFirst({ where: { resultId, kind: 'enter' }, orderBy: { at: 'asc' } });
       const performedBy = (entry?.detail as { performedBy?: string } | null)?.performedBy ?? entry?.actor;
       if (performedBy === user) throw new WorkflowRejected({ code: 'SAME_PERSON', detail: 'the person who performed a manual test does not approve it' });
     }

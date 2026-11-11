@@ -1,6 +1,6 @@
 <div class="d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0">Downtime orders</h1>
-  {{#if can.collect}}<a class="btn btn-primary btn-sm" href="/downtime/new">Downtime registration</a>{{/if}}
+  <div class="d-flex gap-2">{{#if can.collect}}<a class="btn btn-primary btn-sm" href="/downtime/new">Register an order (HMIS down)</a>{{/if}}<a class="btn btn-outline-secondary btn-sm" href="/transcribe">Type in results (instrument down)</a></div>
 </div>
 <p class="note text-body-secondary">Orders registered by hand while the HMIS could not be reached. Their results are held from the HMIS until each is reconciled to the HMIS order.</p>
 

@@ -129,6 +129,7 @@ export const NOTICES: Record<string, string> = {
   'catalogue-discarded': 'Draft discarded. The catalogue is unchanged.',
   'catalogue-retired': 'Test retired. Results already made with it are unchanged.',
   'manual-entered': 'Result saved. It is waiting for review on the results list.',
+  transcribed: 'Results saved. Another person checks them against the printout and approves them.',
   'manual-qc-recorded': 'Control recorded.',
   'merge-proposed': 'Merge proposed. A different person confirms it.',
   'merge-confirmed': 'Merge recorded. This history now includes the merged MRN.',
