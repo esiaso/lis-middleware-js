@@ -7,7 +7,7 @@ inventory is known).
 
 **Status: phase 1 (protocol cores).** Protocol codecs, the e 411 and Mindray adapters, generic result-only adapters, and instrument registration rules exist (the c 111 adapter is designed, not yet built); no transport, database or UI yet, and no
 instrument compatibility is claimed until the installed instruments pass
-interface testing. Start with [`docs/README.md`](docs/README.md).
+interface testing. Start with [`docs/README.md`](docs/README.md). The [user manual](docs/user-manual/README.md) explains the screens for each role.
 
 ## Development
 
