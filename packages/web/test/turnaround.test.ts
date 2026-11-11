@@ -24,7 +24,7 @@ describe.skipIf(!url)('turnaround report over HTTP', () => {
     return b;
   };
   /** A result with given minutes after 08:00 for each step; null leaves the step out. */
-  const result = async (test: string, priority: string, m: { collected?: number; received?: number; first?: number; approved?: number; released?: number; accepted?: number }, accession?: string, opts: { status?: string; receivedAt?: Date } = {}) => {
+  const result = async (test: string, priority: string, m: { collected?: number; received?: number; first?: number; approved?: number; released?: number; accepted?: number }, accession?: string, opts: { status?: string; receivedAt?: Date; instrumentId?: string; collector?: string } = {}) => {
     n++;
     const orderId = uuidv7();
     const specimenId = uuidv7();
@@ -32,9 +32,9 @@ describe.skipIf(!url)('turnaround report over HTTP', () => {
     const resultId = uuidv7();
     const acc = accession ?? `L26110300${String(n).padStart(3, '0')}`;
     await db.labOrder.create({ data: { id: orderId, hmisOrderId: `ORD-${n}`, patientId, priority, orderedAt: at(0), status: 'active', sourceJson: {} } });
-    await db.specimen.create({ data: { id: specimenId, orderId, accessionNo: acc, barcode: `B${n}`, status: 'received', collectedAt: m.collected === undefined ? null : at(m.collected), receivedAt: opts.receivedAt ?? (m.received === undefined ? null : at(m.received)), createdBy: 'test' } });
+    await db.specimen.create({ data: { id: specimenId, orderId, accessionNo: acc, barcode: `B${n}`, status: 'received', collectedAt: m.collected === undefined ? null : at(m.collected), receivedAt: opts.receivedAt ?? (m.received === undefined ? null : at(m.received)), createdBy: opts.collector ?? 'test' } });
     await db.orderedTest.create({ data: { id: testId, orderId, hmisLineId: '1', hmisTestCode: `HMIS-${test}`, localTestCode: test, status: 'collected', specimenId } });
-    await db.result.create({ data: { id: resultId, orderedTestId: testId, status: opts.status ?? 'sent', selectedVersionNo: 1 } });
+    await db.result.create({ data: { id: resultId, orderedTestId: testId, status: opts.status ?? 'sent', selectedVersionNo: 1, instrumentId: opts.instrumentId ?? null } });
     if (m.first !== undefined) await db.resultVersion.create({ data: { id: uuidv7(), resultId, versionNo: 1, kind: 'initial', value: { kind: 'numeric', value: '4.2', scale: 1 }, abnormalFlags: [], createdBy: 'system:x', createdAt: at(m.first) } });
     const ev = (kind: string, min: number | undefined, detail?: object) =>
       min === undefined ? null : db.resultEvent.create({ data: { id: uuidv7(), resultId, kind, versionNo: 1, actor: kind === 'approve' ? 'dr.lab' : 'system:jobs', at: at(min), ...(detail ? { detail } : {}) } });
@@ -88,7 +88,7 @@ describe.skipIf(!url)('turnaround report over HTTP', () => {
     expect(csv.status).toBe(200);
     expect(csv.headers.get('content-type')).toContain('text/csv');
     const lines = csv.html.trim().split('\r\n');
-    expect(lines[0]).toBe('accession_no,test,priority,ordered,collected,received,first_value,approved,approved_by,released,accepted_by_hmis');
+    expect(lines[0]).toBe('accession_no,test,priority,instrument,ordered,collected,collected_by,received,received_by,first_value,entered_by,approved,approved_by,released,released_by,accepted_by_hmis,corrected');
     expect(lines).toHaveLength(4);
     expect(csv.html).not.toContain('Example');
     expect(csv.html).not.toContain('MRN9');
@@ -128,5 +128,43 @@ describe.skipIf(!url)('turnaround report over HTTP', () => {
     expect((await dr.post(`/reports/targets/${any.id}/retire`, { _csrf: csrf, reason: 'policy v2', password: PW })).location).toBe('/reports/targets?notice=target-retired');
     expect((await dr.get('/')).html).not.toContain('past the turnaround target');
     expect((await db.auditEvent.findMany({ where: { entityType: 'tat_target' } })).map((e) => e.action).sort()).toEqual(['tat-target.add', 'tat-target.add', 'tat-target.retire']);
+  });
+
+  it('narrows by test, instrument and staff, groups by any of them, and shows the lab indicators', async () => {
+    await db.instrument.upsert({ where: { id: 'tat-e411' }, update: {}, create: { id: 'tat-e411', displayName: 'TAT e411', manufacturer: 'Roche', model: 'cobas e 411', discipline: 'immunology', createdBy: 'test' } });
+    await result('K', 'routine', { collected: 0, received: 30, first: 60, approved: 90, released: 95 }, undefined, { instrumentId: 'tat-e411', collector: 'tech' });
+    await result('K', 'routine', { collected: 10, received: 20, first: 50 }, undefined, { collector: 'nurse.a' });
+    await result('NA', 'routine', { collected: 0, received: 40, first: 70, approved: 80, released: 85 }, undefined, { instrumentId: 'tat-e411', collector: 'tech' });
+
+    const dr = await as('dr.lab');
+    const all = await dr.get('/reports/turnaround');
+    expect(all.html).toContain('Order to report (ordered to released)');
+    expect(all.html).toContain('Specimen to report (collected to released)');
+    expect(all.html).toContain('2 of 3 results'); // released
+    expect(all.html).toContain('<td class="text-nowrap">NA</td>');
+
+    const k = await dr.get('/reports/turnaround?test=K');
+    expect(k.html).toContain('1 of 2 results');
+    expect(k.html).not.toContain('<td class="text-nowrap">NA</td>');
+
+    const manual = await dr.get('/reports/turnaround?instrument=manual');
+    expect(manual.html).toContain('0 of 1 results');
+    const e411 = await dr.get('/reports/turnaround?instrument=tat-e411&by=instrument');
+    expect(e411.html).toContain('2 of 2 results');
+    expect(e411.html).toContain('<td class="text-nowrap">TAT e411</td>');
+    expect((await dr.get('/reports/turnaround?by=instrument')).html).toContain('<td class="text-nowrap">Manual entry (no instrument)</td>');
+
+    const tech = await dr.get('/reports/turnaround?staff=tech&role=collectedBy');
+    expect(tech.html).toContain('2 of 2 results');
+    expect((await dr.get('/reports/turnaround?staff=tech&role=approvedBy')).html).toContain('No results with a specimen collected in this range');
+    expect((await dr.get('/reports/turnaround?staff=dr.lab')).html).toContain('2 of 2 results');
+    const byCollector = await dr.get('/reports/turnaround?by=collectedBy');
+    expect(byCollector.html).toContain('<td class="text-nowrap">Tech One</td>');
+    expect(byCollector.html).toContain('<td class="text-nowrap">nurse.a</td>');
+
+    const csv = await dr.get('/reports/turnaround.csv?test=K&instrument=manual');
+    const lines = csv.html.trim().split('\r\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[1]).toContain(',nurse.a,');
   });
 });

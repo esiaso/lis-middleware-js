@@ -1,23 +1,58 @@
-<div class="d-flex align-items-baseline gap-3"><h1 class="h4">Turnaround times</h1><a href="/reports/overdue">Overdue results</a><a href="/reports/targets">Targets</a><a href="/reports/workload">Workload</a></div>
-<p class="note text-body-secondary">From the times the middleware records for each result, for specimens collected on the chosen days ({{timeZone}}). Each step uses the first time it happened, so a correction or a resend does not move it. Median and 90th percentile, with the number of results that have both times. A step whose times are missing is left out of that step only; one whose times run backwards (for example a collection time entered after receipt) is left out and counted.</p>
+<div class="page-head">
+  <h1 class="h4 mb-0">Turnaround times</h1>
+  <div class="ms-auto d-flex gap-2 d-print-none">
+    <a class="btn btn-outline-secondary btn-sm" href="/reports/overdue">Overdue results</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/reports/targets">Targets</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/reports/workload">Workload</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/send-outs">Send-outs</a>
+    <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-print>{{icon "printer"}}<span>Print</span></button>
+  </div>
+</div>
+<p class="note text-body-secondary">From the times the middleware records for each result, for specimens collected on the chosen days ({{timeZone}}). Each stage uses the first time it happened, so a correction or a resend does not move it. Median and 90th percentile (90% were faster), with the number of results that have both times. A stage whose times are missing is left out of that stage only; one whose times run backwards (for example a collection time entered after receipt) is left out and counted. "Collected" is when the specimen was drawn, as recorded at labelling; "who collected" is the person who labelled it. Narrowing by test, instrument or staff applies to the result figures; specimen, rejection, critical-call and send-out figures follow the days and priority only.</p>
 {{> issues}}
-<form method="get" action="/reports/turnaround" class="row g-2 align-items-end mb-3">
-  <div class="col-auto"><label class="form-label small" for="from">From</label><input class="form-control form-control-sm" type="date" id="from" name="from" value="{{from}}"></div>
-  <div class="col-auto"><label class="form-label small" for="to">To (included)</label><input class="form-control form-control-sm" type="date" id="to" name="to" value="{{to}}"></div>
-  <div class="col-auto"><label class="form-label small" for="priority">Priority</label><select class="form-select form-select-sm" id="priority" name="priority"><option value="">All</option>{{#each priorities}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></div>
-  <div class="col-auto"><button class="btn btn-outline-secondary btn-sm" type="submit">Show</button></div>
+<form method="get" action="/reports/turnaround" class="card mb-3 d-print-none"><div class="card-body row g-2 align-items-end">
+  <div class="col-sm-6 col-md-3 col-xl-2"><label class="form-label small" for="from">From</label><input class="form-control form-control-sm" type="date" id="from" name="from" value="{{from}}"></div>
+  <div class="col-sm-6 col-md-3 col-xl-2"><label class="form-label small" for="to">To (included)</label><input class="form-control form-control-sm" type="date" id="to" name="to" value="{{to}}"></div>
+  <div class="col-sm-6 col-md-3 col-xl-2"><label class="form-label small" for="priority">Priority</label><select class="form-select form-select-sm" id="priority" name="priority"><option value="">All</option>{{#each priorities}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></div>
+  <div class="col-sm-6 col-md-3 col-xl-2"><label class="form-label small" for="test">Test</label><select class="form-select form-select-sm" id="test" name="test"><option value="">All tests</option>{{#each tests}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></div>
+  <div class="col-sm-6 col-md-4 col-xl-2"><label class="form-label small" for="instrument">Instrument</label><select class="form-select form-select-sm" id="instrument" name="instrument"><option value="">All</option>{{#each instruments}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></div>
+  <div class="col-sm-6 col-md-4 col-xl-2"><label class="form-label small" for="staff">Staff</label><select class="form-select form-select-sm" id="staff" name="staff"><option value="">Everyone</option>{{#each staff}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></div>
+  <div class="col-sm-6 col-md-4 col-xl-2"><label class="form-label small" for="role">Part they played</label><select class="form-select form-select-sm" id="role" name="role"><option value="">Any part</option>{{#each roles}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></div>
+  <div class="col-sm-6 col-md-4 col-xl-2"><label class="form-label small" for="by">Group by</label><select class="form-select form-select-sm" id="by" name="by">{{#each groups}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></div>
+  <div class="col-auto"><button class="btn btn-primary btn-sm" type="submit">Show</button></div>
+  <div class="col-auto"><a class="btn btn-link btn-sm" href="/reports/turnaround">Reset</a></div>
   {{#if can.exportReports}}<div class="col-auto ms-auto"><a class="btn btn-outline-primary btn-sm" href="{{csv}}">Download CSV</a></div>{{/if}}
-</form>
+</div></form>
+
+<h2 class="h6 text-uppercase text-body-secondary">Turnaround, {{#if narrowed}}narrowed{{else}}all results{{/if}}</h2>
+<div class="kpi-grid mb-3">
+  {{#each headline}}
+  <div class="kpi-tile"><div class="kpi-label">{{label}}</div><div class="kpi-value">{{#if n}}{{median}}{{else}}–{{/if}}</div><div class="kpi-sub">{{#if n}}90% within {{p90}} · n={{n}}{{else}}no results with both times{{/if}}</div></div>
+  {{/each}}
+</div>
+
+<h2 class="h6 text-uppercase text-body-secondary">Other indicators</h2>
+<div class="kpi-grid mb-3">
+  <div class="kpi-tile"><div class="kpi-label">Results released</div><div class="kpi-value">{{kpi.releasedPct}}</div><div class="kpi-sub">{{kpi.released}} of {{kpi.results}} results</div></div>
+  <div class="kpi-tile"><div class="kpi-label">Released within target</div><div class="kpi-value">{{#if kpi.target}}{{kpi.target.pct}}{{else}}–{{/if}}</div><div class="kpi-sub">{{#if kpi.target}}{{kpi.target.met}} met, {{kpi.target.late}} late, of {{kpi.target.counted}} with a target{{else}}no targets set: <a href="/reports/targets">set targets</a>{{/if}}</div></div>
+  <div class="kpi-tile"><div class="kpi-label">Overdue now</div><div class="kpi-value{{#if kpi.overdueNow}} text-danger-emphasis{{/if}}">{{kpi.overdueNow}}</div><div class="kpi-sub"><a href="/reports/overdue">unreleased, past target</a></div></div>
+  <div class="kpi-tile"><div class="kpi-label">Specimens rejected</div><div class="kpi-value">{{kpi.rejectedPct}}</div><div class="kpi-sub">{{kpi.rejected}} of {{kpi.specimens}} specimens{{#each kpi.reasons}}<br>{{reason}}: {{n}}{{/each}}</div></div>
+  <div class="kpi-tile"><div class="kpi-label">Autoverified</div><div class="kpi-value">{{kpi.autoverifiedPct}}</div><div class="kpi-sub">{{kpi.autoverified}} results</div></div>
+  <div class="kpi-tile"><div class="kpi-label">Corrected after approval</div><div class="kpi-value">{{kpi.correctedPct}}</div><div class="kpi-sub">{{kpi.corrected}} results</div></div>
+  <div class="kpi-tile"><div class="kpi-label">Critical value to call</div><div class="kpi-value">{{#if kpi.criticalCalled}}{{kpi.callMedian}}{{else}}–{{/if}}</div><div class="kpi-sub">{{kpi.criticalCalled}} of {{kpi.critical}} critical results called{{#if kpi.criticalCalled}} · 90% within {{kpi.callP90}}{{/if}}</div></div>
+  <div class="kpi-tile"><div class="kpi-label">Send-outs on time</div><div class="kpi-value">{{kpi.sendOuts.onTimePct}}</div><div class="kpi-sub">{{kpi.sendOuts.sent}} sent: {{kpi.sendOuts.onTime}} on time, {{kpi.sendOuts.late}} late, {{#if kpi.sendOuts.overdue}}<span class="text-danger-emphasis">{{kpi.sendOuts.overdue}} overdue</span>{{else}}0 overdue{{/if}}, {{kpi.sendOuts.awaiting}} waiting</div></div>
+</div>
 
 {{#if empty}}
-<p class="text-body-secondary">No results with a specimen collected in this range.</p>
+<p class="text-body-secondary">No results with a specimen collected in this range{{#if narrowed}} for this test, instrument or person{{/if}}.</p>
 {{else}}
+<h2 class="h6 text-uppercase text-body-secondary">Every stage, by {{byLabel}}</h2>
 <div class="table-responsive">
 <table class="table table-sm align-middle small">
-  <thead><tr><th>Test</th><th>Results</th>{{#if hasTargets}}<th>Received to released, against target</th>{{/if}}{{#each steps}}<th>{{label}}</th>{{/each}}</tr></thead>
+  <thead><tr><th>{{byLabel}}</th><th>Results</th>{{#if hasTargets}}<th>Received to released, against target</th>{{/if}}{{#each steps}}<th>{{label}}</th>{{/each}}</tr></thead>
   <tbody>
-    {{#with all}}<tr class="fw-semibold"><td>{{test}}</td><td>{{results}}</td>{{#if @root.hasTargets}}<td>{{> tat-target}}</td>{{/if}}{{#each steps}}<td>{{> tat-cell}}</td>{{/each}}</tr>{{/with}}
-    {{#each tests}}<tr><td class="font-monospace">{{test}}</td><td>{{results}}</td>{{#if @root.hasTargets}}<td>{{> tat-target}}</td>{{/if}}{{#each steps}}<td>{{> tat-cell}}</td>{{/each}}</tr>{{/each}}
+    {{#with all}}<tr class="fw-semibold"><td class="text-nowrap">{{test}}</td><td>{{results}}</td>{{#if @root.hasTargets}}<td>{{> tat-target}}</td>{{/if}}{{#each steps}}<td>{{> tat-cell}}</td>{{/each}}</tr>{{/with}}
+    {{#each groupsRows}}<tr><td class="text-nowrap">{{test}}</td><td>{{results}}</td>{{#if @root.hasTargets}}<td>{{> tat-target}}</td>{{/if}}{{#each steps}}<td>{{> tat-cell}}</td>{{/each}}</tr>{{/each}}
   </tbody>
 </table>
 </div>
