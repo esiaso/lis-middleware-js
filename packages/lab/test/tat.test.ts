@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parseTatFilter, summarizeTat, type TatResultTimes } from '../src/tat.js';
+import { narrowTat, parseTatFilter, summarizeTat, tatGroupKey, type TatResultTimes } from '../src/tat.js';
 
 const t = (h: number, m = 0) => new Date(Date.UTC(2026, 10, 3, h, m));
 const row = (over: Partial<TatResultTimes>): TatResultTimes => ({
-  accessionNo: 'L1', test: 'K', priority: 'routine', ordered: null, collected: null, received: null, first_value: null, approved: null, approvedBy: null, released: null, accepted: null, ...over,
+  accessionNo: 'L1', test: 'K', priority: 'routine', ordered: null, collected: null, received: null, first_value: null, approved: null, approvedBy: null, released: null, accepted: null, instrumentId: null, collectedBy: null, receivedBy: null, enteredBy: null, releasedBy: null, corrected: false, ...over,
 });
 
 describe('summarizeTat', () => {
@@ -53,5 +53,30 @@ describe('parseTatFilter', () => {
     expect(() => parseTatFilter({ from: '1/11/2026' }, now)).toThrow();
     expect(() => parseTatFilter({ from: '2026-11-03', to: '2026-11-01' }, now)).toThrow();
     expect(() => parseTatFilter({ from: '2025-01-01', to: '2026-11-01' }, now)).toThrow();
+  });
+});
+
+describe('narrowTat and grouping', () => {
+  const rows = [
+    row({ test: 'K', instrumentId: 'e411', collectedBy: 'nurse', approvedBy: 'dr', ordered: t(7), collected: t(8), released: t(9) }),
+    row({ test: 'K', instrumentId: null, collectedBy: 'tech', enteredBy: 'tech', ordered: t(7), collected: t(8, 30) }),
+    row({ test: 'NA', instrumentId: 'c111', collectedBy: 'nurse', approvedBy: 'tech', ordered: t(7, 30), collected: t(8), released: t(8, 45) }),
+  ];
+  it('narrows by test, instrument (manual means none) and staff in any or one part', () => {
+    expect(narrowTat(rows, { test: 'K' })).toHaveLength(2);
+    expect(narrowTat(rows, { instrument: 'manual' }).map((r) => r.collectedBy)).toEqual(['tech']);
+    expect(narrowTat(rows, { instrument: 'c111' })).toHaveLength(1);
+    expect(narrowTat(rows, { staff: 'tech' })).toHaveLength(2);
+    expect(narrowTat(rows, { staff: 'tech', role: 'approvedBy' })).toHaveLength(1);
+    expect(narrowTat(rows, { staff: 'tech', role: 'collectedBy', test: 'NA' })).toHaveLength(0);
+  });
+  it('groups by instrument or person, and measures order and specimen to report', () => {
+    expect(rows.map((r) => tatGroupKey(r, 'instrument'))).toEqual(['e411', 'manual', 'c111']);
+    expect(rows.map((r) => tatGroupKey(r, 'approvedBy'))).toEqual(['dr', '(none)', 'tech']);
+    const s = summarizeTat(rows, [], new Date(), 'collectedBy');
+    expect(s.tests.map((g) => [g.test, g.results])).toEqual([['nurse', 2], ['tech', 1]]);
+    expect(s.all.test).toBe('All');
+    expect(s.all.steps['ordered_released']!.n).toBe(2);
+    expect(s.all.steps['collected_released']!.median).toBe(45 * 60);
   });
 });

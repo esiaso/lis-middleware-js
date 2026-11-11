@@ -321,17 +321,29 @@ interface test.
 
 ## W-12 Turnaround times
 
-**Reports → Turnaround** (A-22): a date range (days in the lab's time zone, A-24, both included, at
-most 366) and a priority filter. One row for all tests and one per test.
-Each step column shows the median and 90th percentile and how many results
-had both times: ordered to collected, collected to received in the lab,
-received to first value, first value to approved, approved to released,
-released to accepted by the HMIS, and collected to accepted. Approvers and
-auditors can download the per-result times as CSV, without patient names.
-With targets set (**Turnaround → Targets**, approvers, step-up, audited) a
-column shows how many met the receipt-to-release target and how many were
-late; **Overdue results** lists unreleased results past target, and the
-dashboard shows a warning while any are.
+**Reports → Turnaround** (A-22, A-44): a date range (days in the lab's time zone, A-24, both
+included, at most 366), a priority, and narrowing by test, instrument
+("manual entry" for results with no instrument) and staff member, either in
+any part or in one part (collected, received, entered, approved, released).
+Tiles at the top give the median and 90th percentile of the key stages:
+order to collection (phlebotomy), collection to receipt, receipt to first
+value, specimen to report (collected to released) and order to report
+(ordered to released). A second row of tiles gives the other indicators
+(A-44): results released, released within target, overdue now, specimens
+rejected with the top reasons, autoverified, corrected after approval,
+critical value to call, and send-outs on time. The table has one row for all
+results and one per test, instrument, priority, day or staff member (Group
+by); each step column shows the median and 90th percentile and how many
+results had both times: ordered to collected, collected to received in the
+lab, received to first value, first value to approved, approved to released,
+released to accepted by the HMIS, collected to accepted, collected to
+released, and ordered to released. Approvers and auditors can download the
+per-result times as CSV, with the instrument and the user name for each part
+but without patient names; the CSV follows the same narrowing. With targets
+set (**Turnaround → Targets**, approvers, step-up, audited) a column shows
+how many met the receipt-to-release target and how many were late;
+**Overdue results** lists unreleased results past target, and the dashboard
+shows a warning while any are. The page prints.
 
 ## W-13 Patient history
 
