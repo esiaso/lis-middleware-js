@@ -1,5 +1,8 @@
 # LIMS Middleware: Design Package
 
+> Looking for how to use the screens? See the [user manual](user-manual/README.md),
+> with a chapter for each role.
+
 This folder holds the design for an on-premises laboratory middleware that
 connects the hospital HMIS API to laboratory analyzers: initially a Roche cobas
 e 411, a Roche cobas c 111, and Mindray haematology analyzers, with further
