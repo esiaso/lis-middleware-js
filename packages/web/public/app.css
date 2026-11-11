@@ -236,3 +236,8 @@ h1 .more-info-btn, .h4 .more-info-btn { font-size: 1rem; }
 .report-footer-note { white-space: pre-line; }
 .report-preview { font-size: .9rem; }
 .report-ids { flex-shrink: 0; white-space: nowrap; }
+/* Test codes on the patient's orders: approved, pending, cancelled. */
+.test-chip { display: inline-block; padding: 0 .3rem; border-radius: .25rem; border: 1px solid var(--bs-border-color); }
+.test-approved { background: var(--bs-success-bg-subtle); border-color: var(--bs-success-border-subtle); }
+.test-pending { background: var(--bs-warning-bg-subtle); border-color: var(--bs-warning-border-subtle); }
+.test-cancelled { text-decoration: line-through; color: var(--bs-secondary-color); }

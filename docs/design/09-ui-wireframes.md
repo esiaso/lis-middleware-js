@@ -335,14 +335,26 @@ dashboard shows a warning while any are.
 
 ## W-13 Patient history
 
-**Patients**: search by MRN (an exact MRN opens the patient) or by the start
-of the family name, among patients the HMIS has sent orders for. The patient
-page is a cumulative report: one row per test, one column per collection
-time (newest first, the newest 12), each value linking to its result, with
-abnormal, critical and delta flags; values not yet approved are in italics.
-It holds results from this middleware only. A reconciled provisional record
-points to the HMIS patient its results moved to. The result and order pages
-link to it.
+**Patients** opens on **Pending results**: patients with a test on an open
+order (not cancelled or reconciled) that has no approved result yet, STAT
+first, then urgent, then whoever has waited longest, with the number of
+pending tests and orders and when the oldest was ordered. **All patients**
+lists everyone the HMIS has sent orders for (or registered at downtime), by
+family name. Either can be searched by the start of the MRN, family or given
+name, and an exact MRN opens the patient. Both are paged, 50 a page.
+
+The patient page lists the patient's **orders** (and those of MRNs merged
+into it), newest first, split into **Current** (a test still without an
+approved result) and **Past**. Each row has the order, when, priority,
+location, the tests coloured by state (approved, pending, cancelled), how many
+are approved, and **Print results**, which opens the order's printable report
+(W-14) when it has an approved result. Below that is the cumulative report:
+one row per test, one column per collection time (newest first, the newest
+12), each value linking to its result, with abnormal, critical and delta
+flags; values not yet approved are in italics. It holds results from this
+middleware only. A reconciled provisional record points to the HMIS patient
+its results moved to. The result and order pages link to it. **Print this
+page** prints the orders and the cumulative report.
 
 **Record a merge from the HMIS** (administrators and approvers, A-35): on the
 page of the MRN that goes, the MRN that stays, the HMIS or medical records

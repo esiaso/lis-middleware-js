@@ -28,3 +28,4 @@ export * from './manual-qc.js';
 export * from './added-tests.js';
 export * from './patient-merge.js';
 export * from './report-settings.js';
+export * from './patient-orders.js';

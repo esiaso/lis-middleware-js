@@ -1,10 +1,11 @@
 import { Body, Controller, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { Db } from '@lis/db';
-import { confirmMerge, confirmUnmerge, InvalidInput, patientHistory, proposeMerge, proposeUnmerge, withdrawMerge, withdrawUnmerge } from '@lis/lab';
+import { confirmMerge, confirmUnmerge, InvalidInput, patientHistory, patientOrders, patientsWithPendingResults, proposeMerge, proposeUnmerge, withdrawMerge, withdrawUnmerge } from '@lis/lab';
 import type { Response } from 'express';
 import { page, requireStepUp, str, uuidParam, type Form } from './controllers.js';
 import { cumulative } from './cumulative.js';
 import { formatTime } from './format.js';
+import { PAGE_SIZE, pageParam, pagerFor, pageWindow } from './paging.js';
 import { Roles, type WebRequest } from './security.js';
 import { DB } from './tokens.js';
 
@@ -17,22 +18,52 @@ const line = (p: PatientRow) => ({ id: p.id, mrn: p.mrn, name: name(p), sex: p.s
 export class PatientsController {
   constructor(@Inject(DB) private readonly db: Db) {}
 
+  /** Patients with results still pending by default; "All patients" lists everyone by name. A search narrows either. */
   @Get()
-  async search(@Req() req: WebRequest, @Res() res: Response, @Query('q') q?: string): Promise<void> {
+  async search(@Req() req: WebRequest, @Res() res: Response, @Query('q') q?: string, @Query('show') show?: string, @Query('page') pg?: string): Promise<void> {
     const search = (typeof q === 'string' ? q : '').trim().slice(0, 60);
-    const patients = search.length >= 2
-      ? await this.db.patient.findMany({
-          where: { OR: [{ mrn: { equals: search, mode: 'insensitive' } }, { mrn: { startsWith: search, mode: 'insensitive' } }, { familyName: { startsWith: search, mode: 'insensitive' } }] },
-          orderBy: [{ familyName: 'asc' }, { givenName: 'asc' }],
-          take: 100,
-        })
-      : [];
-    if (patients.length === 1 && patients[0]!.mrn.toLowerCase() === search.toLowerCase()) return res.redirect(303, `/patients/${patients[0]!.id}`);
+    const all = show === 'all';
+    const term = search.length >= 2 ? search : '';
+    if (term) {
+      const exact = await this.db.patient.findFirst({ where: { mrn: { equals: term, mode: 'insensitive' } } });
+      if (exact) return res.redirect(303, `/patients/${exact.id}`);
+    }
+    let rows: Record<string, unknown>[];
+    let total: number;
+    let shown: number;
+    let capped = false;
+    if (all) {
+      const where = term ? { OR: [{ mrn: { startsWith: term, mode: 'insensitive' as const } }, { familyName: { startsWith: term, mode: 'insensitive' as const } }, { givenName: { startsWith: term, mode: 'insensitive' as const } }] } : {};
+      total = await this.db.patient.count({ where });
+      const w = pageWindow(pageParam(pg), total);
+      shown = w.page;
+      const patients = await this.db.patient.findMany({ where, orderBy: [{ familyName: 'asc' }, { givenName: 'asc' }, { mrn: 'asc' }], skip: w.skip, take: PAGE_SIZE });
+      rows = patients.map((p) => ({ ...line(p), provisional: p.provisional, merged: !!p.mergedIntoId }));
+    } else {
+      const pending = await patientsWithPendingResults(this.db, { search: term });
+      capped = pending.capped;
+      total = pending.rows.length;
+      const w = pageWindow(pageParam(pg), total);
+      shown = w.page;
+      const slice = pending.rows.slice(w.skip, w.skip + PAGE_SIZE);
+      const people = new Map((await this.db.patient.findMany({ where: { id: { in: slice.map((r) => r.patientId) } } })).map((p) => [p.id, p]));
+      rows = slice.flatMap((r) => {
+        const p = people.get(r.patientId);
+        return p ? [{ ...line(p), provisional: p.provisional, merged: !!p.mergedIntoId, pendingTests: r.pendingTests, orders: r.orders, stat: r.priority === 'stat', urgent: r.priority === 'urgent', waitingSince: formatTime(r.oldestOrderedAt) }] : [];
+      });
+    }
     page(req, res, 'patients', {
       title: 'Patients',
       q: search,
-      searched: search.length >= 2,
-      rows: patients.map((p) => ({ id: p.id, name: name(p), mrn: p.mrn, sex: p.sex ?? '', birthDate: p.birthDate?.toISOString().slice(0, 10) ?? '', provisional: p.provisional, merged: !!p.mergedIntoId })),
+      all,
+      tabs: [
+        { href: term ? `/patients?q=${encodeURIComponent(term)}` : '/patients', label: 'Pending results', active: !all },
+        { href: `/patients?show=all${term ? `&q=${encodeURIComponent(term)}` : ''}`, label: 'All patients', active: all },
+      ],
+      rows,
+      total,
+      capped,
+      pager: pagerFor('/patients', { show: all ? 'all' : undefined, q: term || undefined }, shown, total),
     });
   }
 
@@ -53,6 +84,23 @@ export class PatientsController {
     ]);
     const mergeRecord = p.mergedIntoId && !p.provisional ? await this.db.patientMerge.findFirst({ where: { fromPatientId: p.id, status: 'CONFIRMED' } }) : null;
     const c = cumulative(results);
+    const orders = (await patientOrders(this.db, [p.id, ...merged.map((m) => m.fromPatientId)])).map((o) => ({
+      id: o.id,
+      hmisOrderId: o.hmisOrderId,
+      mrn: o.mrn,
+      stat: o.priority === 'stat',
+      priority: o.priority,
+      location: o.location ?? '',
+      orderedAt: formatTime(o.orderedAt),
+      tests: o.tests,
+      approved: o.approved,
+      pending: o.pending,
+      cancelled: o.status === 'cancelled',
+      reconciled: o.status === 'reconciled',
+      downtime: o.source === 'MANUAL_DOWNTIME',
+      current: o.current,
+      printable: o.approved > 0,
+    }));
     const roles = req.user?.roles ?? [];
     res.status(status);
     page(req, res, 'patient', {
@@ -87,6 +135,8 @@ export class PatientsController {
       v,
       issues,
       c,
+      currentOrders: orders.filter((o) => o.current),
+      pastOrders: orders.filter((o) => !o.current),
       count: results.length,
       capped: results.length >= 500,
     });
