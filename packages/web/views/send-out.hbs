@@ -70,7 +70,7 @@
   <div class="col-sm-6 col-md-4"><label class="form-label" for="receivedAt">When ({{timeZone}})</label><input class="form-control" type="datetime-local" id="receivedAt" name="receivedAt" value="{{#if f.receivedAt}}{{f.receivedAt}}{{else}}{{now}}{{/if}}"></div>
   <div class="col-sm-6 col-md-4"><label class="form-label" for="labRef">Their specimen no.</label><input class="form-control font-monospace" id="labRef" name="labRef" value="{{f.labRef}}" maxlength="60" autocomplete="off"></div>
   <div class="col-md-4"><button class="btn btn-outline-primary" type="submit">Record receipt</button></div>
-  <p class="note small text-body-secondary col-12 mb-0">From their receiving report, a call or their portal. Upload the receiving report below if there is one.</p>
+  <p class="small text-body-secondary col-12 mb-0">From their receiving report, a call or their portal. Upload the receiving report below if there is one.</p>
 </div></form>
 {{/unless}}
 {{/if}}{{/if}}
@@ -102,7 +102,7 @@
     <input type="hidden" name="_csrf" value="{{csrf}}">
     <div class="col-md-6"><label class="form-label small" for="reason">Why</label><input class="form-control" id="reason" name="reason" value="{{f.reason}}" required minlength="5" maxlength="300" placeholder="Specimen leaked in transit"></div>
     <div class="col-md-3"><button class="btn btn-outline-danger" type="submit">Cancel send-out</button></div>
-    <p class="note small text-body-secondary col-12 mb-0">Only before any result is typed in. Its tests go back to To send.</p>
+    <p class="small text-body-secondary col-12 mb-0">Only before any result is typed in. Its tests go back to To send.</p>
   </form>
 </details>
 {{/if}}{{/if}}

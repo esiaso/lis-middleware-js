@@ -19,15 +19,15 @@
     {{#each rows}}
     <tr>
       <td class="font-monospace"><a href="/send-outs/{{sendOutId}}">{{code}}</a></td>
-      <td><a href="/patients/{{patient.id}}">{{patient.name}}</a> <span class="small">{{patient.mrn}}</span></td>
+      <td class="small"><a href="/patients/{{patient.id}}">{{patient.name}}</a><br>{{patient.mrn}}</td>
       <td class="font-monospace small">{{accessionNo}}</td>
-      <td class="font-monospace">{{lab.code}}</td>
+      <td class="font-monospace text-nowrap">{{lab.code}}</td>
       <td class="small text-nowrap">{{dispatchedAt}}{{#if dispatchRef}}<br><span class="text-body-secondary">{{dispatchRef}}</span>{{/if}}</td>
       <td>{{tat}}</td>
       <td class="small text-nowrap">{{dueAt}}</td>
       <td class="small text-nowrap">{{#if resultId}}<a href="/results/{{resultId}}">{{resultedAt}}</a>{{/if}}</td>
       <td class="text-nowrap">{{took}}</td>
-      <td><span class="badge text-bg-{{tone}}">{{stateLabel}}</span></td>
+      <td class="text-nowrap"><span class="badge text-bg-{{tone}}">{{stateLabel}}</span></td>
     </tr>
     {{else}}
     <tr><td colspan="10" class="text-body-secondary">No sent-out tests match.</td></tr>
