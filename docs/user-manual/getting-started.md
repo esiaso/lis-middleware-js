@@ -4,8 +4,8 @@
 
 ## Signing in
 
-Open the middleware's address in the browser (hospital IT gives you the
-address). The middleware runs inside the hospital network only.
+Open LabTrack's address in the browser (hospital IT gives you the
+address). LabTrack runs inside the hospital network only.
 
 ![Sign-in page](images/sign-in.png)
 

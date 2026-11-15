@@ -57,6 +57,6 @@
   <footer class="report-footer">
     <p class="mb-1">Values as reported by the instrument and approved in the laboratory. {{#if pending}}Pending tests have no approved result yet; do not act on them from this report. {{/if}}The HMIS record is the official result where it has been received.</p>
     {{#if letterhead.footerNote}}<p class="mb-1 report-footer-note">{{letterhead.footerNote}}</p>{{/if}}
-    <p class="mb-0">Printed {{printed}} by {{printedBy}}</p>
+    <p class="mb-0 report-printed"><span>Printed {{printed}} by {{printedBy}}</span><span class="report-product">SynergyOne LabTrack · Laboratory Information Management System</span></p>
   </footer>
 </article>

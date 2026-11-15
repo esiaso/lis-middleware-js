@@ -55,7 +55,7 @@
     <div class="result-report report-preview">
       {{#> letterhead lh=preview}}<div class="report-ids"><div><span>Order</span> <strong>ORD-0001</strong></div><div><span>Priority</span> routine</div></div>{{/letterhead}}
       <p class="small text-body-secondary mb-2">Patient, request and results print here.</p>
-      <footer class="report-footer">{{#if preview.footerNote}}<p class="mb-1 report-footer-note">{{preview.footerNote}}</p>{{/if}}<p class="mb-0">Printed … by …</p></footer>
+      <footer class="report-footer">{{#if preview.footerNote}}<p class="mb-1 report-footer-note">{{preview.footerNote}}</p>{{/if}}<p class="mb-0 report-printed"><span>Printed … by …</span><span class="report-product">SynergyOne LabTrack · Laboratory Information Management System</span></p></footer>
     </div>
     <p class="small text-body-secondary mt-2">The preview shows what is saved, or what you just typed when it was not saved.</p>
   </div>

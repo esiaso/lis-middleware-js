@@ -8,7 +8,7 @@ of this too.
 
 ## Orders
 
-Orders come from the HMIS automatically: the middleware checks the HMIS for
+Orders come from the HMIS automatically: LabTrack checks the HMIS for
 new orders every few moments while the HMIS link is working. You never type in an order
 that is in the HMIS.
 
@@ -34,7 +34,7 @@ taken, and **Print result report**.
    instrument mapping yet; tell a technologist.
 3. **Collected at** is filled with the current time. Change it only if the
    specimen was drawn earlier.
-4. Click **Collect and print label**. The middleware gives the specimen an
+4. Click **Collect and print label**. LabTrack gives the specimen an
    accession number and opens its label.
 5. Print the label on the label printer (Ctrl+P) and put it on the tube.
 
@@ -65,7 +65,7 @@ rejected).
 * **Pending results** lists patients with a test on an open order that has no
   approved result yet, STAT first, then whoever has waited longest. Use it to
   answer "is my patient's result ready?".
-* **All patients** lists everyone the middleware knows, by family name.
+* **All patients** lists everyone LabTrack knows, by family name.
 
 Search by MRN or name; an exact MRN opens that patient straight away.
 

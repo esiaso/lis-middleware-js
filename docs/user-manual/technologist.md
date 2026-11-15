@@ -10,7 +10,7 @@ registration) is open to you too. Approvers can do everything in this
 chapter.
 
 Some steps here need **a second person**: you propose, a colleague confirms.
-The middleware will not let the same person do both. See
+LabTrack will not let the same person do both. See
 [Reference: steps that need a second person](reference.md#steps-that-need-a-second-person).
 
 ## How a result moves through the lab
@@ -132,7 +132,7 @@ batch, a control strip for a dipstick lot.
 1. Choose the **Test** and click **Record a control**.
 2. Enter the **lot** (and its expiry), the **Control** (for example *positive
    control*), what it **Should read** and what you **Read**. For coded tests
-   the middleware decides pass or fail; otherwise choose **Passed** or
+   LabTrack decides pass or fail; otherwise choose **Passed** or
    **Failed**.
 3. Click **Record control**.
 
@@ -144,7 +144,7 @@ lists the lots that may be used now.
 
 ![Instrument down](images/instrument-down.png)
 
-When an analyser still measures but its link to the middleware is down, use
+When an analyser still measures but its link to LabTrack is down, use
 **Specimens → Instrument down**.
 
 1. Scan or type the accession and click **Find** (or work down the list).

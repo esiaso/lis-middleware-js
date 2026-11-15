@@ -53,7 +53,7 @@ change needs your password:
 * **Unlock now** clears a lock after five wrong passwords, instead of waiting
   15 minutes.
 
-Safety rules the middleware enforces:
+Safety rules LabTrack enforces:
 
 * You cannot change **your own** roles or state:
   another admin must. You can change your own password on **Change

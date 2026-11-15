@@ -1,5 +1,8 @@
 # LIS Middleware JS
 
+The screens are branded **SynergyOne LabTrack**, Laboratory Information
+Management System, part of the SynergyOne Suite (see [`docs/brand`](docs/brand/README.md)).
+
 On-premises laboratory middleware that connects a hospital HMIS API to
 laboratory analyzers (initially Roche cobas e 411, Roche cobas c 111 and
 Mindray haematology analyzers; further instruments once the lab's full
