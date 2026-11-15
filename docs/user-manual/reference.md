@@ -9,7 +9,7 @@
 | **To review** | A value has arrived (instrument, worksheet, typed in) | Mark reviewed: technologist or approver |
 | **To approve** | Reviewed, waiting for an approver | Approve: approver (not the reviewer, with the two-person rule) |
 | **Approved, not released** | Approved by a person or by an autoverification rule | Release to HMIS: approver |
-| **Waiting to send** | Released, in the queue for the HMIS | None; the middleware sends it |
+| **Waiting to send** | Released, in the queue for the HMIS | None; LabTrack sends it |
 | **Sent, awaiting HMIS** | Delivered, waiting for the HMIS to confirm | None |
 | **Confirmed by HMIS** | The HMIS has accepted it | Correct, if it was wrong: approver |
 | **Delivery failed** | The HMIS refused it, or every try failed | Send again: approver or admin |
@@ -51,7 +51,7 @@ approved. On the printed report, only approved results carry a value.
 
 ## Steps that need a second person
 
-The middleware refuses these if the same person tries both halves. The
+LabTrack refuses these if the same person tries both halves. The
 first person can withdraw a proposal before it is confirmed.
 
 | First person | Second person (must be different) |
@@ -90,7 +90,7 @@ first person can withdraw a proposal before it is confirmed.
 | **MRN** | The patient's medical record number in the HMIS |
 | **HMIS** | The hospital's information system, which sends orders and receives results |
 | **HMIS order** | The order as placed by the clinician in the HMIS |
-| **Downtime order** | An order registered by hand in the middleware while the HMIS was down |
+| **Downtime order** | An order registered by hand in LabTrack while the HMIS was down |
 | **Unmatched result** | An instrument result that could not be attached to an order |
 | **Mapping** | The link between an instrument's test code and a test in the lab's catalogue |
 | **Lab acceptance** | The lab director's signed decision, after a parallel run, that an instrument may be used clinically |

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="LabTrack">
+  <defs>
+    <linearGradient id="lt-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#6D28D9"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#lt-bg)"/>
+  <path d="M25 13h14M27.5 13v13.2L16.6 45.6A4 4 0 0 0 20.1 51.6h23.8a4 4 0 0 0 3.5-6L36.5 26.2V13" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M21.3 41h21.4l3 5.3a1.6 1.6 0 0 1-1.4 2.4H19.7a1.6 1.6 0 0 1-1.4-2.4z" fill="#fff"/>
+</svg>

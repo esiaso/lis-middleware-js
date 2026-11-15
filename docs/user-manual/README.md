@@ -1,6 +1,8 @@
 # User manual
 
-This manual is for the people who use the lab middleware's screens every day:
+**SynergyOne LabTrack — Laboratory Information Management System.** Part of the SynergyOne Suite.
+
+This manual is for the people who use LabTrack's screens every day:
 reception and phlebotomy staff, bench technologists, approvers (senior staff
 and the lab director), system administrators and auditors. It describes the
 screens as they are built today. It is not a design document; for how the

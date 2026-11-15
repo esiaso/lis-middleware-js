@@ -19,7 +19,7 @@ sign-in) and are recorded in the audit trail with your name.
    delta, QC, critical call, comments.
 3. Enter your password and click **Approve**.
 
-The middleware refuses to approve when:
+LabTrack refuses to approve when:
 
 * the result has not been reviewed (use **Mark reviewed** first; with the
   two-person rule on, someone else must have reviewed it);
@@ -90,7 +90,7 @@ when. The letterhead is set by an admin under
 
 ## The lab's clinical settings
 
-The middleware ships with **no** limits, ranges, rules or targets: every
+LabTrack ships with **no** limits, ranges, rules or targets: every
 value is entered by the lab, from its own documents, and each needs a
 **Source** (the lab policy, insert or validation report, with its version).
 To change one, add the new one and retire the old one; both stay in the

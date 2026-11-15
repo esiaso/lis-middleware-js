@@ -84,8 +84,8 @@ const LOGIN_REFUSED: Record<Exclude<LoginResult, { ok: true }>['reason'], string
   invalid: 'Wrong username or password.',
   locked: 'This account is locked for 15 minutes after too many failed attempts.',
   unavailable: 'The hospital directory cannot be reached, so directory accounts cannot sign in. Try again, or use a local account.',
-  'no-role': 'Your hospital account is not in any directory group that has access to the lab middleware. Ask IT or the lab manager.',
-  disabled: 'This account is disabled in the lab middleware. Ask an administrator.',
+  'no-role': 'Your hospital account is not in any directory group that has access to LabTrack. Ask IT or the lab manager.',
+  disabled: 'This account is disabled in LabTrack. Ask an administrator.',
   'name-taken': 'A local account already has your username, so the hospital sign-in cannot use it. Ask an administrator.',
   'bad-name': 'Your hospital username cannot be used here. Ask IT.',
 };
